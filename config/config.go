@@ -2,20 +2,19 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
 
-	"github.com/labstack/gommon/log"
 	"github.com/spf13/viper"
-	"github.com/ziflex/lecho/v2"
 )
 
-//Logger is global since we will need it everywhere
-var Logger *lecho.Logger
+// Logger is global since we will need it everywhere
+var Logger *slog.Logger
 
-//ServerConfig contains all of the server settings defined in the TOML file
+// ServerConfig contains all of the server settings defined in the TOML file
 type ServerConfig struct {
 	StormID              int `storm:"id"`
 	ListenAddrIP         string
@@ -31,7 +30,6 @@ type ServerConfig struct {
 	ClientUsername       string
 	ClientPassword       string
 	PushBulletToken      string `json:"-"`
-	MagickPath           string
 	TesseractPath        string
 	UseReverseProxy      bool
 	BaseURL              string
@@ -39,7 +37,7 @@ type ServerConfig struct {
 	FrontEndConfig
 }
 
-//FrontEndConfig stores all of the frontend settings
+// FrontEndConfig stores all of the frontend settings
 type FrontEndConfig struct {
 	NewDocumentNumber int
 	ServerAPIURL      string
@@ -56,8 +54,8 @@ func defaultConfig() ServerConfig { //TODO: Do I even bother, if config fails mo
 	return ServerConfigDefault
 }
 
-//SetupServer does the initial configuration
-func SetupServer() (ServerConfig, *lecho.Logger) {
+// SetupServer does the initial configuration
+func SetupServer() (ServerConfig, *slog.Logger) {
 	var serverConfigLive ServerConfig
 	viper.AddConfigPath("config/")
 	viper.AddConfigPath(".")
@@ -70,10 +68,10 @@ func SetupServer() (ServerConfig, *lecho.Logger) {
 	ingressDir := filepath.ToSlash(viper.GetString("ingress.IngressPath")) //Converting the string literal into a filepath
 	ingressDirAbs, err := filepath.Abs(ingressDir)                         //Converting to an absolute file path
 	if err != nil {
-		logger.Error("Failed creating absolute path for ingress directory", err)
+		logger.Error("Failed creating absolute path for ingress directory", "error", err)
 	}
 	serverConfigLive.IngressPath = ingressDirAbs
-	logger.Infof("Base Logger is setup, will switch to echo logger after config complete!")
+	logger.Info("Base Logger is setup!")
 	serverConfigLive.ListenAddrPort = viper.GetString("serverConfig.ServerPort")
 	serverConfigLive.ListenAddrIP = viper.GetString("serverConfig.ServerAddr")
 	serverConfigLive.IngressInterval = viper.GetInt("ingress.scheduling.IngressInterval")
@@ -82,7 +80,7 @@ func SetupServer() (ServerConfig, *lecho.Logger) {
 	ingressMoveFolder := filepath.ToSlash(viper.GetString("ingress.completed.IngressMoveFolder"))
 	ingressMoveFolderABS, err := filepath.Abs(ingressMoveFolder)
 	if err != nil {
-		logger.Error("Failed creating absolute path for ingress move folder", err)
+		logger.Error("Failed creating absolute path for ingress move folder", "error", err)
 	}
 	serverConfigLive.IngressMoveFolder = ingressMoveFolderABS
 	os.MkdirAll(ingressMoveFolderABS, os.ModePerm) //creating the directory for moving now
@@ -90,23 +88,29 @@ func SetupServer() (ServerConfig, *lecho.Logger) {
 	documentPathRelative := filepath.ToSlash(viper.GetString("documentLibrary.DocumentFileSystemLocation"))
 	serverConfigLive.DocumentPath, err = filepath.Abs(documentPathRelative)
 	if err != nil {
-		logger.Error("Failed creating absolute path for document library", err)
+		logger.Error("Failed creating absolute path for document library", "error", err)
 	}
 	newDocumentPath := filepath.ToSlash(viper.GetString("documentLibrary.DefaultNewDocumentFolder"))
 	serverConfigLive.NewDocumentFolderRel = newDocumentPath
 	serverConfigLive.NewDocumentFolder = filepath.Join(serverConfigLive.DocumentPath, newDocumentPath)
-	serverConfigLive.MagickPath, err = filepath.Abs(filepath.ToSlash(viper.GetString("ocr.MagickBin")))
-	if err != nil {
-		logger.Error("Failed creating absolute path for magick binary", err)
-	}
-	serverConfigLive.TesseractPath, err = filepath.Abs(filepath.ToSlash(viper.GetString("ocr.TesseractBin")))
-	if err != nil {
-		logger.Error("Failed creating absolute path for tesseract binary", err)
-	}
-	logger.Info("Checking executable paths...")
-	err = checkExecutables(serverConfigLive.MagickPath, serverConfigLive.TesseractPath)
-	if err != nil {
-		logger.Error("An executable failed, will continue but most likely OCR will not work...")
+	tesseractPathConfig := viper.GetString("ocr.TesseractBin")
+	if tesseractPathConfig != "" {
+		serverConfigLive.TesseractPath, err = filepath.Abs(filepath.ToSlash(tesseractPathConfig))
+		if err != nil {
+			logger.Warn("Failed creating absolute path for tesseract binary, OCR will be disabled", "error", err)
+			serverConfigLive.TesseractPath = ""
+		} else {
+			logger.Info("Checking tesseract executable path...")
+			err = checkExecutables(serverConfigLive.TesseractPath, logger)
+			if err != nil {
+				logger.Warn("Tesseract executable not found, OCR will be disabled", "path", serverConfigLive.TesseractPath)
+				serverConfigLive.TesseractPath = ""
+			} else {
+				logger.Info("Tesseract found and validated, OCR enabled", "path", serverConfigLive.TesseractPath)
+			}
+		}
+	} else {
+		logger.Info("No Tesseract path configured, OCR will be disabled")
 	}
 	serverConfigLive.UseReverseProxy = viper.GetBool("reverseProxy.ProxyEnabled")
 	serverConfigLive.BaseURL = viper.GetString("reverseProxy.BaseURL")
@@ -116,7 +120,7 @@ func SetupServer() (ServerConfig, *lecho.Logger) {
 	return serverConfigLive, logger
 }
 
-func setupFrontEnd(serverConfigLive ServerConfig, logger *lecho.Logger) FrontEndConfig {
+func setupFrontEnd(serverConfigLive ServerConfig, logger *slog.Logger) FrontEndConfig {
 	var frontEndConfigLive FrontEndConfig
 	var frontEndURL string
 	frontEndConfigLive.NewDocumentNumber = viper.GetInt("frontend.NewDocumentNumber") //number of new documents to display //TODO: maybe not using this...
@@ -131,7 +135,7 @@ func setupFrontEnd(serverConfigLive ServerConfig, logger *lecho.Logger) FrontEnd
 			if serverConfigLive.ListenAddrIP == "" { //If no IP listed attempt to discover the default IP addr
 				ipAddr, err := getDefaultIP(logger)
 				if err != nil {
-					logger.Error("WARNING! Unable to determine default IP, frontend-config.js may need to be manually modified for goEDMS to work! ", err)
+					logger.Error("WARNING! Unable to determine default IP, frontend-config.js may need to be manually modified for goEDMS to work!", "error", err)
 					frontEndURL = fmt.Sprintf("http://%s:%s", serverConfigLive.ListenAddrIP, serverConfigLive.ListenAddrPort)
 				} else {
 					frontEndURL = fmt.Sprintf("http://%s:%s", *ipAddr, serverConfigLive.ListenAddrPort)
@@ -142,46 +146,46 @@ func setupFrontEnd(serverConfigLive ServerConfig, logger *lecho.Logger) FrontEnd
 
 		}
 	}
-	var frontEndJS = fmt.Sprintf(`window['runConfig'] = { 
+	var frontEndJS = fmt.Sprintf(`window['runConfig'] = {
 		apiUrl: "%s"
 	}`, frontEndURL) //Creating the react API file so the frontend will connect with the backend
-	err := ioutil.WriteFile("public/built/frontend-config.js", []byte(frontEndJS), 0644)
+	err := os.WriteFile("public/built/frontend-config.js", []byte(frontEndJS), 0644)
 	if err != nil {
-		logger.Fatal("Error writing frontend config to public/built/frontend-config.js", err)
+		logger.Error("Error writing frontend config to public/built/frontend-config.js", "error", err)
+		os.Exit(1)
 	}
 	return frontEndConfigLive
 }
 
-func getDefaultIP(logger *lecho.Logger) (*string, error) {
+func getDefaultIP(logger *slog.Logger) (*string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80") //attempting to determine the default IP by connecting out
 	if err != nil {
-		logger.Error("Error discovering Local IP! Either network connection error (outbound connection is used to determine default IP) or error determining default IP!", err)
+		logger.Error("Error discovering Local IP! Either network connection error (outbound connection is used to determine default IP) or error determining default IP!", "error", err)
 		return nil, err
 	}
 	defer conn.Close()
 	localaddr := conn.LocalAddr().(*net.UDPAddr).IP.String()
-	logger.Info("Local IP Determined: ", localaddr)
+	logger.Info("Local IP Determined", "ip", localaddr)
 	return &localaddr, nil
 }
 
-func setupLogging() *lecho.Logger {
+func setupLogging() *slog.Logger {
 	logLevelString := viper.GetString("logging.Level")
-	var loglevel log.Lvl
-	switch logLevelString { //Options = Debug 0, Info 1, Warn 2, Error 3, Fatal 4, Panic 5
-	case "Off", "off":
-		loglevel = log.OFF
-	case "Error", "error":
-		loglevel = log.ERROR
-	case "Warn", "warn":
-		loglevel = log.WARN
-	case "Info", "info":
-		loglevel = log.INFO
+	var loglevel slog.Level
+	switch logLevelString {
 	case "Debug", "debug":
-		loglevel = log.DEBUG
+		loglevel = slog.LevelDebug
+	case "Info", "info":
+		loglevel = slog.LevelInfo
+	case "Warn", "warn":
+		loglevel = slog.LevelWarn
+	case "Error", "error":
+		loglevel = slog.LevelError
 	default:
-		loglevel = log.WARN
+		loglevel = slog.LevelWarn
 	}
-	var logWriter *os.File
+
+	var logWriter io.Writer
 	logOutput := viper.GetString("logging.OutputPath")
 	if logOutput == "file" {
 		logPath, err := filepath.Abs(filepath.ToSlash(viper.GetString("logging.LogFileLocation")))
@@ -192,33 +196,30 @@ func setupLogging() *lecho.Logger {
 		logFile, err := os.Create(logPath)
 		if err != nil {
 			fmt.Println("Unable to create log file: ", err)
-			return nil
+			logWriter = os.Stdout
+		} else {
+			logWriter = logFile
+			fmt.Println("Logging to file: ", logPath)
 		}
-		logWriter = logFile
-		fmt.Println("Logging to file: ", logPath)
-	} else { //TODO: this technically catches EVERYTHING that doesn't say "file"
+	} else {
 		logWriter = os.Stdout
 		fmt.Println("Will be logging to stdout...")
 	}
 
-	logger := lecho.New(
-		logWriter,
-		lecho.WithLevel(loglevel),
-		lecho.WithTimestamp(),
-	)
+	opts := &slog.HandlerOptions{
+		Level: loglevel,
+	}
+	handler := slog.NewTextHandler(logWriter, opts)
+	logger := slog.New(handler)
 	return logger
 }
 
-func checkExecutables(magickPath string, tesseractPath string) error { //TODO: run test commands?
-	_, err := os.Stat(magickPath)
+func checkExecutables(tesseractPath string, logger *slog.Logger) error {
+	_, err := os.Stat(tesseractPath)
 	if err != nil {
-		Logger.Error("Cannot find magick executable at location specified: ", magickPath)
+		logger.Error("Cannot find tesseract executable at location specified", "path", tesseractPath)
 		return err
 	}
-	_, err = os.Stat(tesseractPath)
-	if err != nil {
-		Logger.Error("Cannot find tesseractPath executable at location specified: ", tesseractPath)
-		return err
-	}
+	logger.Debug("Tesseract executable found", "path", tesseractPath)
 	return nil
 }

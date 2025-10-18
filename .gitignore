@@ -4,15 +4,18 @@ simpleEDMSIndex.bleve
 temp
 documents
 done
-goEDMS.db
 public/node_modules
 public/dist
 dist
 public/built/frontend-config.*
 database.txt
-goEDMS.db.lock
 .devcontainer
 .vscode
 notes.txt
 databases
 staging
+
+# goEDMS bits
+goedms.log
+goEDMS.db.lock
+goEDMS.db

@@ -1,0 +1,168 @@
+version: '3'
+
+vars:
+  BINARY_NAME: goedms
+  BUILD_DIR: ./build
+  FRONTEND_DIR: ./public
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  # Development tasks
+  dev:
+    desc: Run the application locally (backend only)
+    cmds:
+      - go run main.go
+
+  dev:full:
+    desc: Run the full application (backend and frontend dev server)
+    deps: [frontend:install]
+    cmds:
+      - echo "Starting backend and frontend..."
+      - |
+        go run main.go &
+        BACKEND_PID=$!
+        cd {{.FRONTEND_DIR}} && npm start &
+        FRONTEND_PID=$!
+        trap "kill $BACKEND_PID $FRONTEND_PID" EXIT
+        wait
+
+  # Test tasks
+  test:
+    desc: Run all Go tests
+    cmds:
+      - go test -v ./...
+
+  test:coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - go test -v -cover -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "Coverage report generated at coverage.html"
+
+  test:race:
+    desc: Run tests with race detector
+    cmds:
+      - go test -race -v ./...
+
+  # Build tasks
+  build:
+    desc: Build the application
+    deps: [frontend:build]
+    cmds:
+      - echo "Building backend..."
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} main.go
+      - echo "Build complete! Binary at {{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  build:backend:
+    desc: Build only the backend
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} main.go
+
+  # Frontend tasks
+  frontend:install:
+    desc: Install frontend dependencies
+    dir: "{{.FRONTEND_DIR}}"
+    sources:
+      - package.json
+    cmds:
+      - npm install
+
+  frontend:build:
+    desc: Build the frontend
+    deps: [frontend:install]
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm run build
+
+  frontend:dev:
+    desc: Run frontend development server
+    deps: [frontend:install]
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - npm start
+
+  # Cleanup tasks
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf {{.BUILD_DIR}}
+      - rm -f coverage.out coverage.html
+      - echo "Cleaned build artifacts"
+
+  clean:all:
+    desc: Clean all generated files including node_modules
+    cmds:
+      - task: clean
+      - rm -rf {{.FRONTEND_DIR}}/node_modules
+      - rm -rf {{.FRONTEND_DIR}}/built
+      - echo "Cleaned all generated files"
+
+  # Dependency management
+  deps:install:
+    desc: Install all dependencies (Go modules and npm packages)
+    cmds:
+      - echo "Installing Go dependencies..."
+      - go mod download
+      - echo "Installing frontend dependencies..."
+      - task: frontend:install
+
+  deps:update:
+    desc: Update dependencies
+    cmds:
+      - echo "Updating Go dependencies..."
+      - go get -u ./...
+      - go mod tidy
+      - echo "Updating frontend dependencies..."
+      - cd {{.FRONTEND_DIR}} && npm update
+
+  deps:tidy:
+    desc: Tidy Go module dependencies
+    cmds:
+      - go mod tidy
+
+  # Code quality tasks
+  fmt:
+    desc: Format Go code
+    cmds:
+      - go fmt ./...
+
+  lint:
+    desc: Run Go linter (requires golangci-lint)
+    cmds:
+      - golangci-lint run ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  # Docker tasks
+  docker:build:
+    desc: Build Docker image
+    cmds:
+      - docker build -t goedms:latest .
+
+  docker:run:
+    desc: Run Docker container
+    cmds:
+      - docker run -p 8000:8000 goedms:latest
+
+  # Utility tasks
+  run:
+    desc: Build and run the application
+    cmds:
+      - task: build
+      - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  check:
+    desc: Run all checks (fmt, vet, test)
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: test

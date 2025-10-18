@@ -8,30 +8,36 @@ import (
 	"github.com/deranjer/goEDMS/database"
 )
 
-//StartupChecks performs all the checks to make sure everything works
+// StartupChecks performs all the checks to make sure everything works
 func (serverHandler *ServerHandler) StartupChecks() error {
 	serverConfig, err := database.FetchConfigFromDB(serverHandler.DB)
 	if err != nil {
-		Logger.Error("Error fetching config:", err)
+		Logger.Error("Error fetching config", "error", err)
 		return err
 	}
-	magickChecks(serverConfig)
+	tesseractChecks(serverConfig)
 	return nil
 }
 
-func magickChecks(serverConfig config.ServerConfig) error {
-	magickInfo, err := os.Stat(serverConfig.MagickPath)
+func tesseractChecks(serverConfig config.ServerConfig) error {
+	if serverConfig.TesseractPath == "" {
+		Logger.Info("Tesseract not configured, OCR functionality will be unavailable")
+		return nil
+	}
+
+	tesseractInfo, err := os.Stat(serverConfig.TesseractPath)
 	if err != nil {
-		Logger.Fatal("Err finding Magick executable (required):", err)
-		return err
+		Logger.Warn("Tesseract executable not found, OCR will be disabled", "path", serverConfig.TesseractPath, "error", err)
+		return nil // Don't return error, just continue without OCR
 	}
-	if magickInfo.IsDir() {
-		Logger.Fatal("Magick path ends in a directory, not executable:", err)
-		return err
+	if tesseractInfo.IsDir() {
+		Logger.Warn("Tesseract path is a directory, not an executable, OCR will be disabled", "path", serverConfig.TesseractPath)
+		return nil // Don't return error, just continue without OCR
 	}
-	fmt.Println("Perms: ", magickInfo.Mode())
-	if magickInfo.Mode() == 0111 {
-		fmt.Println("Mode is exectuable?", magickInfo.Mode())
+	fmt.Println("Tesseract Perms: ", tesseractInfo.Mode())
+	if tesseractInfo.Mode() == 0111 {
+		fmt.Println("Mode is executable?", tesseractInfo.Mode())
 	}
+	Logger.Info("Tesseract executable found and validated, OCR enabled", "path", serverConfig.TesseractPath)
 	return nil
 }

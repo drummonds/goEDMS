@@ -2,7 +2,7 @@ package engine
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,16 +10,15 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/asdine/storm"
 	"github.com/blevesearch/bleve"
 	"github.com/deranjer/goEDMS/config"
 	"github.com/deranjer/goEDMS/database"
 	"github.com/labstack/echo/v4"
 )
 
-//ServerHandler will inject the variables needed into routes
+// ServerHandler will inject the variables needed into routes
 type ServerHandler struct {
-	DB           *storm.DB
+	DB           database.DBInterface
 	SearchDB     bleve.Index
 	Echo         *echo.Echo
 	ServerConfig config.ServerConfig
@@ -58,7 +57,7 @@ type fileTreeStruct struct {
 	FileURL     string   `json:"fileURL"`
 }
 
-//AddDocumentViewRoutes adds all of the current documents to an echo route
+// AddDocumentViewRoutes adds all of the current documents to an echo route
 func (serverHandler *ServerHandler) AddDocumentViewRoutes() error {
 	documents, err := database.FetchAllDocuments(serverHandler.DB)
 	if err != nil {
@@ -71,7 +70,7 @@ func (serverHandler *ServerHandler) AddDocumentViewRoutes() error {
 	return nil
 }
 
-//DeleteFile deletes a folder or file from the database (and all children if folder) (and on disc and from bleve search if document)
+// DeleteFile deletes a folder or file from the database (and all children if folder) (and on disc and from bleve search if document)
 func (serverHandler *ServerHandler) DeleteFile(context echo.Context) error {
 	var err error
 	params := context.QueryParams()
@@ -89,41 +88,41 @@ func (serverHandler *ServerHandler) DeleteFile(context echo.Context) error {
 
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		Logger.Error("Unable to get information for file: ", path, err)
+		Logger.Error("Unable to get information for file", "path", path, "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
 	if fileInfo.IsDir() { //If a directory, just delete it and all children
 		err = DeleteFile(path)
 		if err != nil {
-			Logger.Error("Unable to delete folder from document filesystem ", path, err)
+			Logger.Error("Unable to delete folder from document filesystem", "path", path, "error", err)
 			return context.JSON(http.StatusInternalServerError, err)
 		}
 		return context.JSON(http.StatusOK, "Folder Deleted")
 	}
 	document, _, err := database.FetchDocument(ulidStr, serverHandler.DB)
 	if err != nil {
-		Logger.Error("Unable to delete folder from document filesystem ", path, err)
+		Logger.Error("Unable to delete folder from document filesystem", "path", path, "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
 	err = database.DeleteDocument(ulidStr, serverHandler.DB)
 	if err != nil {
-		Logger.Error("Unable to delete document from database: ", document.Name, err)
+		Logger.Error("Unable to delete document from database", "name", document.Name, "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
 	err = DeleteFile(document.Path)
 	if err != nil {
-		Logger.Error("Unable to delete document from file system: ", document.Path, err)
+		Logger.Error("Unable to delete document from file system", "path", document.Path, "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
 	err = database.DeleteDocumentFromSearch(document, serverHandler.SearchDB)
 	if err != nil {
-		Logger.Error("Unable to delete document from bleve search: ", document.Path, err)
+		Logger.Error("Unable to delete document from bleve search", "path", document.Path, "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
 	return context.JSON(http.StatusOK, "Document Deleted")
 }
 
-//UploadDocuments handles documents uploaded from the frontend
+// UploadDocuments handles documents uploaded from the frontend
 func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error {
 	request := context.Request()
 	uploadPath := request.FormValue("path")
@@ -140,23 +139,23 @@ func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error 
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(filepath.Dir(path), os.ModePerm)
 			if err != nil {
-				Logger.Errorf("Unable to create filepath for upload: %s %s ", err, path)
+				Logger.Error("Unable to create filepath for upload", "path", path, "error", err)
 				return err
 			}
 		}
 	}
-	Logger.Debug("Creating path for file upload to ingress: ", filepath.Dir(path))
-	body, err := ioutil.ReadAll(file) //get the file, write it to the filesystem
-	err = ioutil.WriteFile(path, body, 0644)
+	Logger.Debug("Creating path for file upload to ingress", "dir", filepath.Dir(path))
+	body, err := io.ReadAll(file) //get the file, write it to the filesystem
+	err = os.WriteFile(path, body, 0644)
 	if err != nil {
-		Logger.Errorf("Unable to write uploaded file: %s : %s", path, err)
+		Logger.Error("Unable to write uploaded file", "path", path, "error", err)
 		return err
 	}
 	serverHandler.ingressDocument(path, "upload") //ingress the document into the database
 	return context.JSON(http.StatusOK, path)
 }
 
-//MoveDocuments will accept an API call from the frontend to move a document or documents
+// MoveDocuments will accept an API call from the frontend to move a document or documents
 func (serverHandler *ServerHandler) MoveDocuments(context echo.Context) error {
 	var docIDs url.Values
 	var newFolder string
@@ -167,20 +166,20 @@ func (serverHandler *ServerHandler) MoveDocuments(context echo.Context) error {
 	for _, docID := range docIDs["id"] { //fetching all the needed documents
 		//document, httpStatus, err := database.FetchDocument(docID, serverHandler.DB)
 		//if err != nil {
-		//	Logger.Error("GetDocument API call failed (MoveDocuments): ", err)
+		//	Logger.Error("GetDocument API call failed (MoveDocuments)", "error", err)
 		//	return context.JSON(httpStatus, err)
 		//}
 		//foundDocuments = append(foundDocuments, document)
 		httpStatus, err := database.UpdateDocumentField(docID, "Folder", newFolder, serverHandler.DB)
 		if err != nil {
-			Logger.Error("GetDocument API call failed (MoveDocuments): ", err)
+			Logger.Error("GetDocument API call failed (MoveDocuments)", "error", err)
 			return context.JSON(httpStatus, err)
 		}
 	}
 	return context.JSON(http.StatusOK, "Ok")
 }
 
-//SearchDocuments will take the search terms and search all documents
+// SearchDocuments will take the search terms and search all documents
 func (serverHandler *ServerHandler) SearchDocuments(context echo.Context) error {
 	searchParams := context.QueryParams()
 	searchTerm := searchParams.Get("term")
@@ -192,53 +191,53 @@ func (serverHandler *ServerHandler) SearchDocuments(context echo.Context) error 
 	var err error
 	for _, char := range searchTerm { //TODO, right now both phrase and single term go to same place
 		if unicode.IsSpace(char) { //if there is a space in the result, do a phrase search
-			Logger.Debug("Found space in search term, converting to phrase: ", searchTerm)
+			Logger.Debug("Found space in search term, converting to phrase", "searchTerm", searchTerm)
 			phraseSearch = true
 			searchResults, err = SearchGeneralPhrase(searchTerm, serverHandler.SearchDB)
 			if err != nil {
-				Logger.Error("Search failed: ", err)
+				Logger.Error("Search failed", "error", err)
 				return context.JSON(http.StatusInternalServerError, err)
 			}
 		}
 	}
 	if !phraseSearch { //if no space found in search term
-		Logger.Debug("Performing Single Term Search: ", searchTerm)
+		Logger.Debug("Performing Single Term Search", "searchTerm", searchTerm)
 		searchResults, err = SearchGeneralPhrase(searchTerm, serverHandler.SearchDB)
 		if err != nil {
-			Logger.Error("Search returned an error! ", err, searchTerm)
+			Logger.Error("Search returned an error", "error", err, "searchTerm", searchTerm)
 			return context.JSON(http.StatusInternalServerError, err)
 		}
 	}
 	if searchResults.Total == 0 {
-		Logger.Info("Search returned no results! ", searchTerm)
+		Logger.Info("Search returned no results", "searchTerm", searchTerm)
 		return context.JSON(http.StatusNoContent, nil)
 	}
 	documents, err := ParseSearchResults(searchResults, serverHandler.DB)
 	if err != nil {
-		Logger.Error("Unable to convert results to documents! ", err)
+		Logger.Error("Unable to convert results to documents", "error", err)
 		return context.JSON(http.StatusInternalServerError, err)
 	}
 	fullResults, err := convertDocumentsToFileTree(documents)
 	if err != nil {
-		Logger.Error("Unable to get documents from search: ", err)
+		Logger.Error("Unable to get documents from search", "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
 	return context.JSON(http.StatusOK, fullResults)
 }
 
-//GetDocument will return a document by ULID
+// GetDocument will return a document by ULID
 func (serverHandler *ServerHandler) GetDocument(context echo.Context) error {
 	ulidStr := context.Param("id")
 	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
 	if err != nil {
-		Logger.Error("GetDocument API call failed: ", err)
+		Logger.Error("GetDocument API call failed", "error", err)
 		return context.JSON(httpStatus, err)
 	}
 	return context.JSON(httpStatus, document)
 
 }
 
-//GetDocumentFileSystem will scan the document folder and get the complete tree to send to the frontend
+// GetDocumentFileSystem will scan the document folder and get the complete tree to send to the frontend
 func (serverHandler *ServerHandler) GetDocumentFileSystem(context echo.Context) error {
 	fileSystem, err := fileTree(serverHandler.ServerConfig.DocumentPath, serverHandler.DB)
 	if err != nil {
@@ -290,7 +289,7 @@ func convertDocumentsToFileTree(documents []database.Document) (fullFileTree *[]
 	return &fileTree, nil
 }
 
-func fileTree(rootPath string, db *storm.DB) (fileTree *fullFileSystem, err error) {
+func fileTree(rootPath string, db database.DBInterface) (fileTree *fullFileSystem, err error) {
 	absRoot, err := filepath.Abs(rootPath)
 	if err != nil {
 		return nil, err
@@ -356,7 +355,7 @@ func fileTree(rootPath string, db *storm.DB) (fileTree *fullFileSystem, err erro
 }
 
 func getChildrenIDs(rootPath string) (*[]string, error) {
-	results, err := ioutil.ReadDir(rootPath)
+	results, err := os.ReadDir(rootPath)
 	if err != nil {
 		return nil, err
 	}
@@ -368,34 +367,34 @@ func getChildrenIDs(rootPath string) (*[]string, error) {
 
 }
 
-//GetLatestDocuments gets the latest documents that were ingressed
+// GetLatestDocuments gets the latest documents that were ingressed
 func (serverHandler *ServerHandler) GetLatestDocuments(context echo.Context) error {
 	serverConfig, err := database.FetchConfigFromDB(serverHandler.DB)
 	if err != nil {
-		Logger.Error("Unable to pull config from database for GetLatestDocuments", err)
+		Logger.Error("Unable to pull config from database for GetLatestDocuments", "error", err)
 	}
 	newDocuments, err := database.FetchNewestDocuments(serverConfig.FrontEndConfig.NewDocumentNumber, serverHandler.DB)
 	if err != nil {
-		Logger.Error("Can't find latest documents, might not have any: ", err)
+		Logger.Error("Can't find latest documents, might not have any", "error", err)
 		return err
 	}
 	return context.JSON(http.StatusOK, newDocuments)
 }
 
-//GetFolder fetches all the documents in the folder
+// GetFolder fetches all the documents in the folder
 func (serverHandler *ServerHandler) GetFolder(context echo.Context) error {
 	folderName := context.Param("folder")
 
 	folderContents, err := database.FetchFolder(folderName, serverHandler.DB)
 	if err != nil {
-		Logger.Error("API GetFolder call failed: ", err)
+		Logger.Error("API GetFolder call failed", "error", err)
 		return err
 	}
 	return context.JSON(http.StatusOK, folderContents)
 
 }
 
-//CreateFolder creates a folder in the document tree
+// CreateFolder creates a folder in the document tree
 func (serverHandler *ServerHandler) CreateFolder(context echo.Context) error {
 	params := context.QueryParams()
 	folderName := params.Get("folder")
@@ -406,7 +405,7 @@ func (serverHandler *ServerHandler) CreateFolder(context echo.Context) error {
 	fmt.Println("fullfolder: ", fullFolder, " folderName: ", folderName, "Path: ", folderPath)
 	err := os.Mkdir(fullFolder, os.ModePerm)
 	if err != nil {
-		Logger.Error("Unable to create directory: ", err)
+		Logger.Error("Unable to create directory", "error", err)
 		return err
 	}
 	serverHandler.GetDocumentFileSystem(context)
@@ -467,7 +466,7 @@ func (serverHandler *ServerHandler) CreateFolder(context echo.Context) error {
 		if !info.IsDir() {
 			document, err = database.FetchDocumentFromPath(path, db)
 			if err != nil {
-				Logger.Error("Unable to fetch document: ", err, path)
+				Logger.Error("Unable to fetch document", "path", path, "error", err)
 			}
 		}
 

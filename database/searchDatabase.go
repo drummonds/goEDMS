@@ -7,7 +7,7 @@ import (
 	"github.com/blevesearch/bleve"
 )
 
-//SetupSearchDB sets up new bleve or opens existing
+// SetupSearchDB sets up new bleve or opens existing
 func SetupSearchDB() (bleve.Index, error) {
 	mapping := bleve.NewIndexMapping()
 	var index bleve.Index

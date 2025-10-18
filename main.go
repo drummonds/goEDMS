@@ -2,22 +2,22 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/labstack/gommon/log"
-	"github.com/ziflex/lecho/v2"
 
 	config "github.com/deranjer/goEDMS/config"
 	database "github.com/deranjer/goEDMS/database"
 	engine "github.com/deranjer/goEDMS/engine"
 )
 
-//Logger is global since we will need it everywhere
-var Logger *lecho.Logger
+// Logger is global since we will need it everywhere
+var Logger *slog.Logger
 
-//injectGlobals injects all of our globals into their packages
-func injectGlobals(logger *lecho.Logger) {
+// injectGlobals injects all of our globals into their packages
+func injectGlobals(logger *slog.Logger) {
 	Logger = logger
 	database.Logger = Logger
 	config.Logger = Logger
@@ -30,7 +30,8 @@ func main() {
 	db := database.SetupDatabase()
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
-		Logger.Fatal("Unable to setup index database", err)
+		Logger.Error("Unable to setup index database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 	defer searchDB.Close()
@@ -40,12 +41,9 @@ func main() {
 	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig} //injecting the database into the handler for routes
 	serverHandler.InitializeSchedules(db, searchDB)                                                        //initialize all the cron jobs
 	serverHandler.StartupChecks()                                                                          //Run all the sanity checks
-	e.Logger = Logger
-	e.Use(lecho.Middleware(lecho.Config{
-		Logger: logger}))
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 	e.Static("/", "public/built") //serving up the React Frontend
-	log.Info("Logger enabled!!")
+	Logger.Info("Logger enabled!!")
 	//injecting database into the context so we can access it
 	//Start the routes
 	e.GET("/home", serverHandler.GetLatestDocuments)
@@ -60,9 +58,11 @@ func main() {
 	e.GET("/search/*", serverHandler.SearchDocuments)
 
 	if serverConfig.ListenAddrIP == "" {
-		logger.Info("No Ip Addr set, binding on ALL addresses")
+		Logger.Info("No Ip Addr set, binding on ALL addresses")
 	}
-	//e.Logger.Fatal(e.Start(":8000"))
-	e.Logger.Fatal(e.Start(fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)))
+	if err := e.Start(fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)); err != nil {
+		Logger.Error("Failed to start server", "error", err)
+		os.Exit(1)
+	}
 
 }
