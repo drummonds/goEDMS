@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/blevesearch/bleve"
-	database "github.com/deranjer/goEDMS/database"
+	database "github.com/drummonds/goEDMS/database"
 	"github.com/robfig/cron/v3"
 )
 

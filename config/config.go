@@ -85,6 +85,16 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	serverConfigLive.IngressMoveFolder = ingressMoveFolderABS
 	os.MkdirAll(ingressMoveFolderABS, os.ModePerm) //creating the directory for moving now
 	fmt.Println("Ingress Interval: ", serverConfigLive.IngressInterval)
+	fmt.Println("\n========================================")
+	fmt.Println("   goEDMS - Document Management System")
+	fmt.Println("========================================")
+	fmt.Printf("Server will start on: %s:%s\n", serverConfigLive.ListenAddrIP, serverConfigLive.ListenAddrPort)
+	if serverConfigLive.ListenAddrIP == "" {
+		fmt.Println("(Listening on all network interfaces)")
+	}
+	fmt.Println("Detailed logs: goedms.log")
+	fmt.Println("Initializing...")
+	fmt.Println("")
 	documentPathRelative := filepath.ToSlash(viper.GetString("documentLibrary.DocumentFileSystemLocation"))
 	serverConfigLive.DocumentPath, err = filepath.Abs(documentPathRelative)
 	if err != nil {
@@ -131,19 +141,9 @@ func setupFrontEnd(serverConfigLive ServerConfig, logger *slog.Logger) FrontEndC
 	} else {
 		if serverConfigLive.UseReverseProxy { //if using a proxy set the proxy URL
 			frontEndURL = serverConfigLive.BaseURL
-		} else { //If NOT using a proxy determine the IP URL
-			if serverConfigLive.ListenAddrIP == "" { //If no IP listed attempt to discover the default IP addr
-				ipAddr, err := getDefaultIP(logger)
-				if err != nil {
-					logger.Error("WARNING! Unable to determine default IP, frontend-config.js may need to be manually modified for goEDMS to work!", "error", err)
-					frontEndURL = fmt.Sprintf("http://%s:%s", serverConfigLive.ListenAddrIP, serverConfigLive.ListenAddrPort)
-				} else {
-					frontEndURL = fmt.Sprintf("http://%s:%s", *ipAddr, serverConfigLive.ListenAddrPort)
-				}
-			} else { //If IP addr listed then just use that in the IP URL
-				frontEndURL = fmt.Sprintf("http://%s:%s", serverConfigLive.ListenAddrIP, serverConfigLive.ListenAddrPort)
-			}
-
+		} else { //If NOT using a proxy, use relative URLs (empty string) so frontend uses same host it was served from
+			frontEndURL = ""
+			logger.Info("Using relative URLs for API calls (frontend will use same host it was served from)")
 		}
 	}
 	var frontEndJS = fmt.Sprintf(`window['runConfig'] = {

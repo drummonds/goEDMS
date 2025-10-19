@@ -1,4 +1,4 @@
-module github.com/deranjer/goEDMS
+module github.com/drummonds/goEDMS
 
 go 1.24.1
 
@@ -49,6 +49,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
+	github.com/maxence-charriere/go-app/v10 v10.1.7 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
@@ -78,4 +79,4 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-replace github.com/deranjer/goEDMS => ../goEDMS
+replace github.com/drummonds/goEDMS => ../goEDMS

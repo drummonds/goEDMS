@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/deranjer/goEDMS/config"
-	"github.com/deranjer/goEDMS/database"
+	"github.com/drummonds/goEDMS/config"
+	"github.com/drummonds/goEDMS/database"
 )
 
 // StartupChecks performs all the checks to make sure everything works

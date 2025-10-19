@@ -13,9 +13,9 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve"
-	"github.com/deranjer/goEDMS/config"
-	"github.com/deranjer/goEDMS/database"
 	"github.com/disintegration/imaging"
+	"github.com/drummonds/goEDMS/config"
+	"github.com/drummonds/goEDMS/database"
 	"github.com/gen2brain/go-fitz"
 	"github.com/ledongthuc/pdf"
 )

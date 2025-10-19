@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve"
-	config "github.com/deranjer/goEDMS/config"
+	config "github.com/drummonds/goEDMS/config"
 	"github.com/oklog/ulid/v2"
 )
 

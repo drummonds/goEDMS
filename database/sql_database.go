@@ -10,7 +10,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "modernc.org/sqlite"
 
-	config "github.com/deranjer/goEDMS/config"
+	config "github.com/drummonds/goEDMS/config"
 	"github.com/oklog/ulid/v2"
 )
 

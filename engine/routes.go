@@ -11,8 +11,8 @@ import (
 	"unicode"
 
 	"github.com/blevesearch/bleve"
-	"github.com/deranjer/goEDMS/config"
-	"github.com/deranjer/goEDMS/database"
+	"github.com/drummonds/goEDMS/config"
+	"github.com/drummonds/goEDMS/database"
 	"github.com/labstack/echo/v4"
 )
 
@@ -302,6 +302,8 @@ func fileTree(rootPath string, db database.DBInterface) (fileTree *fullFileSyste
 		if err != nil {
 			return err
 		}
+		// Reset currentFile struct for each iteration to avoid data pollution
+		currentFile = fileTreeStruct{}
 		currentFile.Name = info.Name()
 		currentFile.FullPath = path
 

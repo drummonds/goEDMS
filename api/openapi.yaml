@@ -1,0 +1,433 @@
+openapi: 3.0.3
+info:
+  title: goEDMS API
+  description: |
+    REST API for goEDMS - Electronic Document Management System
+
+    This API provides document management capabilities including:
+    - Document upload and retrieval
+    - Full-text search
+    - Folder management
+    - Document filesystem browsing
+  version: 0.1.0
+  contact:
+    name: goEDMS
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: http://{host}:{port}
+    description: Custom server
+    variables:
+      host:
+        default: localhost
+      port:
+        default: '8000'
+
+tags:
+  - name: documents
+    description: Document operations
+  - name: search
+    description: Search operations
+  - name: folders
+    description: Folder management
+
+paths:
+  /home:
+    get:
+      summary: Get latest documents
+      description: Returns the most recently ingested documents
+      tags:
+        - documents
+      operationId: getLatestDocuments
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+        '500':
+          description: Internal server error
+
+  /documents/filesystem:
+    get:
+      summary: Get document filesystem
+      description: Returns the complete document tree structure
+      tags:
+        - documents
+      operationId: getDocumentFileSystem
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSystem'
+        '500':
+          description: Internal server error
+
+  /document/{id}:
+    get:
+      summary: Get document by ID
+      description: Returns a specific document by its ULID
+      tags:
+        - documents
+      operationId: getDocument
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Document ULID
+          schema:
+            type: string
+            example: 01K7WTQXY83JPQRHTXEADHQW4V
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Document not found
+        '500':
+          description: Internal server error
+
+  /document:
+    delete:
+      summary: Delete file or folder
+      description: Deletes a file or folder from the database and filesystem
+      tags:
+        - documents
+      operationId: deleteFile
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: Document ULID
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          description: Relative path to the file/folder
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully deleted
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Document Deleted
+        '404':
+          description: File not found
+        '500':
+          description: Internal server error
+
+  /document/move:
+    patch:
+      summary: Move documents
+      description: Moves one or more documents to a new folder
+      tags:
+        - documents
+      operationId: moveDocuments
+      parameters:
+        - name: folder
+          in: query
+          required: true
+          description: Target folder path
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          description: Document ULID(s) to move
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: Successfully moved
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Ok
+        '404':
+          description: Document not found
+        '500':
+          description: Internal server error
+
+  /document/upload:
+    post:
+      summary: Upload document
+      description: Uploads a new document to the ingress folder
+      tags:
+        - documents
+      operationId: uploadDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                path:
+                  type: string
+                  description: Relative path where to store the file
+      responses:
+        '200':
+          description: Successfully uploaded
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Path where file was saved
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /document/view/{ulid}:
+    get:
+      summary: View document
+      description: Direct access to view/download a document file
+      tags:
+        - documents
+      operationId: viewDocument
+      parameters:
+        - name: ulid
+          in: path
+          required: true
+          description: Document ULID
+          schema:
+            type: string
+            example: 01K7WTQXY83JPQRHTXEADHQW4V
+      responses:
+        '200':
+          description: Document file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Document not found
+
+  /search:
+    get:
+      summary: Search documents
+      description: Full-text search across all documents
+      tags:
+        - search
+      operationId: searchDocuments
+      parameters:
+        - name: term
+          in: query
+          required: true
+          description: Search term or phrase
+          schema:
+            type: string
+            example: invoice
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSystem'
+        '204':
+          description: No results found
+        '404':
+          description: Empty search term
+        '500':
+          description: Internal server error
+
+  /folder/{folder}:
+    get:
+      summary: Get folder contents
+      description: Returns all documents in a specific folder
+      tags:
+        - folders
+      operationId: getFolder
+      parameters:
+        - name: folder
+          in: path
+          required: true
+          description: Folder name/path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Folder contents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+        '404':
+          description: Folder not found
+        '500':
+          description: Internal server error
+
+  /folder:
+    post:
+      summary: Create folder
+      description: Creates a new folder in the document tree
+      tags:
+        - folders
+      operationId: createFolder
+      parameters:
+        - name: folder
+          in: query
+          required: true
+          description: Folder name
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          description: Parent path where to create folder
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Full path to created folder
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    Document:
+      type: object
+      properties:
+        StormID:
+          type: integer
+          description: Internal database ID
+          example: 1
+        Name:
+          type: string
+          description: Document filename
+          example: invoice_2024.pdf
+        Path:
+          type: string
+          description: Full filesystem path to document
+          example: /home/user/goEDMS/documents/invoice_2024.pdf
+        IngressTime:
+          type: string
+          format: date-time
+          description: When document was ingested
+          example: '2025-10-19T00:33:40.936452334+01:00'
+        Folder:
+          type: string
+          description: Folder path containing the document
+          example: /home/user/goEDMS/documents
+        Hash:
+          type: string
+          description: MD5 hash of document
+          example: 4f32ce0b88869c473aff5f4678f1fbb3
+        ULID:
+          type: string
+          description: Unique lexicographically sortable identifier
+          example: 01K7WTQXY83JPQRHTXEADHQW4V
+        DocumentType:
+          type: string
+          description: File extension
+          example: .pdf
+        FullText:
+          type: string
+          description: OCR extracted text content
+        URL:
+          type: string
+          description: URL to view/download document
+          example: /document/view/01K7WTQXY83JPQRHTXEADHQW4V
+
+    FileTreeNode:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for this node
+          example: 01K7WTQXY83JPQRHTXEADHQW4V
+        ulid:
+          type: string
+          description: ULID (for documents)
+          example: 01K7WTQXY83JPQRHTXEADHQW4V
+        name:
+          type: string
+          description: File or folder name
+          example: invoice_2024.pdf
+        size:
+          type: integer
+          format: int64
+          description: File size in bytes
+          example: 110963
+        modDate:
+          type: string
+          description: Last modification date
+          example: '2025-10-19 00:33:40.946496508 +0100 BST'
+        openable:
+          type: boolean
+          description: Whether item can be opened
+          example: true
+        parentID:
+          type: string
+          description: ID of parent folder
+          example: 01K7XWQS813KRPCQ3RR9FC2WVNdocuments
+        isDir:
+          type: boolean
+          description: Whether item is a directory
+          example: false
+        childrenIDs:
+          type: array
+          items:
+            type: string
+          description: IDs of child items (for folders)
+          nullable: true
+        fullPath:
+          type: string
+          description: Full filesystem path
+          example: /home/user/goEDMS/documents/invoice_2024.pdf
+        fileURL:
+          type: string
+          description: URL to access file
+          example: /document/view/01K7WTQXY83JPQRHTXEADHQW4V
+
+    FileSystem:
+      type: object
+      properties:
+        fileSystem:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileTreeNode'
+          description: Array of file tree nodes
+        error:
+          type: string
+          description: Error message if any
+          example: ''

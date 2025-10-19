@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -11,9 +12,10 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	config "github.com/deranjer/goEDMS/config"
-	database "github.com/deranjer/goEDMS/database"
-	engine "github.com/deranjer/goEDMS/engine"
+	config "github.com/drummonds/goEDMS/config"
+	database "github.com/drummonds/goEDMS/database"
+	engine "github.com/drummonds/goEDMS/engine"
+	"github.com/drummonds/goEDMS/webapp"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -34,6 +36,28 @@ func TestFrontendRendering(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+
+	// Set a timeout for the entire test
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Use channel to detect if test completes or times out
+	done := make(chan bool)
+	go func() {
+		runFrontendRenderingTest(t)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-ctx.Done():
+		t.Fatal("Test timed out after 10 seconds")
+	}
+}
+
+// runFrontendRenderingTest contains the actual test logic
+func runFrontendRenderingTest(t *testing.T) {
 
 	// Check if any browser is available (Chrome, Chromium, or Firefox)
 	browserPath, err := getBrowser()
@@ -198,6 +222,36 @@ func TestTesseractOptional(t *testing.T) {
 
 // testWithLynx performs a basic connectivity test using lynx text browser
 func testWithLynx(t *testing.T) {
+	// Set a timeout for the test
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	done := make(chan bool)
+	testErr := make(chan error, 1)
+
+	go func() {
+		err := runTestWithLynx(t)
+		if err != nil {
+			testErr <- err
+		}
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		select {
+		case err := <-testErr:
+			t.Fatal(err)
+		default:
+			return
+		}
+	case <-ctx.Done():
+		t.Fatal("Test timed out after 10 seconds")
+	}
+}
+
+// runTestWithLynx contains the actual test logic
+func runTestWithLynx(t *testing.T) error {
 	// Set up the server
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
@@ -243,14 +297,14 @@ func testWithLynx(t *testing.T) {
 	cmd := exec.Command("lynx", "-dump", "-nolist", testURL)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Lynx failed to fetch page: %v, output: %s", err, string(output))
+		return fmt.Errorf("Lynx failed to fetch page: %v, output: %s", err, string(output))
 	}
 
 	outputStr := string(output)
 
 	// Basic checks that the page loaded
 	if len(outputStr) < 10 {
-		t.Errorf("Lynx output too short (%d chars), page may not have loaded", len(outputStr))
+		return fmt.Errorf("Lynx output too short (%d chars), page may not have loaded", len(outputStr))
 	}
 
 	// Check for any error messages in the output
@@ -262,10 +316,41 @@ func testWithLynx(t *testing.T) {
 
 	t.Logf("Lynx test passed! Successfully fetched page (%d chars)", len(outputStr))
 	t.Logf("First 200 chars of output: %s", outputStr[:min(200, len(outputStr))])
+	return nil
 }
 
 // testWithCurl performs a basic connectivity test using curl
 func testWithCurl(t *testing.T) {
+	// Set a timeout for the test
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	done := make(chan bool)
+	testErr := make(chan error, 1)
+
+	go func() {
+		err := runTestWithCurl(t)
+		if err != nil {
+			testErr <- err
+		}
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		select {
+		case err := <-testErr:
+			t.Fatal(err)
+		default:
+			return
+		}
+	case <-ctx.Done():
+		t.Fatal("Test timed out after 10 seconds")
+	}
+}
+
+// runTestWithCurl contains the actual test logic
+func runTestWithCurl(t *testing.T) error {
 	// Set up the server
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
@@ -310,14 +395,14 @@ func testWithCurl(t *testing.T) {
 	cmd := exec.Command("curl", "-s", "-L", testURL)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Curl failed to fetch page: %v, output: %s", err, string(output))
+		return fmt.Errorf("Curl failed to fetch page: %v, output: %s", err, string(output))
 	}
 
 	outputStr := string(output)
 
 	// Basic checks that the page loaded
 	if len(outputStr) < 10 {
-		t.Errorf("Curl output too short (%d chars), page may not have loaded", len(outputStr))
+		return fmt.Errorf("Curl output too short (%d chars), page may not have loaded", len(outputStr))
 	}
 
 	// Check for HTML indicators
@@ -329,11 +414,12 @@ func testWithCurl(t *testing.T) {
 	if strings.Contains(strings.ToLower(outputStr), "404") ||
 		strings.Contains(strings.ToLower(outputStr), "500") ||
 		strings.Contains(strings.ToLower(outputStr), "connection refused") {
-		t.Errorf("Curl output contains error indicators: %s", outputStr[:min(500, len(outputStr))])
+		return fmt.Errorf("Curl output contains error indicators: %s", outputStr[:min(500, len(outputStr))])
 	}
 
 	t.Logf("Curl test passed! Successfully fetched page (%d chars)", len(outputStr))
 	t.Logf("First 200 chars of output: %s", outputStr[:min(200, len(outputStr))])
+	return nil
 }
 
 // min returns the minimum of two integers
@@ -349,6 +435,28 @@ func TestIngressRunsAtStartup(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+
+	// Set a timeout for the entire test
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Use channel to detect if test completes or times out
+	done := make(chan bool)
+	go func() {
+		runIngressStartupTest(t)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-ctx.Done():
+		t.Fatal("Test timed out after 10 seconds")
+	}
+}
+
+// runIngressStartupTest contains the actual test logic
+func runIngressStartupTest(t *testing.T) {
 
 	// Create isolated test directories
 	testDir := t.TempDir()
@@ -516,4 +624,181 @@ startxref
 %%EOF`
 
 	return os.WriteFile(filepath, []byte(pdfContent), 0644)
+}
+
+// TestWasmFileValid tests that the WASM file is valid
+func TestWasmFileValid(t *testing.T) {
+	wasmPath := "web/app.wasm"
+
+	// Check if file exists
+	info, err := os.Stat(wasmPath)
+	if err != nil {
+		t.Fatalf("WASM file not found at %s: %v. Run 'task build:wasm' first.", wasmPath, err)
+	}
+
+	// Check file is not empty
+	if info.Size() == 0 {
+		t.Fatal("WASM file is empty")
+	}
+
+	// Check magic number
+	file, err := os.Open(wasmPath)
+	if err != nil {
+		t.Fatalf("Failed to open WASM file: %v", err)
+	}
+	defer file.Close()
+
+	magicNumber := make([]byte, 4)
+	_, err = file.Read(magicNumber)
+	if err != nil {
+		t.Fatalf("Failed to read WASM magic number: %v", err)
+	}
+
+	// WASM magic number should be: 0x00 0x61 0x73 0x6d ("\0asm")
+	expectedMagic := []byte{0x00, 0x61, 0x73, 0x6d}
+	if !bytes.Equal(magicNumber, expectedMagic) {
+		t.Errorf("Invalid WASM magic number. Got %v, expected %v", magicNumber, expectedMagic)
+		t.Errorf("This usually means the WASM file was not built correctly.")
+		t.Errorf("The file appears to be: %v", string(magicNumber))
+	}
+
+	t.Logf("WASM file is valid: %s (%d bytes)", wasmPath, info.Size())
+}
+
+// TestAppEndpoint tests that the /app endpoint returns a 200 OK response
+func TestAppEndpoint(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Just run the test directly without goroutine/timeout wrapper
+	// The test framework already has timeouts
+	runAppEndpointTest(t)
+}
+
+// runAppEndpointTest contains the actual test logic
+func runAppEndpointTest(t *testing.T) {
+	// Set up the server
+	serverConfig, logger := config.SetupServer()
+	injectGlobals(logger)
+
+	db := database.SetupDatabase()
+	searchDB, err := database.SetupSearchDB()
+	if err != nil {
+		t.Skipf("Unable to setup index database (may be locked): %v", err)
+	}
+	defer db.Close()
+	defer searchDB.Close()
+
+	database.WriteConfigToDB(serverConfig, db)
+
+	e := echo.New()
+	e.HideBanner = true
+	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitializeSchedules(db, searchDB)
+	serverHandler.StartupChecks()
+	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
+
+	// Set up the /app route exactly as in main.go
+	appHandler := webapp.Handler()
+
+	e.GET("/wasm_exec.js", func(c echo.Context) error {
+		return c.File("web/wasm_exec.js")
+	})
+
+	e.GET("/app.js", echo.WrapHandler(appHandler))
+	e.GET("/app.css", echo.WrapHandler(appHandler))
+	e.GET("/manifest.webmanifest", echo.WrapHandler(appHandler))
+
+	e.Any("/app*", echo.WrapHandler(appHandler))
+
+	e.Static("/web", "web")
+	e.File("/webapp/webapp.css", "webapp/webapp.css")
+
+	// Also add React frontend (must be last)
+	e.Static("/", "public/built")
+
+	// Add API routes
+	e.GET("/home", serverHandler.GetLatestDocuments)
+	e.GET("/documents/filesystem", serverHandler.GetDocumentFileSystem)
+
+	// Start server in background
+	testPort := "8996"
+	go func() {
+		if err := e.Start(fmt.Sprintf("127.0.0.1:%s", testPort)); err != nil {
+			t.Logf("Server stopped: %v", err)
+		}
+	}()
+
+	// Give server time to start
+	time.Sleep(2 * time.Second)
+	defer e.Shutdown(context.Background())
+
+	testURL := fmt.Sprintf("http://127.0.0.1:%s/app", testPort)
+	t.Logf("Testing URL: %s", testURL)
+
+	// Use curl to test the endpoint with a timeout
+	cmd := exec.Command("curl", "-s", "-L", "-w", "\n%{http_code}", "--max-time", "5", testURL)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Curl error: %v, output: %s", err, string(output))
+		// Don't fatal here, continue to analyze the output
+	}
+
+	outputStr := string(output)
+	lines := strings.Split(strings.TrimSpace(outputStr), "\n")
+
+	// The last line should be the HTTP status code
+	if len(lines) < 1 {
+		t.Fatalf("No output from curl")
+	}
+
+	statusCode := lines[len(lines)-1]
+	responseBody := strings.Join(lines[:len(lines)-1], "\n")
+
+	t.Logf("HTTP Status Code: %s", statusCode)
+	t.Logf("Response length: %d chars", len(responseBody))
+	t.Logf("First 200 chars: %s", responseBody[:min(200, len(responseBody))])
+
+	// Check if we got a 200 OK
+	if statusCode != "200" {
+		t.Errorf("Expected status code 200, got %s", statusCode)
+	}
+
+	// Check that we got some content back
+	if len(responseBody) < 10 {
+		t.Errorf("Response body too short (%d chars), expected HTML content", len(responseBody))
+	}
+
+	// Check for HTML indicators
+	if !strings.Contains(responseBody, "html") && !strings.Contains(responseBody, "HTML") {
+		t.Logf("Warning: response may not be HTML")
+	}
+
+	// Check that the page doesn't contain the "Go is not defined" error
+	if strings.Contains(responseBody, "Go is not defined") {
+		t.Error("Page contains 'Go is not defined' error - WebAssembly not loading correctly")
+	}
+
+	// Test that wasm_exec.js is accessible at root
+	wasmURL := fmt.Sprintf("http://127.0.0.1:%s/wasm_exec.js", testPort)
+	wasmCmd := exec.Command("curl", "-s", "-L", "-w", "\n%{http_code}", "--max-time", "5", wasmURL)
+	wasmOutput, err := wasmCmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Warning: Could not fetch /wasm_exec.js: %v", err)
+	} else {
+		wasmOutputStr := string(wasmOutput)
+		wasmLines := strings.Split(strings.TrimSpace(wasmOutputStr), "\n")
+		if len(wasmLines) > 0 {
+			wasmStatusCode := wasmLines[len(wasmLines)-1]
+			t.Logf("/wasm_exec.js status code: %s", wasmStatusCode)
+			if wasmStatusCode != "200" {
+				t.Errorf("/wasm_exec.js returned status %s, expected 200", wasmStatusCode)
+			}
+		}
+	}
+
+	if statusCode == "200" && len(responseBody) > 10 {
+		t.Log("/app endpoint test passed!")
+	}
 }

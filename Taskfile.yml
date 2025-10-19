@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 vars:
   BINARY_NAME: goedms
@@ -51,7 +51,7 @@ tasks:
   # Build tasks
   build:
     desc: Build the application
-    deps: [frontend:build]
+    deps: [frontend:build, build:wasm]
     cmds:
       - echo "Building backend..."
       - mkdir -p {{.BUILD_DIR}}
@@ -63,6 +63,20 @@ tasks:
     cmds:
       - mkdir -p {{.BUILD_DIR}}
       - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} main.go
+
+  build:wasm:
+    desc: Build the WebAssembly application
+    cmds:
+      - echo "Building WebAssembly application..."
+      - mkdir -p web
+      - mkdir -p public/built
+      - GOOS=js GOARCH=wasm go build -o web/app.wasm ./cmd/webapp
+      - echo "Copying wasm_exec.js to web/ and public/built/..."
+      - cp /usr/local/go/lib/wasm/wasm_exec.js web/wasm_exec.js || cp $(go env GOROOT)/misc/wasm/wasm_exec.js web/wasm_exec.js
+      - cp web/wasm_exec.js public/built/wasm_exec.js
+      - echo "WebAssembly build complete!"
+      - ls -lh web/
+      - ls -lh public/built/wasm_exec.js
 
   # Frontend tasks
   frontend:install:

@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve"
-	"github.com/deranjer/goEDMS/database"
+	"github.com/drummonds/goEDMS/database"
 )
 
 // SearchExactPhrase is used to search using multiple words instead of just one word  //TODO implement frontend support for exact phrase
