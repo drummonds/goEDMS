@@ -17,9 +17,12 @@ func (a *App) Render() app.UI {
 			app.Header().Body(
 				&NavBar{},
 			),
-			app.Main().Body(
-				app.Div().Class("content").Body(
-					a.renderPage(),
+			app.Div().Class("app-layout").Body(
+				&Sidebar{},
+				app.Main().Class("main-content").Body(
+					app.Div().Class("content").Body(
+						a.renderPage(),
+					),
 				),
 			),
 		)
@@ -28,12 +31,16 @@ func (a *App) Render() app.UI {
 // renderPage renders the current page based on the route
 func (a *App) renderPage() app.UI {
 	switch app.Window().URL().Path {
-	case "/app", "/app/":
+	case "/":
 		return &HomePage{}
-	case "/app/search":
-		return &SearchPage{}
-	case "/app/browse":
+	case "/browse":
 		return &BrowsePage{}
+	case "/ingest":
+		return &IngestPage{}
+	case "/clean":
+		return &CleanPage{}
+	case "/search":
+		return &SearchPage{}
 	default:
 		return &HomePage{}
 	}

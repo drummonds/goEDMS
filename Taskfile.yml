@@ -18,17 +18,11 @@ tasks:
       - go run main.go
 
   dev:full:
-    desc: Run the full application (backend and frontend dev server)
-    deps: [frontend:install]
+    desc: Run the full application (rebuild WASM and start backend)
+    deps: [build:wasm]
     cmds:
-      - echo "Starting backend and frontend..."
-      - |
-        go run main.go &
-        BACKEND_PID=$!
-        cd {{.FRONTEND_DIR}} && npm start &
-        FRONTEND_PID=$!
-        trap "kill $BACKEND_PID $FRONTEND_PID" EXIT
-        wait
+      - echo "Starting backend with WASM frontend..."
+      - go run main.go
 
   # Test tasks
   test:
@@ -51,7 +45,7 @@ tasks:
   # Build tasks
   build:
     desc: Build the application
-    deps: [frontend:build, build:wasm]
+    deps: [build:wasm]
     cmds:
       - echo "Building backend..."
       - mkdir -p {{.BUILD_DIR}}
@@ -78,29 +72,6 @@ tasks:
       - ls -lh web/
       - ls -lh public/built/wasm_exec.js
 
-  # Frontend tasks
-  frontend:install:
-    desc: Install frontend dependencies
-    dir: "{{.FRONTEND_DIR}}"
-    sources:
-      - package.json
-    cmds:
-      - npm install
-
-  frontend:build:
-    desc: Build the frontend
-    deps: [frontend:install]
-    dir: "{{.FRONTEND_DIR}}"
-    cmds:
-      - npm run build
-
-  frontend:dev:
-    desc: Run frontend development server
-    deps: [frontend:install]
-    dir: "{{.FRONTEND_DIR}}"
-    cmds:
-      - npm start
-
   # Cleanup tasks
   clean:
     desc: Clean build artifacts
@@ -110,21 +81,19 @@ tasks:
       - echo "Cleaned build artifacts"
 
   clean:all:
-    desc: Clean all generated files including node_modules
+    desc: Clean all generated files including WASM
     cmds:
       - task: clean
-      - rm -rf {{.FRONTEND_DIR}}/node_modules
-      - rm -rf {{.FRONTEND_DIR}}/built
+      - rm -rf web/
+      - rm -f public/built/wasm_exec.js
       - echo "Cleaned all generated files"
 
   # Dependency management
   deps:install:
-    desc: Install all dependencies (Go modules and npm packages)
+    desc: Install all dependencies (Go modules)
     cmds:
       - echo "Installing Go dependencies..."
       - go mod download
-      - echo "Installing frontend dependencies..."
-      - task: frontend:install
 
   deps:update:
     desc: Update dependencies
@@ -132,8 +101,6 @@ tasks:
       - echo "Updating Go dependencies..."
       - go get -u ./...
       - go mod tidy
-      - echo "Updating frontend dependencies..."
-      - cd {{.FRONTEND_DIR}} && npm update
 
   deps:tidy:
     desc: Tidy Go module dependencies

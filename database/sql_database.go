@@ -23,6 +23,7 @@ type DBInterface interface {
 	GetDocumentByPath(path string) (*Document, error)
 	GetDocumentByHash(hash string) (*Document, error)
 	GetNewestDocuments(limit int) ([]Document, error)
+	GetNewestDocumentsWithPagination(page int, pageSize int) ([]Document, int, error)
 	GetAllDocuments() ([]Document, error)
 	GetDocumentsByFolder(folder string) ([]Document, error)
 	DeleteDocument(ulid string) error
@@ -396,4 +397,35 @@ func scanDocuments(rows *sql.Rows) ([]Document, error) {
 	}
 
 	return documents, rows.Err()
+}
+
+// GetNewestDocumentsWithPagination retrieves documents with pagination support
+func (s *SQLiteDB) GetNewestDocumentsWithPagination(page int, pageSize int) ([]Document, int, error) {
+	// Calculate offset
+	offset := (page - 1) * pageSize
+
+	// Get total count
+	var totalCount int
+	countQuery := `SELECT COUNT(*) FROM documents`
+	err := s.db.QueryRow(countQuery).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated documents
+	query := `SELECT id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url
+	          FROM documents ORDER BY ingress_time DESC LIMIT ? OFFSET ?`
+
+	rows, err := s.db.Query(query, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	docs, err := scanDocuments(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return docs, totalCount, nil
 }

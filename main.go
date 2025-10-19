@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -52,11 +53,10 @@ func main() {
 	Logger.Info("Startup checks complete")
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 
-	// Serve go-app UI at /app
-	Logger.Info("Setting up go-app UI at /app")
+	Logger.Info("Setting up go-app WASM UI")
 	appHandler := webapp.Handler()
 
-	// Serve wasm_exec.js at root FIRST (go-app expects it here)
+	// Serve wasm_exec.js (go-app expects it here)
 	e.GET("/wasm_exec.js", func(c echo.Context) error {
 		return c.File("web/wasm_exec.js")
 	})
@@ -66,15 +66,11 @@ func main() {
 	e.GET("/app.css", echo.WrapHandler(appHandler))
 	e.GET("/manifest.webmanifest", echo.WrapHandler(appHandler))
 
-	// Serve the go-app handler for all /app routes
-	e.Any("/app*", echo.WrapHandler(appHandler))
-
 	// Serve static assets
 	e.Static("/web", "web")
 	e.File("/webapp/webapp.css", "webapp/webapp.css")
+	e.File("/favicon.ico", "public/built/favicon.ico")
 
-	// Serve React Frontend at root (must be last to avoid catching go-app routes)
-	e.Static("/", "public/built")
 	Logger.Info("Logger enabled!!")
 
 	//injecting database into the context so we can access it
@@ -90,15 +86,74 @@ func main() {
 	e.POST("/folder/*", serverHandler.CreateFolder)
 	e.GET("/search/*", serverHandler.SearchDocuments)
 
+	// Admin API routes
+	e.POST("/api/ingest", serverHandler.RunIngestNow)
+	e.POST("/api/clean", serverHandler.CleanDatabase)
+
+	// Serve go-app handler for all other routes (must be last)
+	e.Any("/*", echo.WrapHandler(appHandler))
+
 	if serverConfig.ListenAddrIP == "" {
 		Logger.Info("No Ip Addr set, binding on ALL addresses")
 	}
 
 	Logger.Info("Starting HTTP server")
 
-	if err := e.Start(fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)); err != nil {
-		Logger.Error("Failed to start server", "error", err)
-		os.Exit(1)
+	// Try to start server with automatic port increment if port is in use
+	maxRetries := 5
+	startPort := serverConfig.ListenAddrPort
+	var startErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		addr := fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)
+		Logger.Info("Attempting to start server", "address", addr, "attempt", attempt+1)
+
+		startErr = e.Start(addr)
+
+		// Check if error is "address already in use"
+		if startErr != nil && isAddressInUse(startErr) {
+			Logger.Warn("Port already in use, trying next port",
+				"port", serverConfig.ListenAddrPort,
+				"attempt", attempt+1,
+				"max_attempts", maxRetries)
+
+			// Increment port for next attempt
+			portNum := 0
+			fmt.Sscanf(serverConfig.ListenAddrPort, "%d", &portNum)
+			portNum++
+			serverConfig.ListenAddrPort = fmt.Sprintf("%d", portNum)
+
+			if attempt == maxRetries-1 {
+				Logger.Error("Failed to find available port after maximum retries",
+					"start_port", startPort,
+					"end_port", serverConfig.ListenAddrPort,
+					"max_retries", maxRetries)
+				Logger.Error("Please reboot your computer to free up ports or manually stop conflicting processes")
+				os.Exit(1)
+			}
+		} else if startErr != nil {
+			// Some other error occurred
+			Logger.Error("Failed to start server", "error", startErr)
+			os.Exit(1)
+		} else {
+			// Server started successfully
+			break
+		}
 	}
 
+	// If we got here and startErr is nil, server started successfully
+	if startErr == nil && serverConfig.ListenAddrPort != startPort {
+		Logger.Warn("Server started on alternative port due to conflicts",
+			"requested_port", startPort,
+			"actual_port", serverConfig.ListenAddrPort)
+	}
+}
+
+// isAddressInUse checks if the error is due to address already in use
+func isAddressInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "address already in use")
 }

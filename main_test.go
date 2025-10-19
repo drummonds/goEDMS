@@ -665,19 +665,19 @@ func TestWasmFileValid(t *testing.T) {
 	t.Logf("WASM file is valid: %s (%d bytes)", wasmPath, info.Size())
 }
 
-// TestAppEndpoint tests that the /app endpoint returns a 200 OK response
-func TestAppEndpoint(t *testing.T) {
+// TestRootEndpoint tests that the root endpoint returns a 200 OK response with WASM app
+func TestRootEndpoint(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
 	// Just run the test directly without goroutine/timeout wrapper
 	// The test framework already has timeouts
-	runAppEndpointTest(t)
+	runRootEndpointTest(t)
 }
 
-// runAppEndpointTest contains the actual test logic
-func runAppEndpointTest(t *testing.T) {
+// runRootEndpointTest contains the actual test logic
+func runRootEndpointTest(t *testing.T) {
 	// Set up the server
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
@@ -699,7 +699,7 @@ func runAppEndpointTest(t *testing.T) {
 	serverHandler.StartupChecks()
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 
-	// Set up the /app route exactly as in main.go
+	// Set up WASM app routes exactly as in main.go
 	appHandler := webapp.Handler()
 
 	e.GET("/wasm_exec.js", func(c echo.Context) error {
@@ -710,17 +710,16 @@ func runAppEndpointTest(t *testing.T) {
 	e.GET("/app.css", echo.WrapHandler(appHandler))
 	e.GET("/manifest.webmanifest", echo.WrapHandler(appHandler))
 
-	e.Any("/app*", echo.WrapHandler(appHandler))
-
 	e.Static("/web", "web")
 	e.File("/webapp/webapp.css", "webapp/webapp.css")
-
-	// Also add React frontend (must be last)
-	e.Static("/", "public/built")
+	e.File("/favicon.ico", "public/built/favicon.ico")
 
 	// Add API routes
 	e.GET("/home", serverHandler.GetLatestDocuments)
 	e.GET("/documents/filesystem", serverHandler.GetDocumentFileSystem)
+
+	// Serve go-app handler for all other routes (must be last)
+	e.Any("/*", echo.WrapHandler(appHandler))
 
 	// Start server in background
 	testPort := "8996"
@@ -734,7 +733,7 @@ func runAppEndpointTest(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	defer e.Shutdown(context.Background())
 
-	testURL := fmt.Sprintf("http://127.0.0.1:%s/app", testPort)
+	testURL := fmt.Sprintf("http://127.0.0.1:%s/", testPort)
 	t.Logf("Testing URL: %s", testURL)
 
 	// Use curl to test the endpoint with a timeout

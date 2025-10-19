@@ -6,7 +6,10 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+        "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+        sans-serif;
     background-color: #f5f5f5;
     color: #333;
 }
@@ -25,7 +28,101 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1000;
+}
+
+/* Hamburger Menu */
+.hamburger-menu {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-right: 1rem;
+    transition: transform 0.2s;
+}
+
+.hamburger-menu:hover {
+    transform: scale(1.1);
+}
+
+.hamburger-line {
+    display: block;
+    width: 24px;
+    height: 3px;
+    background-color: white;
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+/* App Layout */
+.app-layout {
+    display: flex;
+    min-height: calc(100vh - 72px); /* Subtract navbar height */
+}
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    background-color: #34495e;
+    color: white;
+    position: fixed;
+    left: -250px;
+    top: 72px; /* Below navbar */
+    height: calc(100vh - 72px);
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    z-index: 900;
+}
+
+.sidebar-open {
+    left: 0;
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 1rem 0;
+}
+
+.sidebar-item {
+    display: block;
+    color: white;
+    text-decoration: none;
+    padding: 1rem 1.5rem;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sidebar-item:hover {
+    background-color: #2c3e50;
+}
+
+.sidebar-item-active {
+    background-color: #2c3e50;
+    border-left: 4px solid #3498db;
+    padding-left: calc(1.5rem - 4px);
+}
+
+.sidebar-icon {
+    font-size: 1.2rem;
+    width: 24px;
+    text-align: center;
+}
+
+.sidebar-label {
+    flex: 1;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
 }
 
 .navbar-brand h1 {
@@ -51,6 +148,11 @@ body {
 }
 
 /* Main Content */
+.main-content {
+    flex: 1;
+    transition: margin-left 0.3s ease;
+}
+
 main {
     flex: 1;
     padding: 2rem;
@@ -63,7 +165,7 @@ main {
     background-color: white;
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 h2 {
@@ -73,7 +175,10 @@ h2 {
 }
 
 /* Loading and Error States */
-.loading, .error, .warning, .no-results {
+.loading,
+.error,
+.warning,
+.no-results {
     padding: 2rem;
     text-align: center;
     border-radius: 4px;
@@ -113,13 +218,15 @@ h2 {
     border: 1px solid #ddd;
     border-radius: 8px;
     padding: 1.5rem;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
     cursor: pointer;
 }
 
 .document-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .document-icon {
@@ -262,7 +369,7 @@ h2 {
 }
 
 .search-result-item:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .result-icon {
@@ -292,7 +399,8 @@ h2 {
     margin-bottom: 0.25rem;
 }
 
-.result-size, .result-date {
+.result-size,
+.result-date {
     color: #888;
     font-size: 0.85rem;
     margin-bottom: 0.25rem;
@@ -301,14 +409,22 @@ h2 {
 /* Responsive Design */
 @media (max-width: 768px) {
     .navbar {
-        flex-direction: column;
-        gap: 1rem;
+        padding: 1rem;
     }
 
     .navbar-menu {
         flex-direction: column;
         gap: 0.5rem;
         width: 100%;
+    }
+
+    .sidebar {
+        width: 100%;
+        left: -100%;
+    }
+
+    .sidebar-open {
+        left: 0;
     }
 
     .document-grid {
@@ -322,4 +438,123 @@ h2 {
     .search-form {
         flex-direction: column;
     }
+}
+
+/* Ingest and Clean Pages */
+.ingest-page,
+.clean-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.ingest-page h2,
+.clean-page h2 {
+    margin-bottom: 1rem;
+}
+
+.ingest-page p,
+.clean-page p {
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.ingest-controls,
+.clean-controls {
+    margin: 2rem 0;
+}
+
+.btn-primary,
+.btn-danger {
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #c0392b;
+}
+
+.btn-primary:disabled,
+.btn-danger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.success {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid #c3e6cb;
+    margin-top: 1rem;
+}
+
+.success p {
+    margin: 0.5rem 0;
+}
+
+/* Pagination Controls */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.pagination button {
+    padding: 0.5rem 1rem;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition:
+        background-color 0.2s,
+        opacity 0.2s;
+    min-width: 100px;
+}
+
+.pagination button:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+.pagination button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.pagination span {
+    color: #2c3e50;
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.page-info {
+    text-align: center;
+    margin: 1rem 0;
+    color: #666;
+    font-size: 0.95rem;
 }

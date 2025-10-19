@@ -9,11 +9,12 @@ import (
 )
 
 func main() {
-	// Register routes for the client-side app
-	app.Route("/app", func() app.Composer { return &webapp.HomePage{} })
-	app.Route("/app/", func() app.Composer { return &webapp.HomePage{} })
-	app.Route("/app/browse", func() app.Composer { return &webapp.BrowsePage{} })
-	app.Route("/app/search", func() app.Composer { return &webapp.SearchPage{} })
+	// Register routes for the client-side app - all use App component with navbar/sidebar
+	app.Route("/", func() app.Composer { return &webapp.App{} })
+	app.Route("/browse", func() app.Composer { return &webapp.App{} })
+	app.Route("/ingest", func() app.Composer { return &webapp.App{} })
+	app.Route("/clean", func() app.Composer { return &webapp.App{} })
+	app.Route("/search", func() app.Composer { return &webapp.App{} })
 
 	// This main function is for the WASM build only
 	// It initializes the go-app when running in the browser

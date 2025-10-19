@@ -20,6 +20,10 @@ Have a very simple go-app that allows you to show documents and then click on th
 parity with the old react app and then to get rid of it.
 
 - Add UI improvements
+-- clean
+  - iterate through and show progress
+-- ingest and show progress
+- move OR (tesseract) to a hosted service on podman which can host on gokrazy
 - Add free text search
 - Move to postgres embedded
 - move to
@@ -33,6 +37,9 @@ parity with the old react app and then to get rid of it.
   - search by tagging
   ==== Milestone deploy to gokrazy
   ==== Milestone can replace paperless for my use case
+  -- Find a doc by text search/update ( )
+  -- view doc on screen (x)
+  -- print doc (x)
  ===== backup function and restore
 
 - display summary using AI?

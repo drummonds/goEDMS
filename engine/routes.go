@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 	"unicode"
 
@@ -371,16 +372,38 @@ func getChildrenIDs(rootPath string) (*[]string, error) {
 
 // GetLatestDocuments gets the latest documents that were ingressed
 func (serverHandler *ServerHandler) GetLatestDocuments(context echo.Context) error {
-	serverConfig, err := database.FetchConfigFromDB(serverHandler.DB)
-	if err != nil {
-		Logger.Error("Unable to pull config from database for GetLatestDocuments", "error", err)
+	// Get page parameter (default to 1)
+	page := 1
+	if pageParam := context.QueryParam("page"); pageParam != "" {
+		if p, err := strconv.Atoi(pageParam); err == nil && p > 0 {
+			page = p
+		}
 	}
-	newDocuments, err := database.FetchNewestDocuments(serverConfig.FrontEndConfig.NewDocumentNumber, serverHandler.DB)
+
+	// Fixed page size of 20
+	pageSize := 20
+
+	// Get paginated documents and total count
+	documents, totalCount, err := serverHandler.DB.GetNewestDocumentsWithPagination(page, pageSize)
 	if err != nil {
-		Logger.Error("Can't find latest documents, might not have any", "error", err)
-		return err
+		Logger.Error("Can't find latest documents", "error", err)
+		return context.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"error": "Failed to fetch documents",
+		})
 	}
-	return context.JSON(http.StatusOK, newDocuments)
+
+	// Calculate pagination metadata
+	totalPages := (totalCount + pageSize - 1) / pageSize // Ceiling division
+
+	return context.JSON(http.StatusOK, map[string]interface{}{
+		"documents":   documents,
+		"page":        page,
+		"pageSize":    pageSize,
+		"totalCount":  totalCount,
+		"totalPages":  totalPages,
+		"hasNext":     page < totalPages,
+		"hasPrevious": page > 1,
+	})
 }
 
 // GetFolder fetches all the documents in the folder
@@ -501,3 +524,79 @@ func (serverHandler *ServerHandler) CreateFolder(context echo.Context) error {
 	}
 	return
 } */
+
+// RunIngestNow triggers the ingestion process manually
+func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
+	Logger.Info("Manual ingestion triggered via API")
+
+	// Run ingestion in a goroutine so we can return immediately
+	go func() {
+		serverHandler.ingressJobFunc(serverHandler.ServerConfig, serverHandler.DB, serverHandler.SearchDB)
+		Logger.Info("Manual ingestion completed")
+	}()
+
+	return c.String(http.StatusOK, "Ingestion started")
+}
+
+// CleanDatabase checks all documents and removes entries for missing files
+func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
+	Logger.Info("Database cleanup triggered via API")
+
+	// Get all documents from database
+	documentsPtr, err := database.FetchAllDocuments(serverHandler.DB)
+	if err != nil {
+		Logger.Error("Failed to fetch documents for cleanup", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"error":   "Failed to fetch documents",
+			"message": err.Error(),
+		})
+	}
+
+	if documentsPtr == nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"message": "No documents found",
+			"scanned": 0,
+			"deleted": 0,
+		})
+	}
+
+	documents := *documentsPtr
+	scannedCount := len(documents)
+	deletedCount := 0
+
+	Logger.Info("Starting database cleanup", "total_documents", scannedCount)
+
+	// Check each document's file existence
+	for _, doc := range documents {
+		if doc.Path == "" {
+			Logger.Warn("Document has empty path, skipping", "id", doc.StormID, "name", doc.Name)
+			continue
+		}
+
+		// Check if file exists
+		if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
+			Logger.Info("File not found, removing from database", "path", doc.Path, "id", doc.StormID)
+
+			// Delete from database
+			if err := database.DeleteDocument(doc.ULID.String(), serverHandler.DB); err != nil {
+				Logger.Error("Failed to delete document from DB", "error", err, "id", doc.StormID)
+				continue
+			}
+
+			// Delete from search index
+			if err := serverHandler.SearchDB.Delete(doc.ULID.String()); err != nil {
+				Logger.Error("Failed to delete document from search index", "error", err, "ulid", doc.ULID)
+			}
+
+			deletedCount++
+		}
+	}
+
+	Logger.Info("Database cleanup completed", "scanned", scannedCount, "deleted", deletedCount)
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Cleanup completed successfully",
+		"scanned": scannedCount,
+		"deleted": deletedCount,
+	})
+}

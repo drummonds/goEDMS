@@ -21,24 +21,42 @@ type Document struct {
 	URL          string `json:"URL"`
 }
 
-// HomePage displays the latest documents
+// PaginatedResponse represents the paginated API response
+type PaginatedResponse struct {
+	Documents   []Document `json:"documents"`
+	Page        int        `json:"page"`
+	PageSize    int        `json:"pageSize"`
+	TotalCount  int        `json:"totalCount"`
+	TotalPages  int        `json:"totalPages"`
+	HasNext     bool       `json:"hasNext"`
+	HasPrevious bool       `json:"hasPrevious"`
+}
+
+// HomePage displays the latest documents with pagination
 type HomePage struct {
 	app.Compo
-	documents []Document
-	loading   bool
-	error     string
+	documents   []Document
+	currentPage int
+	totalPages  int
+	totalCount  int
+	hasNext     bool
+	hasPrevious bool
+	loading     bool
+	error       string
 }
 
 // OnMount is called when the component is mounted
 func (h *HomePage) OnMount(ctx app.Context) {
+	h.currentPage = 1
 	h.loading = true
-	h.fetchDocuments(ctx)
+	h.fetchDocuments(ctx, 1)
 }
 
-// fetchDocuments fetches the latest documents from the API
-func (h *HomePage) fetchDocuments(ctx app.Context) {
+// fetchDocuments fetches documents for a specific page
+func (h *HomePage) fetchDocuments(ctx app.Context, page int) {
 	ctx.Async(func() {
-		res := app.Window().Call("fetch", "/home")
+		url := fmt.Sprintf("/home?page=%d", page)
+		res := app.Window().Call("fetch", url)
 
 		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 			if len(args) == 0 {
@@ -54,12 +72,17 @@ func (h *HomePage) fetchDocuments(ctx app.Context) {
 				jsonData := args[0]
 				jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
 
-				var docs []Document
+				var resp PaginatedResponse
 				ctx.Dispatch(func(ctx app.Context) {
-					if err := json.Unmarshal([]byte(jsonStr), &docs); err != nil {
+					if err := json.Unmarshal([]byte(jsonStr), &resp); err != nil {
 						h.error = fmt.Sprintf("Failed to parse response: %v", err)
 					} else {
-						h.documents = docs
+						h.documents = resp.Documents
+						h.currentPage = resp.Page
+						h.totalPages = resp.TotalPages
+						h.totalCount = resp.TotalCount
+						h.hasNext = resp.HasNext
+						h.hasPrevious = resp.HasPrevious
 					}
 					h.loading = false
 				})
@@ -78,6 +101,16 @@ func (h *HomePage) fetchDocuments(ctx app.Context) {
 	})
 }
 
+// onPageChange handles page navigation
+func (h *HomePage) onPageChange(page int) func(ctx app.Context, e app.Event) {
+	return func(ctx app.Context, e app.Event) {
+		e.PreventDefault()
+		h.loading = true
+		h.error = ""
+		h.fetchDocuments(ctx, page)
+	}
+}
+
 // Render renders the home page
 func (h *HomePage) Render() app.UI {
 	var content app.UI
@@ -86,6 +119,8 @@ func (h *HomePage) Render() app.UI {
 		content = app.Div().Class("loading").Body(app.Text("Loading..."))
 	} else if h.error != "" {
 		content = app.Div().Class("error").Body(app.Text("Error: " + h.error))
+	} else if len(h.documents) == 0 {
+		content = app.Div().Class("no-results").Body(app.Text("No documents found."))
 	} else {
 		content = app.Div().Class("document-grid").Body(
 			app.Range(h.documents).Slice(func(i int) app.UI {
@@ -99,8 +134,55 @@ func (h *HomePage) Render() app.UI {
 		Class("home-page").
 		Body(
 			app.H2().Text("Latest Documents"),
+			app.P().Class("page-info").Text(
+				fmt.Sprintf("Showing page %d of %d (%d total documents)",
+					h.currentPage, h.totalPages, h.totalCount),
+			),
 			content,
+			h.renderPagination(),
 		)
+}
+
+// renderPagination renders the pagination controls
+func (h *HomePage) renderPagination() app.UI {
+	if h.totalPages <= 1 {
+		return app.Div() // No pagination needed
+	}
+
+	return app.Div().Class("pagination").Body(
+		// Previous button
+		app.Button().
+			Class("pagination-btn").
+			Disabled(!h.hasPrevious || h.loading).
+			OnClick(h.onPageChange(h.currentPage - 1)).
+			Body(app.Text("← Previous")),
+
+		// Page info
+		app.Span().Class("pagination-info").Body(
+			app.Text(fmt.Sprintf("Page %d of %d", h.currentPage, h.totalPages)),
+		),
+
+		// Next button
+		app.Button().
+			Class("pagination-btn").
+			Disabled(!h.hasNext || h.loading).
+			OnClick(h.onPageChange(h.currentPage + 1)).
+			Body(app.Text("Next →")),
+
+		// Jump to first/last
+		app.Div().Class("pagination-jump").Body(
+			app.Button().
+				Class("pagination-btn-small").
+				Disabled(h.currentPage == 1 || h.loading).
+				OnClick(h.onPageChange(1)).
+				Body(app.Text("First")),
+			app.Button().
+				Class("pagination-btn-small").
+				Disabled(h.currentPage == h.totalPages || h.loading).
+				OnClick(h.onPageChange(h.totalPages)).
+				Body(app.Text("Last")),
+		),
+	)
 }
 
 // DocumentCard displays a single document card
