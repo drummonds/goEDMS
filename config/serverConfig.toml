@@ -4,6 +4,15 @@
     ServerAddr = "" #Put in the IP address you want to bind to as string, if blank will bind to all available addresses
     APIURL = "" #This is for EXTREME edge cases where you want to manually force the API URL, like with Docker, usually leave blank
 
+[database]
+    # Database type: "sqlite", "postgres", or "cockroachdb"
+    # Use "sqlite" for simple deployments, "postgres" for production (supports embedded or external)
+    Type = "postgres"
+    # PostgreSQL/CockroachDB connection string (leave empty to use embedded PostgreSQL)
+    # Example: "host=localhost port=5432 user=goedms password=goedms dbname=goedms sslmode=disable"
+    # For CockroachDB: "host=localhost port=26257 user=goedms password=goedms dbname=goedms sslmode=require"
+    ConnectionString = ""
+
 [documentLibrary]     #Relative or absolute path accepted, the server will convert any relative path to an absolute path.
     DocumentFileSystemLocation = 'documents' #Location to store documents
     DefaultNewDocumentFolder = 'New' #default folder that ingressed documents will be placed in (inside the Document library), for multiple folders deep can do '2020/New'

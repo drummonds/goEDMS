@@ -88,8 +88,21 @@ func runMigrations(db *sql.DB) error {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("failed to run migrations: %w", err)
+	// Force to version 1 (SQLite schema) - skip PostgreSQL migrations
+	version, dirty, err := m.Version()
+	if err != nil && err != migrate.ErrNilVersion {
+		return fmt.Errorf("failed to get current version: %w", err)
+	}
+
+	if dirty {
+		return fmt.Errorf("database is in dirty state")
+	}
+
+	// If no version or wrong version, force to version 1
+	if err == migrate.ErrNilVersion || version != 1 {
+		if err := m.Migrate(1); err != nil && err != migrate.ErrNoChange {
+			return fmt.Errorf("failed to migrate to version 1: %w", err)
+		}
 	}
 
 	Logger.Info("Database migrations completed successfully")

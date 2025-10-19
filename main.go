@@ -29,8 +29,8 @@ func injectGlobals(logger *slog.Logger) {
 func main() {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger) //inject the logger into all of the packages
-	Logger.Info("About to setup database")
-	db := database.SetupDatabase()
+	Logger.Info("About to setup database", "type", serverConfig.DatabaseType)
+	db := database.SetupDatabase(serverConfig.DatabaseType, serverConfig.DatabaseConnString)
 	Logger.Info("Database setup complete, about to setup search DB")
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {

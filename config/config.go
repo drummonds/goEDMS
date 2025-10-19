@@ -19,6 +19,8 @@ type ServerConfig struct {
 	StormID              int `storm:"id"`
 	ListenAddrIP         string
 	ListenAddrPort       string
+	DatabaseType         string // "sqlite", "postgres", or "cockroachdb"
+	DatabaseConnString   string // PostgreSQL/CockroachDB connection string
 	IngressPath          string
 	IngressDelete        bool
 	IngressMoveFolder    string
@@ -74,6 +76,13 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	logger.Info("Base Logger is setup!")
 	serverConfigLive.ListenAddrPort = viper.GetString("serverConfig.ServerPort")
 	serverConfigLive.ListenAddrIP = viper.GetString("serverConfig.ServerAddr")
+	serverConfigLive.DatabaseType = viper.GetString("database.Type")
+	if serverConfigLive.DatabaseType == "" {
+		serverConfigLive.DatabaseType = "sqlite" // Default to SQLite for simplicity
+		logger.Info("No database type specified, defaulting to SQLite")
+	}
+	serverConfigLive.DatabaseConnString = viper.GetString("database.ConnectionString")
+	logger.Info("Database configuration loaded", "type", serverConfigLive.DatabaseType)
 	serverConfigLive.IngressInterval = viper.GetInt("ingress.scheduling.IngressInterval")
 	serverConfigLive.IngressPreserve = viper.GetBool("ingress.handling.PreserveDirStructure")
 	serverConfigLive.IngressDelete = viper.GetBool("ingress.completed.IngressDeleteOnProcess")

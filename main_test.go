@@ -99,7 +99,8 @@ func runFrontendRenderingTest(t *testing.T) {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	db := database.SetupDatabase()
+	// Force SQLite for tests (faster and more reliable)
+	db := database.SetupDatabase("sqlite", "")
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -256,7 +257,8 @@ func runTestWithLynx(t *testing.T) error {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	db := database.SetupDatabase()
+	// Force SQLite for tests (faster and more reliable)
+	db := database.SetupDatabase("sqlite", "")
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -355,7 +357,8 @@ func runTestWithCurl(t *testing.T) error {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	db := database.SetupDatabase()
+	// Force SQLite for tests (faster and more reliable)
+	db := database.SetupDatabase("sqlite", "")
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -505,7 +508,8 @@ func runIngressStartupTest(t *testing.T) {
 
 	injectGlobals(logger)
 
-	db := database.SetupDatabase()
+	// Force SQLite for tests (faster and more reliable)
+	db := database.SetupDatabase("sqlite", "")
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -682,7 +686,8 @@ func runRootEndpointTest(t *testing.T) {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	db := database.SetupDatabase()
+	// Force SQLite for tests (faster and more reliable)
+	db := database.SetupDatabase("sqlite", "")
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)

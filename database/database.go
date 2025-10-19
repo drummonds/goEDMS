@@ -35,8 +35,8 @@ type Document struct {
 // Logger is global since we will need it everywhere
 var Logger *slog.Logger
 
-// SetupDatabase initializes the SQLite database
-func SetupDatabase() DBInterface {
+// SetupDatabase initializes the database based on configuration
+func SetupDatabase(dbType string, connectionString string) DBInterface {
 	_, err := os.Stat("databases")
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -47,11 +47,34 @@ func SetupDatabase() DBInterface {
 			}
 		}
 	}
-	db, err := SetupSQLiteDatabase()
-	if err != nil {
-		Logger.Error("Unable to create/open database", "error", err)
+
+	var db DBInterface
+
+	switch dbType {
+	case "sqlite":
+		Logger.Info("Initializing SQLite database...")
+		sqliteDB, err := SetupSQLiteDatabase()
+		if err != nil {
+			Logger.Error("Unable to create/open SQLite database", "error", err)
+			os.Exit(1)
+		}
+		db = sqliteDB
+
+	case "postgres", "cockroachdb":
+		Logger.Info("Initializing PostgreSQL/CockroachDB database...", "type", dbType)
+		postgresDB, err := SetupPostgresDatabase(connectionString)
+		if err != nil {
+			Logger.Error("Unable to create/open PostgreSQL database", "error", err)
+			os.Exit(1)
+		}
+		db = postgresDB
+
+	default:
+		Logger.Error("Unknown database type", "type", dbType)
+		Logger.Info("Supported database types: sqlite, postgres, cockroachdb")
 		os.Exit(1)
 	}
+
 	return db
 }
 
