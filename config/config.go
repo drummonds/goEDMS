@@ -78,8 +78,8 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	serverConfigLive.ListenAddrIP = viper.GetString("serverConfig.ServerAddr")
 	serverConfigLive.DatabaseType = viper.GetString("database.Type")
 	if serverConfigLive.DatabaseType == "" {
-		serverConfigLive.DatabaseType = "sqlite" // Default to SQLite for simplicity
-		logger.Info("No database type specified, defaulting to SQLite")
+		serverConfigLive.DatabaseType = "postgres" // Default to PostgreSQL
+		logger.Info("No database type specified, defaulting to PostgreSQL")
 	}
 	serverConfigLive.DatabaseConnString = viper.GetString("database.ConnectionString")
 	logger.Info("Database configuration loaded", "type", serverConfigLive.DatabaseType)

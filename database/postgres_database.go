@@ -98,7 +98,7 @@ func runPostgresMigrations(db *sql.DB) error {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	// For PostgreSQL, we need to skip version 1 (SQLite) and go directly to version 2
+	// Check current version and apply migrations
 	version, dirty, err := m.Version()
 	if err != nil && err != migrate.ErrNilVersion {
 		return fmt.Errorf("failed to get current version: %w", err)
@@ -107,28 +107,15 @@ func runPostgresMigrations(db *sql.DB) error {
 	if dirty {
 		// Try to force clean and retry
 		Logger.Warn("Database is in dirty state, attempting to recover")
-		if err := m.Force(2); err != nil {
+		if err := m.Force(int(version)); err != nil {
 			return fmt.Errorf("failed to force migration version: %w", err)
 		}
-		version = 2
 	}
 
-	// If no version, we need to apply version 2 directly for PostgreSQL
-	if err == migrate.ErrNilVersion {
-		Logger.Info("Applying PostgreSQL schema (version 2)")
-		// First, force set to version 1 to skip SQLite migration
-		if err := m.Force(1); err != nil {
-			return fmt.Errorf("failed to skip SQLite migration: %w", err)
-		}
-		// Now migrate to version 2 (PostgreSQL schema)
-		if err := m.Migrate(2); err != nil && err != migrate.ErrNoChange {
-			return fmt.Errorf("failed to migrate to version 2: %w", err)
-		}
-	} else if version != 2 {
-		Logger.Info("Migrating to PostgreSQL schema (version 2)")
-		if err := m.Migrate(2); err != nil && err != migrate.ErrNoChange {
-			return fmt.Errorf("failed to migrate to version 2: %w", err)
-		}
+	// Apply latest migrations
+	Logger.Info("Applying database migrations")
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
 	Logger.Info("Database migrations completed successfully")
@@ -284,6 +271,35 @@ func (p *PostgresDB) GetDocumentByHash(hash string) (*Document, error) {
 	doc.ULID = ulid
 
 	return doc, nil
+}
+
+// scanDocuments is a helper function to scan rows into Document structs
+func scanDocuments(rows *sql.Rows) ([]Document, error) {
+	var documents []Document
+
+	for rows.Next() {
+		doc := Document{}
+		var ulidStr string
+
+		err := rows.Scan(
+			&doc.StormID, &doc.Name, &doc.Path, &doc.IngressTime,
+			&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
+			&doc.FullText, &doc.URL,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		ulid, err := ulid.Parse(ulidStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ULID: %w", err)
+		}
+		doc.ULID = ulid
+
+		documents = append(documents, doc)
+	}
+
+	return documents, rows.Err()
 }
 
 // GetNewestDocuments retrieves the newest documents

@@ -35,6 +35,25 @@ type Document struct {
 // Logger is global since we will need it everywhere
 var Logger *slog.Logger
 
+// DBInterface defines database operations
+type DBInterface interface {
+	Close() error
+	SaveDocument(doc *Document) error
+	GetDocumentByID(id int) (*Document, error)
+	GetDocumentByULID(ulid string) (*Document, error)
+	GetDocumentByPath(path string) (*Document, error)
+	GetDocumentByHash(hash string) (*Document, error)
+	GetNewestDocuments(limit int) ([]Document, error)
+	GetNewestDocumentsWithPagination(page int, pageSize int) ([]Document, int, error)
+	GetAllDocuments() ([]Document, error)
+	GetDocumentsByFolder(folder string) ([]Document, error)
+	DeleteDocument(ulid string) error
+	UpdateDocumentURL(ulid string, url string) error
+	UpdateDocumentFolder(ulid string, folder string) error
+	SaveConfig(config *config.ServerConfig) error
+	GetConfig() (*config.ServerConfig, error)
+}
+
 // SetupDatabase initializes the database based on configuration
 func SetupDatabase(dbType string, connectionString string) DBInterface {
 	_, err := os.Stat("databases")
@@ -51,15 +70,6 @@ func SetupDatabase(dbType string, connectionString string) DBInterface {
 	var db DBInterface
 
 	switch dbType {
-	case "sqlite":
-		Logger.Info("Initializing SQLite database...")
-		sqliteDB, err := SetupSQLiteDatabase()
-		if err != nil {
-			Logger.Error("Unable to create/open SQLite database", "error", err)
-			os.Exit(1)
-		}
-		db = sqliteDB
-
 	case "postgres", "cockroachdb":
 		Logger.Info("Initializing PostgreSQL/CockroachDB database...", "type", dbType)
 		// SetupPostgresDatabase now handles ephemeral instances automatically when connectionString is empty
@@ -72,7 +82,7 @@ func SetupDatabase(dbType string, connectionString string) DBInterface {
 
 	default:
 		Logger.Error("Unknown database type", "type", dbType)
-		Logger.Info("Supported database types: sqlite, postgres, cockroachdb")
+		Logger.Info("Supported database types: postgres, cockroachdb")
 		os.Exit(1)
 	}
 

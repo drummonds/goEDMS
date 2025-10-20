@@ -1,13 +1,10 @@
 -- Drop triggers
-DROP TRIGGER IF EXISTS update_server_config_timestamp;
-DROP TRIGGER IF EXISTS update_documents_timestamp;
+DROP TRIGGER IF EXISTS update_documents_timestamp ON documents;
+DROP TRIGGER IF EXISTS update_server_config_timestamp ON server_config;
 
--- Drop indexes
-DROP INDEX IF EXISTS idx_documents_ingress_time;
-DROP INDEX IF EXISTS idx_documents_folder;
-DROP INDEX IF EXISTS idx_documents_ulid;
-DROP INDEX IF EXISTS idx_documents_hash;
+-- Drop function
+DROP FUNCTION IF EXISTS update_updated_at_column();
 
 -- Drop tables
-DROP TABLE IF EXISTS server_config;
 DROP TABLE IF EXISTS documents;
+DROP TABLE IF EXISTS server_config;

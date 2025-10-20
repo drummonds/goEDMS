@@ -99,8 +99,13 @@ func runFrontendRenderingTest(t *testing.T) {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	// Force SQLite for tests (faster and more reliable)
-	db := database.SetupDatabase("sqlite", "")
+	// Use ephemeral PostgreSQL for tests
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	db := database.DBInterface(ephemeralDB)
+	defer ephemeralDB.Close()
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -257,8 +262,13 @@ func runTestWithLynx(t *testing.T) error {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	// Force SQLite for tests (faster and more reliable)
-	db := database.SetupDatabase("sqlite", "")
+	// Use ephemeral PostgreSQL for tests
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	db := database.DBInterface(ephemeralDB)
+	defer ephemeralDB.Close()
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -357,8 +367,13 @@ func runTestWithCurl(t *testing.T) error {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	// Force SQLite for tests (faster and more reliable)
-	db := database.SetupDatabase("sqlite", "")
+	// Use ephemeral PostgreSQL for tests
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	db := database.DBInterface(ephemeralDB)
+	defer ephemeralDB.Close()
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -508,8 +523,13 @@ func runIngressStartupTest(t *testing.T) {
 
 	injectGlobals(logger)
 
-	// Force SQLite for tests (faster and more reliable)
-	db := database.SetupDatabase("sqlite", "")
+	// Use ephemeral PostgreSQL for tests
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	db := database.DBInterface(ephemeralDB)
+	defer ephemeralDB.Close()
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)
@@ -686,8 +706,13 @@ func runRootEndpointTest(t *testing.T) {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	// Force SQLite for tests (faster and more reliable)
-	db := database.SetupDatabase("sqlite", "")
+	// Use ephemeral PostgreSQL for tests
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	db := database.DBInterface(ephemeralDB)
+	defer ephemeralDB.Close()
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Skipf("Unable to setup index database (may be locked): %v", err)

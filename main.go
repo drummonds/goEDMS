@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -27,10 +28,41 @@ func injectGlobals(logger *slog.Logger) {
 }
 
 func main() {
+	// Parse command-line flags
+	devMode := flag.Bool("dev", false, "Run in development mode with ephemeral PostgreSQL")
+	flag.Parse()
+
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger) //inject the logger into all of the packages
-	Logger.Info("About to setup database", "type", serverConfig.DatabaseType)
-	db := database.SetupDatabase(serverConfig.DatabaseType, serverConfig.DatabaseConnString)
+
+	// Setup database based on dev mode or configuration
+	var db database.DBInterface
+	if *devMode {
+		fmt.Println("\n" + strings.Repeat("=", 50))
+		fmt.Println("🚀  DEVELOPMENT MODE - Ephemeral PostgreSQL")
+		fmt.Println(strings.Repeat("=", 50))
+		fmt.Println("• Database will be destroyed on exit")
+		fmt.Println("• Perfect for testing and development")
+		fmt.Println("• No persistent data storage")
+		fmt.Println(strings.Repeat("=", 50) + "\n")
+
+		Logger.Info("Starting ephemeral PostgreSQL for development")
+		ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+		if err != nil {
+			Logger.Error("Failed to setup ephemeral PostgreSQL", "error", err)
+			os.Exit(1)
+		}
+		db = ephemeralDB
+		// Ensure cleanup happens on exit
+		defer func() {
+			Logger.Info("Shutting down ephemeral PostgreSQL...")
+			ephemeralDB.Close()
+		}()
+	} else {
+		Logger.Info("About to setup database", "type", serverConfig.DatabaseType)
+		db = database.SetupDatabase(serverConfig.DatabaseType, serverConfig.DatabaseConnString)
+		defer db.Close()
+	}
 	Logger.Info("Database setup complete, about to setup search DB")
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
@@ -38,7 +70,6 @@ func main() {
 		os.Exit(1)
 	}
 	Logger.Info("Search DB setup complete")
-	defer db.Close()
 	defer searchDB.Close()
 	database.WriteConfigToDB(serverConfig, db) //writing the config to the database
 	Logger.Info("Config written to DB")

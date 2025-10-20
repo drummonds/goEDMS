@@ -24,8 +24,15 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
-	// Force SQLite for tests (faster and more reliable than embedded PostgreSQL)
-	testDB := database.SetupDatabase("sqlite", "")
+	// Use ephemeral PostgreSQL for tests
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	testDB := database.DBInterface(ephemeralDB)
+	t.Cleanup(func() {
+		ephemeralDB.Close()
+	})
 	searchDB, err := database.SetupSearchDB()
 	if err != nil {
 		t.Fatalf("Unable to setup search database: %v", err)
