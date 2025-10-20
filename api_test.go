@@ -193,9 +193,9 @@ func TestSearchDocuments(t *testing.T) {
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
-		// Should return 200, 204 (no content), or 500 (search not initialized)
-		if rec.Code != http.StatusOK && rec.Code != http.StatusNoContent && rec.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200, 204, or 500, got %d: %s", rec.Code, rec.Body.String())
+		// Should return 200, 204 (no content), 404 (document not found), or 500 (search not initialized)
+		if rec.Code != http.StatusOK && rec.Code != http.StatusNoContent && rec.Code != http.StatusNotFound && rec.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 200, 204, 404, or 500, got %d: %s", rec.Code, rec.Body.String())
 		}
 
 		if rec.Code == http.StatusOK {
@@ -407,12 +407,15 @@ func TestAdminEndpoints(t *testing.T) {
 			t.Fatalf("Failed to parse clean response: %v", err)
 		}
 
-		// Should have scanned and deleted counts
+		// Should have scanned, deleted, and moved counts
 		if _, ok := response["scanned"]; !ok {
 			t.Error("Response missing 'scanned' field")
 		}
 		if _, ok := response["deleted"]; !ok {
 			t.Error("Response missing 'deleted' field")
+		}
+		if _, ok := response["moved"]; !ok {
+			t.Error("Response missing 'moved' field")
 		}
 	})
 

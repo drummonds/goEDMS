@@ -2,6 +2,7 @@ package webapp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
 )
@@ -9,11 +10,12 @@ import (
 // CleanPage allows users to clean the database by removing orphaned entries
 type CleanPage struct {
 	app.Compo
-	running       bool
-	result        string
-	error         string
-	deletedCount  int
-	scannedCount  int
+	running      bool
+	result       string
+	error        string
+	deletedCount int
+	scannedCount int
+	movedCount   int
 }
 
 // Render renders the clean page
@@ -28,6 +30,7 @@ func (c *CleanPage) Render() app.UI {
 		Body(
 			app.H2().Text("Database Cleanup"),
 			app.P().Text("This tool will scan all documents in the database and verify that their files still exist on disk. Any database entries for missing files will be removed."),
+			app.P().Text("It will also find documents in storage that are not in the database and move them to the ingress folder for reprocessing (including any .yaml metadata and .txt OCR files)."),
 
 			app.Div().Class("warning").Body(
 				app.P().Text("⚠️ Warning: This operation will permanently delete database entries for missing files. Make sure you have a backup if needed."),
@@ -59,19 +62,30 @@ func (c *CleanPage) renderStatus() app.UI {
 
 	if c.error != "" {
 		return app.Div().Class("error").Body(
-			app.Text("Error: "+c.error),
+			app.Text("Error: " + c.error),
 		)
 	}
 
 	if c.result != "" {
 		resultMsg := c.result
+		details := []string{}
+
 		if c.deletedCount > 0 {
-			resultMsg = fmt.Sprintf("%s - Removed %d orphaned database entries.", c.result, c.deletedCount)
-		} else {
-			resultMsg = c.result + " - No orphaned entries found. Database is clean!"
+			details = append(details, fmt.Sprintf("Removed %d orphaned database entries", c.deletedCount))
 		}
+		if c.movedCount > 0 {
+			details = append(details, fmt.Sprintf("Moved %d orphaned documents to ingress", c.movedCount))
+		}
+
+		if len(details) > 0 {
+			resultMsg = fmt.Sprintf("%s - %s.", c.result, joinStrings(details, ", "))
+		} else {
+			resultMsg = c.result + " - No issues found. Database is clean!"
+		}
+
 		return app.Div().Class("success").Body(
 			app.P().Text(resultMsg),
+			app.P().Text(fmt.Sprintf("Scanned: %d documents", c.scannedCount)),
 		)
 	}
 
@@ -85,7 +99,7 @@ func (c *CleanPage) onCleanClick(ctx app.Context, e app.Event) {
 	c.error = ""
 	c.deletedCount = 0
 	c.scannedCount = 0
-	
+	c.movedCount = 0
 
 	c.runClean(ctx)
 }
@@ -123,6 +137,9 @@ func (c *CleanPage) runClean(ctx app.Context) {
 							if scanned := jsonData.Get("scanned"); scanned.Truthy() {
 								c.scannedCount = scanned.Int()
 							}
+							if moved := jsonData.Get("moved"); moved.Truthy() {
+								c.movedCount = moved.Int()
+							}
 							if msg := jsonData.Get("message"); msg.Truthy() {
 								c.result = msg.String()
 							} else {
@@ -148,4 +165,9 @@ func (c *CleanPage) runClean(ctx app.Context) {
 			return nil
 		}))
 	})
+}
+
+// joinStrings joins a slice of strings with a separator
+func joinStrings(strs []string, sep string) string {
+	return strings.Join(strs, sep)
 }

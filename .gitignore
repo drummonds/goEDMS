@@ -19,3 +19,6 @@ staging
 goedms.log
 goEDMS.db.lock
 goEDMS.db
+
+# Environment variables
+.env

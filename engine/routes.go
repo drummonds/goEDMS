@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 	"unicode"
 
@@ -538,7 +539,8 @@ func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
 	return c.String(http.StatusOK, "Ingestion started")
 }
 
-// CleanDatabase checks all documents and removes entries for missing files
+// CleanDatabase checks all documents and removes entries for missing files,
+// and moves orphaned files (not in database) back to ingress for reprocessing
 func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 	Logger.Info("Database cleanup triggered via API")
 
@@ -557,6 +559,7 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 			"message": "No documents found",
 			"scanned": 0,
 			"deleted": 0,
+			"moved":   0,
 		})
 	}
 
@@ -566,7 +569,7 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 
 	Logger.Info("Starting database cleanup", "total_documents", scannedCount)
 
-	// Check each document's file existence
+	// Step 1: Check each document's file existence and remove orphaned DB entries
 	for _, doc := range documents {
 		if doc.Path == "" {
 			Logger.Warn("Document has empty path, skipping", "id", doc.StormID, "name", doc.Name)
@@ -592,11 +595,153 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 		}
 	}
 
-	Logger.Info("Database cleanup completed", "scanned", scannedCount, "deleted", deletedCount)
+	// Step 2: Find orphaned files in document storage and move them to ingress
+	movedCount := 0
+	orphanedFiles, err := serverHandler.findOrphanedDocuments(documents)
+	if err != nil {
+		Logger.Error("Failed to scan for orphaned documents", "error", err)
+		// Continue with cleanup even if orphan scan fails
+	} else {
+		for _, orphanPath := range orphanedFiles {
+			if err := serverHandler.moveOrphanToIngress(orphanPath); err != nil {
+				Logger.Error("Failed to move orphaned document to ingress", "path", orphanPath, "error", err)
+			} else {
+				movedCount++
+			}
+		}
+	}
+
+	Logger.Info("Database cleanup completed", "scanned", scannedCount, "deleted", deletedCount, "moved", movedCount)
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"message": "Cleanup completed successfully",
 		"scanned": scannedCount,
 		"deleted": deletedCount,
+		"moved":   movedCount,
 	})
+}
+
+// findOrphanedDocuments scans the document storage directory and finds files
+// that are not present in the database
+func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.Document) ([]string, error) {
+	// Create a map of all paths in the database for quick lookup
+	dbPaths := make(map[string]bool)
+	for _, doc := range documents {
+		if doc.Path != "" {
+			dbPaths[doc.Path] = true
+			// Also mark companion files as tracked
+			yamlPath := doc.Path + ".yaml"
+			txtPath := doc.Path + ".txt"
+			dbPaths[yamlPath] = true
+			dbPaths[txtPath] = true
+		}
+	}
+
+	var orphanedFiles []string
+	documentPath := serverHandler.ServerConfig.DocumentPath
+
+	// Walk through the document directory
+	err := filepath.Walk(documentPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			Logger.Warn("Error accessing path during orphan scan", "path", path, "error", err)
+			return nil // Continue walking
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Skip companion files (.yaml and .txt) - they'll be handled with their main file
+		ext := filepath.Ext(path)
+		if ext == ".yaml" || ext == ".txt" {
+			// Check if this is a companion file (base file + .yaml or .txt)
+			basePath := path[:len(path)-len(ext)]
+			if _, err := os.Stat(basePath); err == nil {
+				// This is a companion file, skip it for now
+				return nil
+			}
+		}
+
+		// Check if this file is in the database
+		if !dbPaths[path] {
+			// Check if it's a document file type we care about
+			if isProcessableDocument(path) {
+				Logger.Info("Found orphaned document", "path", path)
+				orphanedFiles = append(orphanedFiles, path)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return orphanedFiles, nil
+}
+
+// isProcessableDocument checks if a file is a document type that can be processed
+func isProcessableDocument(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	processableExts := []string{".pdf", ".txt", ".rtf", ".doc", ".docx", ".odf", ".tiff", ".jpg", ".jpeg", ".png"}
+	for _, validExt := range processableExts {
+		if ext == validExt {
+			return true
+		}
+	}
+	return false
+}
+
+// moveOrphanToIngress moves an orphaned document (and its companion files) to the ingress folder
+func (serverHandler *ServerHandler) moveOrphanToIngress(docPath string) error {
+	ingressPath := serverHandler.ServerConfig.IngressPath
+	documentPath := serverHandler.ServerConfig.DocumentPath
+
+	// Calculate relative path to preserve folder structure
+	relPath, err := filepath.Rel(documentPath, docPath)
+	if err != nil {
+		Logger.Error("Failed to calculate relative path", "docPath", docPath, "documentPath", documentPath, "error", err)
+		relPath = filepath.Base(docPath) // Fall back to just the filename
+	}
+
+	// Create destination path in ingress folder
+	destPath := filepath.Join(ingressPath, relPath)
+
+	// Ensure destination directory exists
+	destDir := filepath.Dir(destPath)
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create ingress directory: %w", err)
+	}
+
+	// Move the main document file
+	if err := os.Rename(docPath, destPath); err != nil {
+		return fmt.Errorf("failed to move document: %w", err)
+	}
+	Logger.Info("Moved orphaned document to ingress", "from", docPath, "to", destPath)
+
+	// Move companion .yaml file if it exists
+	yamlPath := docPath + ".yaml"
+	if _, err := os.Stat(yamlPath); err == nil {
+		destYamlPath := destPath + ".yaml"
+		if err := os.Rename(yamlPath, destYamlPath); err != nil {
+			Logger.Warn("Failed to move companion .yaml file", "path", yamlPath, "error", err)
+		} else {
+			Logger.Info("Moved companion .yaml file", "from", yamlPath, "to", destYamlPath)
+		}
+	}
+
+	// Move companion .txt file if it exists
+	txtPath := docPath + ".txt"
+	if _, err := os.Stat(txtPath); err == nil {
+		destTxtPath := destPath + ".txt"
+		if err := os.Rename(txtPath, destTxtPath); err != nil {
+			Logger.Warn("Failed to move companion .txt file", "path", txtPath, "error", err)
+		} else {
+			Logger.Info("Moved companion .txt file", "from", txtPath, "to", destTxtPath)
+		}
+	}
+
+	return nil
 }

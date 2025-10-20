@@ -1,7 +1,16 @@
 package webapp
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
+)
+
+// Version info - can be set at build time with -ldflags
+var (
+	Version   = "dev"
+	BuildDate = ""
 )
 
 // NavBar is the navigation bar component
@@ -26,6 +35,9 @@ func (n *NavBar) Render() app.UI {
 				),
 			app.Div().Class("navbar-brand").Body(
 				app.H1().Text("goEDMS"),
+				app.Span().Class("version-info").Body(
+					app.Text(n.getVersionInfo()),
+				),
 			),
 			app.Div().Class("navbar-menu").Body(
 				app.A().
@@ -66,4 +78,13 @@ func (n *NavBar) isSidebarOpen(ctx app.Context) bool {
 	var isOpen bool
 	ctx.LocalStorage().Get("sidebar-open", &isOpen)
 	return isOpen
+}
+
+// getVersionInfo returns formatted version and date information
+func (n *NavBar) getVersionInfo() string {
+	date := BuildDate
+	if date == "" {
+		date = time.Now().Format("2006-01-02")
+	}
+	return fmt.Sprintf("%s | %s", Version, date)
 }
