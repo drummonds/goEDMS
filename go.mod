@@ -6,16 +6,16 @@ require (
 	github.com/blevesearch/bleve v1.0.14
 	github.com/chromedp/chromedp v0.14.2
 	github.com/disintegration/imaging v1.6.2
-	github.com/fergusstrange/embedded-postgres v1.32.0
 	github.com/gen2brain/go-fitz v1.24.15
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.10.10-0.20241116184759-b7ffbd3b47da
 	github.com/maxence-charriere/go-app/v10 v10.1.7
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.21.0
+	github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b
 	modernc.org/sqlite v1.39.1
 )
 
@@ -65,7 +65,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/willf/bitset v1.1.11 // indirect
-	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.etcd.io/bbolt v1.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.43.0 // indirect

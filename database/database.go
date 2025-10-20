@@ -62,6 +62,7 @@ func SetupDatabase(dbType string, connectionString string) DBInterface {
 
 	case "postgres", "cockroachdb":
 		Logger.Info("Initializing PostgreSQL/CockroachDB database...", "type", dbType)
+		// SetupPostgresDatabase now handles ephemeral instances automatically when connectionString is empty
 		postgresDB, err := SetupPostgresDatabase(connectionString)
 		if err != nil {
 			Logger.Error("Unable to create/open PostgreSQL database", "error", err)

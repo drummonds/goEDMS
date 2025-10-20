@@ -1,0 +1,266 @@
+=== RUN   TestGetLatestDocuments
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestGetLatestDocuments/Get_latest_documents_-_empty_database
+    api_test.go:94: Got nil documents (empty database)
+=== RUN   TestGetLatestDocuments/Get_latest_documents_-_with_pagination
+=== RUN   TestGetLatestDocuments/Get_latest_documents_-_invalid_page_number
+--- PASS: TestGetLatestDocuments (0.02s)
+    --- PASS: TestGetLatestDocuments/Get_latest_documents_-_empty_database (0.00s)
+    --- PASS: TestGetLatestDocuments/Get_latest_documents_-_with_pagination (0.00s)
+    --- PASS: TestGetLatestDocuments/Get_latest_documents_-_invalid_page_number (0.00s)
+=== RUN   TestGetDocumentFileSystem
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+--- PASS: TestGetDocumentFileSystem (0.00s)
+=== RUN   TestSearchDocuments
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestSearchDocuments/Search_-_empty_query_term
+=== RUN   TestSearchDocuments/Search_-_with_query_term
+    api_test.go:209: Search returned 500 (may need search index initialization)
+=== RUN   TestSearchDocuments/Search_-_phrase_search
+--- PASS: TestSearchDocuments (0.00s)
+    --- PASS: TestSearchDocuments/Search_-_empty_query_term (0.00s)
+    --- PASS: TestSearchDocuments/Search_-_with_query_term (0.00s)
+    --- PASS: TestSearchDocuments/Search_-_phrase_search (0.00s)
+=== RUN   TestUploadDocument
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestUploadDocument/Upload_document_-_valid_file
+Problem finding file,  http: no such file
+    api_test.go:267: Upload failed (may need proper file system setup): {"message":"Internal Server Error"}
+=== RUN   TestUploadDocument/Upload_document_-_missing_file
+Problem finding file,  http: no such file
+--- PASS: TestUploadDocument (0.00s)
+    --- PASS: TestUploadDocument/Upload_document_-_valid_file (0.00s)
+    --- PASS: TestUploadDocument/Upload_document_-_missing_file (0.00s)
+=== RUN   TestGetDocument
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestGetDocument/Get_document_-_non-existent_ID
+UUID STRING:  nonexistent123
+=== RUN   TestGetDocument/Get_document_-_invalid_ID_format
+--- PASS: TestGetDocument (0.00s)
+    --- PASS: TestGetDocument/Get_document_-_non-existent_ID (0.00s)
+    --- PASS: TestGetDocument/Get_document_-_invalid_ID_format (0.00s)
+=== RUN   TestDeleteDocument
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestDeleteDocument/Delete_document_-_non-existent
+PATH /home/hum3/minor/goEDMS/documents
+--- PASS: TestDeleteDocument (0.00s)
+    --- PASS: TestDeleteDocument/Delete_document_-_non-existent (0.00s)
+=== RUN   TestFolderOperations
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestFolderOperations/Create_folder
+fullfolder:  /home/hum3/minor/goEDMS/documents  folderName:   Path:  
+    api_test.go:354: Folder creation failed (may need proper file system setup): {"message":"Internal Server Error"}
+=== RUN   TestFolderOperations/Get_folder_contents_-_non-existent
+--- PASS: TestFolderOperations (0.00s)
+    --- PASS: TestFolderOperations/Create_folder (0.00s)
+    --- PASS: TestFolderOperations/Get_folder_contents_-_non-existent (0.00s)
+=== RUN   TestAdminEndpoints
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestAdminEndpoints/Trigger_manual_ingest
+=== RUN   TestAdminEndpoints/Clean_database
+=== RUN   TestAdminEndpoints/Invalid_method_for_admin_endpoints
+--- PASS: TestAdminEndpoints (0.00s)
+    --- PASS: TestAdminEndpoints/Trigger_manual_ingest (0.00s)
+    --- PASS: TestAdminEndpoints/Clean_database (0.00s)
+    --- PASS: TestAdminEndpoints/Invalid_method_for_admin_endpoints (0.00s)
+=== RUN   TestMoveDocument
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestMoveDocument/Move_document_-_non-existent
+newfolder:  
+ID's:  []
+    api_test.go:449: Move operation returned OK for non-existent document (may be a no-op)
+--- PASS: TestMoveDocument (0.00s)
+    --- PASS: TestMoveDocument/Move_document_-_non-existent (0.00s)
+=== RUN   TestAPIPerformance
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestAPIPerformance/Home_endpoint_performance
+    api_test.go:480: Completed 100 requests in 6.512722ms (avg: 65.127µs per request)
+=== RUN   TestAPIPerformance/Search_endpoint_performance
+    api_test.go:505: Completed 50 search requests in 3.292591ms (avg: 65.851µs per request)
+--- PASS: TestAPIPerformance (0.01s)
+    --- PASS: TestAPIPerformance/Home_endpoint_performance (0.01s)
+    --- PASS: TestAPIPerformance/Search_endpoint_performance (0.00s)
+=== RUN   TestConcurrentRequests
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestConcurrentRequests/Concurrent_home_requests
+--- PASS: TestConcurrentRequests (0.00s)
+    --- PASS: TestConcurrentRequests/Concurrent_home_requests (0.00s)
+=== RUN   TestContentTypes
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestContentTypes/Home_endpoint
+=== RUN   TestContentTypes/Search_endpoint
+=== RUN   TestContentTypes/Filesystem_endpoint
+--- PASS: TestContentTypes (0.01s)
+    --- PASS: TestContentTypes/Home_endpoint (0.00s)
+    --- PASS: TestContentTypes/Search_endpoint (0.00s)
+    --- PASS: TestContentTypes/Filesystem_endpoint (0.00s)
+=== RUN   TestErrorHandling
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+{StormID:1 ListenAddrIP: ListenAddrPort:8000 DatabaseType:postgres DatabaseConnString: IngressPath:/home/hum3/minor/goEDMS/ingress IngressDelete:false IngressMoveFolder:/home/hum3/minor/goEDMS/done IngressPreserve:true DocumentPath:/home/hum3/minor/goEDMS/documents NewDocumentFolder:/home/hum3/minor/goEDMS/documents/New NewDocumentFolderRel:New WebUIPass:false ClientUsername: ClientPassword: PushBulletToken: TesseractPath:/usr/bin/tesseract UseReverseProxy:false BaseURL:https://goedms.domain.org IngressInterval:10 FrontEndConfig:{NewDocumentNumber:5 ServerAPIURL:}}
+=== RUN   TestErrorHandling/Invalid_JSON_in_request_body
+newfolder:  
+ID's:  []
+    api_test.go:597: Endpoint handled invalid JSON (may have defaults)
+=== RUN   TestErrorHandling/Very_long_document_ID
+UUID STRING:  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    api_test.go:614: Long ID returned status 404
+--- PASS: TestErrorHandling (0.00s)
+    --- PASS: TestErrorHandling/Invalid_JSON_in_request_body (0.00s)
+    --- PASS: TestErrorHandling/Very_long_document_ID (0.00s)
+=== RUN   TestFrontendRendering
+    main_test.go:69: Firefox detected, using curl instead for reliability
+Logging to file:  /home/hum3/minor/goEDMS/goedms.log
+Ingress Interval:  10
+
+========================================
+   goEDMS - Document Management System
+========================================
+Server will start on: :8000
+(Listening on all network interfaces)
+Detailed logs: goedms.log
+Initializing...
+
+exit status 1
+FAIL	github.com/drummonds/goEDMS	1.482s
