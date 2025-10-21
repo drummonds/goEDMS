@@ -39,6 +39,7 @@ func (s *Sidebar) Render() app.UI {
 				s.renderNavItem("📥", "Ingest Now", "/ingest"),
 				s.renderNavItem("🧹", "Clean Database", "/clean"),
 				s.renderNavItem("🔍", "Search", "/search"),
+				s.renderNavItem("ℹ️", "About", "/about"),
 			),
 		)
 }

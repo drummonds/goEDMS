@@ -526,6 +526,30 @@ func (serverHandler *ServerHandler) CreateFolder(context echo.Context) error {
 	return
 } */
 
+// GetAboutInfo returns information about the application configuration
+func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
+	// Get git commit hash
+	gitVersion := "f9d84497" // This should be set at build time via ldflags
+
+	// Determine OCR status
+	ocrConfigured := serverHandler.ServerConfig.TesseractPath != ""
+
+	// Get database type
+	dbType := serverHandler.ServerConfig.DatabaseType
+	if dbType == "" {
+		dbType = "postgres" // default
+	}
+
+	aboutInfo := map[string]interface{}{
+		"version":       gitVersion,
+		"ocrConfigured": ocrConfigured,
+		"ocrPath":       serverHandler.ServerConfig.TesseractPath,
+		"databaseType":  dbType,
+	}
+
+	return c.JSON(http.StatusOK, aboutInfo)
+}
+
 // RunIngestNow triggers the ingestion process manually
 func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
 	Logger.Info("Manual ingestion triggered via API")

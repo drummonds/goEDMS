@@ -120,6 +120,7 @@ func main() {
 	// Admin API routes
 	e.POST("/api/ingest", serverHandler.RunIngestNow)
 	e.POST("/api/clean", serverHandler.CleanDatabase)
+	e.GET("/api/about", serverHandler.GetAboutInfo)
 
 	// Serve go-app handler for all other routes (must be last)
 	e.Any("/*", echo.WrapHandler(appHandler))
