@@ -103,12 +103,12 @@ func (a *AboutPage) Render() app.UI {
 						app.Strong().Text("Database Type: "),
 						app.Text(a.aboutInfo.DatabaseType),
 					),
-					app.If(a.aboutInfo.OCRConfigured,
-						app.P().Body(
+					app.If(a.aboutInfo.OCRConfigured, func() app.UI {
+						return app.P().Body(
 							app.Strong().Text("Tesseract Path: "),
 							app.Text(a.aboutInfo.OCRPath),
-						),
-					),
+						)
+					}),
 				),
 			),
 			app.Div().Class("about-section").Body(
