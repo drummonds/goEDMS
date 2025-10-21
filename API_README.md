@@ -25,13 +25,31 @@ Currently, goEDMS does not implement authentication. This should be added before
 ```
 GET /home
 ```
-Returns the most recently ingested documents.
+Returns the most recently ingested documents with pagination support.
 
-**Response**: Array of Document objects
+**Query Parameters**:
+- `page` (optional): Page number (default: 1)
+
+**Response**: Paginated response with metadata
+```json
+{
+  "documents": [...],
+  "page": 1,
+  "pageSize": 20,
+  "totalCount": 100,
+  "totalPages": 5,
+  "hasNext": true,
+  "hasPrevious": false
+}
+```
 
 **Example**:
 ```bash
+# Get first page
 curl http://localhost:8000/home
+
+# Get specific page
+curl http://localhost:8000/home?page=2
 ```
 
 #### Get Document Filesystem
@@ -173,6 +191,52 @@ Creates a new folder in the document tree.
 curl -X POST "http://localhost:8000/folder/?path=/documents&folder=archive"
 ```
 
+### Admin Operations
+
+#### Trigger Manual Ingestion
+```
+POST /api/ingest
+```
+Manually triggers the document ingestion process to scan the ingress folder and process any pending documents.
+
+**Response**: Status message
+
+**Example**:
+```bash
+curl -X POST http://localhost:8000/api/ingest
+```
+
+**Response**:
+```
+Ingestion started
+```
+
+#### Clean Database
+```
+POST /api/clean
+```
+Performs database cleanup operations:
+- Removes database entries for files that no longer exist
+- Moves orphaned files (not in database) back to ingress for reprocessing
+- Removes orphaned entries from search index
+
+**Response**: Cleanup statistics
+
+**Example**:
+```bash
+curl -X POST http://localhost:8000/api/clean
+```
+
+**Response**:
+```json
+{
+  "message": "Cleanup completed successfully",
+  "scanned": 150,
+  "deleted": 5,
+  "moved": 2
+}
+```
+
 ## Data Models
 
 ### Document
@@ -227,35 +291,39 @@ curl -X POST "http://localhost:8000/folder/?path=/documents&folder=archive"
 
 ## User Interfaces
 
-### React UI (Default)
-The default UI is a React-based single-page application located at the root path `/`.
+### go-app Web UI (Default)
+The default UI is a Progressive Web App (PWA) built with the go-app framework. This provides a native-like experience with offline capability and fast performance.
 
-**Access**: http://localhost:8000/
+**Base URL**: http://localhost:8000/
+
+**Available Routes**:
+- `/` - Home page with latest documents (paginated)
+- `/browse` - Browse documents in tree view
+- `/search` - Full-text search interface
+- `/ingest` - Document upload interface
+- `/clean` - Database cleanup and maintenance
 
 **Features**:
+- Progressive Web App (PWA) with offline support
+- Responsive design for mobile and desktop
 - File browser with tree view
 - Document upload with drag-and-drop
-- Full-text search
+- Full-text search across all documents
 - Document viewer
 - Folder management
+- Pagination for large document collections
+- Real-time database cleanup tools
 
-### go-app UI (Alternative - In Development)
-An alternative Progressive Web App (PWA) built with go-app framework is in development.
-
-**Location**: `/app` (currently under development)
-
-**Planned Features**:
-- Native-like performance
-- Offline capability
-- Home page with latest documents
-- Browse documents in tree view
-- Full-text search
-
-**Components** (in `webapp/` directory):
-- `homepage.go` - Latest documents view
+**Technical Components** (in `webapp/` directory):
+- `app.go` - Main application component with routing
+- `handler.go` - HTTP handler configuration
+- `homepage.go` - Latest documents view with pagination
 - `browsepage.go` - File tree browser
 - `searchpage.go` - Search interface
-- `navbar.go` - Navigation component
+- `ingestpage.go` - Document upload interface
+- `cleanpage.go` - Database cleanup interface
+- `navbar.go` - Top navigation component
+- `sidebar.go` - Side navigation component
 
 ## Configuration
 
@@ -269,7 +337,26 @@ DocumentPath = "./documents"
 IngressPath = "./ingress"
 IngressInterval = 10  # minutes
 TesseractPath = "/usr/bin/tesseract"  # OCR engine
+DatabaseType = "postgres"  # "postgres", "cockroachdb", or "sqlite"
+
+[database]
+# Option 1: Provide a full connection string
+ConnectionString = "postgresql://user:password@localhost:5432/goedms?sslmode=disable"
+
+# Option 2: Provide individual components (used if ConnectionString is not set)
+Host = "localhost"
+Port = "5432"
+User = "goedms"
+Password = "your_password"
+Name = "goedms"
+SSLMode = "disable"  # "disable", "require", "verify-ca", or "verify-full"
 ```
+
+**Database Configuration Notes**:
+- PostgreSQL is now the default database (previously used BoltDB)
+- Use `-dev` flag to run with ephemeral PostgreSQL (no persistent data)
+- Connection string takes precedence over individual components
+- For production, use proper SSL configuration
 
 ## Error Handling
 
@@ -299,11 +386,13 @@ CORS is enabled by default with `middleware.DefaultCORSConfig`, allowing cross-o
 - [ ] WebSocket support for real-time updates
 - [ ] Batch operations
 - [ ] Document versioning
-- [ ] Advanced search filters
+- [ ] Advanced search filters (date ranges, file types, etc.)
 - [ ] Document metadata editing
-- [ ] Complete go-app UI implementation
 - [ ] API key management
 - [ ] Audit logging
+- [ ] Document tagging and categories
+- [ ] Email integration for document ingestion
+- [ ] Automated backup and restore functionality
 
 ## Development
 
@@ -318,19 +407,42 @@ go build -o goedms .
 ```
 
 ### Running
+
+**Production Mode** (uses configured database):
 ```bash
 ./goedms
 ```
 
+**Development Mode** (uses ephemeral PostgreSQL):
+```bash
+./goedms -dev
+```
+Development mode starts an ephemeral PostgreSQL database that is destroyed on exit. Perfect for testing without affecting persistent data.
+
+### Building the go-app UI
+The go-app UI is compiled to WebAssembly. To rebuild:
+```bash
+cd webapp
+GOARCH=wasm GOOS=js go build -o ../web/app.wasm ./cmd/webapp
+```
+
 ## Contributing
 
-When adding new API endpoints:
+### Adding New API Endpoints
 
 1. Add route definition in `main.go`
 2. Implement handler in `engine/routes.go`
-3. Update OpenAPI specification in `api/openapi.yaml`
+3. Update OpenAPI specification in `api/openapi.yaml` (if exists)
 4. Add tests in `main_test.go`
 5. Update this README
+
+### Adding New UI Pages (go-app)
+
+1. Create new page component in `webapp/` (e.g., `newpage.go`)
+2. Add route in `webapp/handler.go`
+3. Add route case in `webapp/app.go` `renderPage()` method
+4. Update navigation in `webapp/navbar.go` or `webapp/sidebar.go`
+5. Rebuild WebAssembly: `GOARCH=wasm GOOS=js go build -o ../web/app.wasm ./cmd/webapp`
 
 ## See Also
 
