@@ -46,6 +46,104 @@ parity with the old react app and then to get rid of it.
 - archival moving docs to an archive
 
 
+## Configuration
+
+goEDMS supports multiple ways to configure the application:
+
+### 1. Development Mode (Ephemeral PostgreSQL)
+
+The easiest way to get started for development:
+
+```bash
+./goEDMS -dev
+```
+
+This starts goEDMS with an ephemeral PostgreSQL database that is automatically created and destroyed when the application exits. Perfect for testing and development!
+
+### 2. Local PostgreSQL with .env File (Recommended)
+
+For local development with a persistent PostgreSQL database:
+
+1. **Install and start PostgreSQL** (if not already running)
+   ```bash
+   # On Ubuntu/Debian
+   sudo apt install postgresql
+   sudo systemctl start postgresql
+   
+   # On macOS with Homebrew
+   brew install postgresql
+   brew services start postgresql
+   ```
+
+2. **Create a database and user**
+   ```bash
+   sudo -u postgres psql
+   CREATE DATABASE goedms;
+   CREATE USER goedms WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE goedms TO goedms;
+   \q
+   ```
+
+3. **Copy and configure .env file**
+   ```bash
+   cp .env.example .env
+   ```
+
+4. **Edit .env** with your database credentials:
+   ```bash
+   GOEDMS_DATABASE_TYPE=postgres
+   GOEDMS_DATABASE_HOST=localhost
+   GOEDMS_DATABASE_PORT=5432
+   GOEDMS_DATABASE_NAME=goedms
+   GOEDMS_DATABASE_USER=goedms
+   GOEDMS_DATABASE_PASSWORD=your_password
+   GOEDMS_DATABASE_SSLMODE=disable
+   ```
+
+5. **Run goEDMS**
+   ```bash
+   ./goEDMS
+   ```
+
+### 3. Traditional TOML Configuration
+
+Edit `config/serverConfig.toml`:
+
+```toml
+[database]
+    Type = "postgres"
+    # Option 1: Full connection string
+    ConnectionString = "host=localhost port=5432 user=goedms password=secret dbname=goedms sslmode=disable"
+    
+    # Option 2: Individual parameters
+    Host = "localhost"
+    Port = "5432"
+    User = "goedms"
+    Password = "secret"
+    Name = "goedms"
+    SSLMode = "disable"
+```
+
+### Configuration Priority
+
+Settings are loaded in this order (later overrides earlier):
+
+1. `config/serverConfig.toml` (default values)
+2. `.env` file (if present)
+3. Environment variables (highest priority)
+
+This means you can set `GOEDMS_DATABASE_PASSWORD` as an environment variable to override the .env file value.
+
+### Environment Variables
+
+All configuration options can be set via environment variables using the prefix `GOEDMS_` and replacing dots with underscores:
+
+- `GOEDMS_DATABASE_HOST` → `database.Host`
+- `GOEDMS_SERVERCONFIG_SERVERPORT` → `serverConfig.ServerPort`
+- `GOEDMS_INGRESS_INGRESSPATH` → `ingress.IngressPath`
+
+See `.env.example` for a complete list of available variables.
+
 ## Documentation
 
 [Documentation](https://deranjer.github.io/goEDMSDocs)

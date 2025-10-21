@@ -8,10 +8,21 @@
     # Database type: "postgres" or "cockroachdb"
     # For development, use the -dev flag to run with ephemeral PostgreSQL (no configuration needed)
     Type = "postgres"
-    # PostgreSQL/CockroachDB connection string (leave empty for external PostgreSQL server)
+
+    # Option 1: Use a full connection string
     # Example: "host=localhost port=5432 user=goedms password=goedms dbname=goedms sslmode=disable"
     # For CockroachDB: "host=localhost port=26257 user=goedms password=goedms dbname=goedms sslmode=require"
     ConnectionString = ""
+
+    # Option 2: Use individual connection parameters (will be ignored if ConnectionString is set)
+    # These are especially useful when using .env files for local development
+    # Copy .env.example to .env and set GOEDMS_DATABASE_* variables
+    Host = ""
+    Port = ""
+    User = ""
+    Password = ""
+    Name = ""
+    SSLMode = ""
 
 [documentLibrary]     #Relative or absolute path accepted, the server will convert any relative path to an absolute path.
     DocumentFileSystemLocation = 'documents' #Location to store documents

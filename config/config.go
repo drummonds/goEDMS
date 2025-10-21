@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -56,9 +57,67 @@ func defaultConfig() ServerConfig { //TODO: Do I even bother, if config fails mo
 	return ServerConfigDefault
 }
 
+// buildDatabaseConnectionString builds a PostgreSQL connection string from individual
+// components or uses the provided connection string if available
+func buildDatabaseConnectionString(logger *slog.Logger) string {
+	// If a full connection string is provided, use it directly
+	if connStr := viper.GetString("database.ConnectionString"); connStr != "" {
+		logger.Info("Using provided database connection string")
+		return connStr
+	}
+
+	// Build connection string from individual components
+	host := viper.GetString("database.Host")
+	port := viper.GetString("database.Port")
+	user := viper.GetString("database.User")
+	password := viper.GetString("database.Password")
+	dbname := viper.GetString("database.Name")
+	sslmode := viper.GetString("database.SSLMode")
+
+	// If no individual components are set, return empty string
+	if host == "" && port == "" && user == "" && dbname == "" {
+		logger.Info("No database connection details provided, will use default behavior")
+		return ""
+	}
+
+	// Set defaults for missing values
+	if host == "" {
+		host = "localhost"
+	}
+	if port == "" {
+		port = "5432"
+	}
+	if user == "" {
+		user = "goedms"
+	}
+	if dbname == "" {
+		dbname = "goedms"
+	}
+	if sslmode == "" {
+		sslmode = "disable"
+	}
+
+	// Build the connection string
+	connStr := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
+		host, port, user, dbname, sslmode)
+
+	// Add password if provided
+	if password != "" {
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			host, port, user, password, dbname, sslmode)
+	}
+
+	logger.Info("Built database connection string from components",
+		"host", host, "port", port, "user", user, "dbname", dbname)
+
+	return connStr
+}
+
 // SetupServer does the initial configuration
 func SetupServer() (ServerConfig, *slog.Logger) {
 	var serverConfigLive ServerConfig
+
+	// Read main config file (serverConfig.toml)
 	viper.AddConfigPath("config/")
 	viper.AddConfigPath(".")
 	viper.SetConfigName("serverConfig")
@@ -66,6 +125,18 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	if err != nil {             // Handle errors reading the config file
 		panic(fmt.Errorf("fatal error config file: %s \n", err))
 	}
+
+	// Setup environment variable support
+	viper.SetEnvPrefix("GOEDMS")
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// Optionally load .env file (don't fail if it doesn't exist)
+	viper.SetConfigFile(".env")
+	if err := viper.MergeInConfig(); err == nil {
+		fmt.Println("📄 Loaded configuration from .env file")
+	}
+
 	logger := setupLogging()
 	ingressDir := filepath.ToSlash(viper.GetString("ingress.IngressPath")) //Converting the string literal into a filepath
 	ingressDirAbs, err := filepath.Abs(ingressDir)                         //Converting to an absolute file path
@@ -81,7 +152,9 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 		serverConfigLive.DatabaseType = "postgres" // Default to PostgreSQL
 		logger.Info("No database type specified, defaulting to PostgreSQL")
 	}
-	serverConfigLive.DatabaseConnString = viper.GetString("database.ConnectionString")
+
+	// Build connection string from individual components or use provided string
+	serverConfigLive.DatabaseConnString = buildDatabaseConnectionString(logger)
 	logger.Info("Database configuration loaded", "type", serverConfigLive.DatabaseType)
 	serverConfigLive.IngressInterval = viper.GetInt("ingress.scheduling.IngressInterval")
 	serverConfigLive.IngressPreserve = viper.GetBool("ingress.handling.PreserveDirStructure")
