@@ -13,6 +13,10 @@ type AboutInfo struct {
 	OCRConfigured bool   `json:"ocrConfigured"`
 	OCRPath       string `json:"ocrPath"`
 	DatabaseType  string `json:"databaseType"`
+	DatabaseHost  string `json:"databaseHost"`
+	DatabasePort  string `json:"databasePort"`
+	DatabaseName  string `json:"databaseName"`
+	IsEphemeral   bool   `json:"isEphemeral"`
 }
 
 // AboutPage displays information about the application
@@ -97,11 +101,36 @@ func (a *AboutPage) Render() app.UI {
 				),
 			),
 			app.Div().Class("about-section").Body(
-				app.H3().Text("System Configuration"),
+				app.H3().Text("Database Configuration"),
 				app.Div().Class("config-details").Body(
 					app.P().Body(
 						app.Strong().Text("Database Type: "),
-						app.Text(a.aboutInfo.DatabaseType),
+						app.Text(a.getDatabaseDisplay()),
+					),
+					app.P().Body(
+						app.Strong().Text("Host: "),
+						app.Text(a.aboutInfo.DatabaseHost),
+					),
+					app.P().Body(
+						app.Strong().Text("Port: "),
+						app.Text(a.aboutInfo.DatabasePort),
+					),
+					app.P().Body(
+						app.Strong().Text("Database Name: "),
+						app.Text(a.aboutInfo.DatabaseName),
+					),
+					app.P().Body(
+						app.Strong().Text("Connection Type: "),
+						app.Text(a.getConnectionType()),
+					),
+				),
+			),
+			app.Div().Class("about-section").Body(
+				app.H3().Text("OCR Configuration"),
+				app.Div().Class("config-details").Body(
+					app.P().Body(
+						app.Strong().Text("OCR Status: "),
+						app.Text(a.getOCRStatus()),
 					),
 					app.If(a.aboutInfo.OCRConfigured, func() app.UI {
 						return app.P().Body(
@@ -148,4 +177,12 @@ func (a *AboutPage) getOCRStatus() string {
 		return "Enabled"
 	}
 	return "Disabled"
+}
+
+// getConnectionType returns the database connection type
+func (a *AboutPage) getConnectionType() string {
+	if a.aboutInfo.IsEphemeral {
+		return "Ephemeral (Temporary, On-Disk)"
+	}
+	return "External (Persistent)"
 }

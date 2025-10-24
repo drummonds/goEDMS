@@ -14,6 +14,7 @@ func Handler() http.Handler {
 	app.Route("/ingest", func() app.Composer { return &App{} })
 	app.Route("/clean", func() app.Composer { return &App{} })
 	app.Route("/search", func() app.Composer { return &App{} })
+	app.Route("/about", func() app.Composer { return &App{} })
 	app.RunWhenOnBrowser()
 
 	// Create and return the handler

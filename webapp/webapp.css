@@ -181,6 +181,13 @@ h2 {
     font-size: 1.8rem;
 }
 
+h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    font-size: 1.4rem;
+}
+
 /* Loading and Error States */
 .loading,
 .error,

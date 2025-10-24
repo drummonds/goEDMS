@@ -2,12 +2,13 @@
 # goEDMS
 A golang/react EDMS for home users.  This was originally created by https://github.com/deranjer/goEDMS
 
-I am forking this as I want to develop it and to work on embedded Postgres,  My plan is to see if I can use it for my paperless use case where my old paperless app had failed and I wanted a version that I could eventualy
+I am hard forking this as I want to develop it and to work on embedded Postgres,  My plan is to see if I can use it for my paperless use case where my old paperless app had failed and I wanted a version that I could eventualy
 run on a gokrazy server
 - Update to go 1.22
 - Change logging to slog
 - Remove imagemagick and replace with go libraries
-- You really do need to have tesseract installed especially if none of your PDF's have text in them.
+- You really do need to have tesseract installed especially if none of your PDF's have text in them. Although I am tempted
+to have a go version.
 
 
 EDMS stands for Electronic Document Management System.  Essentially this is used to scan and organize all of your documents.  OCR is used to extract the text from PDF's, Images, or other formats that we cannot natively get text from.
@@ -20,14 +21,24 @@ Have a very simple go-app that allows you to show documents and then click on th
 parity with the old react app and then to get rid of it.
 
 - Add UI improvements
--- clean
+-- [ ] clean
   - iterate through and show progress
--- ingest and show progress
+-- [ ] ingest and show progress
+-- [ ] 
 - move OR (tesseract) to a hosted service on podman which can host on gokrazy
 - Add free text search
 - Move to postgres embedded
 - move to
 - Add ingestion
+  ==== Milestone deploy to gokrazy
+  ==== Milestone can replace paperless for my use case
+  -- [ ] Find a doc by text search/update 
+  -- [x] view doc on screen
+  -- [x] print doc
+  -- [ ] deployed on gokrazy 
+ ===== backup function and restore
+ -- [ ] Can backup and restore
+ ===== Future enhancements
 - add tagging
 - smart workflows for
   - Inbox
@@ -35,15 +46,8 @@ parity with the old react app and then to get rid of it.
   - update
   - importance
   - search by tagging
-  ==== Milestone deploy to gokrazy
-  ==== Milestone can replace paperless for my use case
-  -- Find a doc by text search/update ( )
-  -- view doc on screen (x)
-  -- print doc (x)
- ===== backup function and restore
-
 - display summary using AI?
-- archival moving docs to an archive
+- archival moving old docs to an archive
 
 
 ## Configuration

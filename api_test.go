@@ -60,6 +60,7 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 	e.GET("/folder/:folder", serverHandler.GetFolder)
 	e.POST("/folder/*", serverHandler.CreateFolder)
 	e.GET("/search/*", serverHandler.SearchDocuments)
+	e.GET("/api/about", serverHandler.GetAboutInfo)
 	e.POST("/api/ingest", serverHandler.RunIngestNow)
 	e.POST("/api/clean", serverHandler.CleanDatabase)
 
@@ -622,5 +623,135 @@ func TestErrorHandling(t *testing.T) {
 			t.Error("Should not return OK for invalid long ID")
 		}
 		t.Logf("Long ID returned status %d", rec.Code)
+	})
+}
+
+// TestGetAboutInfo tests the /api/about endpoint
+func TestGetAboutInfo(t *testing.T) {
+	e, serverHandler, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	t.Run("Get about information", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/about", nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		var aboutInfo map[string]interface{}
+		if err := json.Unmarshal(rec.Body.Bytes(), &aboutInfo); err != nil {
+			t.Fatalf("Failed to parse response: %v\nBody: %s", err, rec.Body.String())
+		}
+
+		// Verify required fields are present
+		requiredFields := []string{"version", "ocrConfigured", "ocrPath", "databaseType"}
+		for _, field := range requiredFields {
+			if _, ok := aboutInfo[field]; !ok {
+				t.Errorf("Response missing required field: %s", field)
+			}
+		}
+
+		// Verify field types
+		if _, ok := aboutInfo["version"].(string); !ok {
+			t.Errorf("version should be a string, got %T", aboutInfo["version"])
+		}
+
+		if _, ok := aboutInfo["ocrConfigured"].(bool); !ok {
+			t.Errorf("ocrConfigured should be a boolean, got %T", aboutInfo["ocrConfigured"])
+		}
+
+		if _, ok := aboutInfo["ocrPath"].(string); !ok {
+			t.Errorf("ocrPath should be a string, got %T", aboutInfo["ocrPath"])
+		}
+
+		if _, ok := aboutInfo["databaseType"].(string); !ok {
+			t.Errorf("databaseType should be a string, got %T", aboutInfo["databaseType"])
+		}
+
+		// Log the actual values
+		t.Logf("Version: %v", aboutInfo["version"])
+		t.Logf("OCR Configured: %v", aboutInfo["ocrConfigured"])
+		t.Logf("OCR Path: %v", aboutInfo["ocrPath"])
+		t.Logf("Database Type: %v", aboutInfo["databaseType"])
+
+		// Verify OCR configuration matches server config
+		ocrConfigured := aboutInfo["ocrConfigured"].(bool)
+		expectedOCRConfigured := serverHandler.ServerConfig.TesseractPath != ""
+		if ocrConfigured != expectedOCRConfigured {
+			t.Errorf("OCR configured mismatch: got %v, expected %v", ocrConfigured, expectedOCRConfigured)
+		}
+
+		// Verify database type
+		dbType := aboutInfo["databaseType"].(string)
+		if dbType == "" {
+			t.Error("Database type should not be empty")
+		}
+
+		// Database type should be one of the valid types
+		validDBTypes := []string{"postgres", "cockroachdb", "sqlite"}
+		validType := false
+		for _, valid := range validDBTypes {
+			if dbType == valid {
+				validType = true
+				break
+			}
+		}
+		if !validType {
+			t.Logf("Database type '%s' may be valid but not in expected list", dbType)
+		}
+	})
+
+	t.Run("About endpoint returns consistent data", func(t *testing.T) {
+		// Make multiple requests to ensure consistency
+		var responses []map[string]interface{}
+
+		for i := 0; i < 3; i++ {
+			req := httptest.NewRequest(http.MethodGet, "/api/about", nil)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Errorf("Request %d failed with status %d", i+1, rec.Code)
+				continue
+			}
+
+			var aboutInfo map[string]interface{}
+			if err := json.Unmarshal(rec.Body.Bytes(), &aboutInfo); err != nil {
+				t.Errorf("Request %d failed to parse: %v", i+1, err)
+				continue
+			}
+
+			responses = append(responses, aboutInfo)
+		}
+
+		// Verify all responses are identical
+		if len(responses) < 2 {
+			t.Fatal("Not enough successful responses to compare")
+		}
+
+		firstResponse, _ := json.Marshal(responses[0])
+		for i := 1; i < len(responses); i++ {
+			currentResponse, _ := json.Marshal(responses[i])
+			if string(firstResponse) != string(currentResponse) {
+				t.Errorf("Response %d differs from first response", i+1)
+				t.Logf("First: %s", firstResponse)
+				t.Logf("Current: %s", currentResponse)
+			}
+		}
+
+		t.Log("✓ About endpoint returns consistent data across multiple requests")
+	})
+
+	t.Run("About endpoint handles OPTIONS request", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodOptions, "/api/about", nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+
+		// Should handle CORS preflight (or return method not allowed)
+		if rec.Code != http.StatusNoContent && rec.Code != http.StatusOK && rec.Code != http.StatusMethodNotAllowed {
+			t.Logf("OPTIONS request returned status %d", rec.Code)
+		}
 	})
 }

@@ -7,20 +7,20 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
+	"strconv"
 
-	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
 )
 
 // Logger is global since we will need it everywhere
 var Logger *slog.Logger
 
-// ServerConfig contains all of the server settings defined in the TOML file
+// ServerConfig contains all of the server settings
 type ServerConfig struct {
 	StormID              int `storm:"id"`
 	ListenAddrIP         string
 	ListenAddrPort       string
-	DatabaseType         string // "sqlite", "postgres", or "cockroachdb"
+	DatabaseType         string // "postgres" or "cockroachdb"
 	DatabaseConnString   string // PostgreSQL/CockroachDB connection string
 	IngressPath          string
 	IngressDelete        bool
@@ -28,7 +28,7 @@ type ServerConfig struct {
 	IngressPreserve      bool
 	DocumentPath         string
 	NewDocumentFolder    string //absolute path to new document folder
-	NewDocumentFolderRel string //relative path to new document folder Needed for multiple levels deep.
+	NewDocumentFolderRel string //relative path to new document folder
 	WebUIPass            bool
 	ClientUsername       string
 	ClientPassword       string
@@ -46,33 +46,55 @@ type FrontEndConfig struct {
 	ServerAPIURL      string
 }
 
-func defaultConfig() ServerConfig { //TODO: Do I even bother, if config fails most likely not worth continuing
-	var ServerConfigDefault ServerConfig
-	//Config.AppVersion
-	//zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	ServerConfigDefault.DocumentPath = "documents"
-	ServerConfigDefault.IngressPath = "ingress"
-	ServerConfigDefault.WebUIPass = false
-	ServerConfigDefault.UseReverseProxy = false
-	return ServerConfigDefault
+// getEnv gets an environment variable with a default value
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
-// buildDatabaseConnectionString builds a PostgreSQL connection string from individual
-// components or uses the provided connection string if available
+// getEnvBool gets a boolean environment variable with a default value
+func getEnvBool(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	boolVal, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	return boolVal
+}
+
+// getEnvInt gets an integer environment variable with a default value
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	intVal, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+	return intVal
+}
+
+// buildDatabaseConnectionString builds a PostgreSQL connection string
 func buildDatabaseConnectionString(logger *slog.Logger) string {
 	// If a full connection string is provided, use it directly
-	if connStr := viper.GetString("database.ConnectionString"); connStr != "" {
+	if connStr := getEnv("DATABASE_CONNECTION_STRING", ""); connStr != "" {
 		logger.Info("Using provided database connection string")
 		return connStr
 	}
 
 	// Build connection string from individual components
-	host := viper.GetString("database.Host")
-	port := viper.GetString("database.Port")
-	user := viper.GetString("database.User")
-	password := viper.GetString("database.Password")
-	dbname := viper.GetString("database.Name")
-	sslmode := viper.GetString("database.SSLMode")
+	host := getEnv("DATABASE_HOST", "")
+	port := getEnv("DATABASE_PORT", "")
+	user := getEnv("DATABASE_USER", "")
+	password := getEnv("DATABASE_PASSWORD", "")
+	dbname := getEnv("DATABASE_NAME", "")
+	sslmode := getEnv("DATABASE_SSLMODE", "")
 
 	// If no individual components are set, return empty string
 	if host == "" && port == "" && user == "" && dbname == "" {
@@ -113,59 +135,49 @@ func buildDatabaseConnectionString(logger *slog.Logger) string {
 	return connStr
 }
 
-// SetupServer does the initial configuration
+// SetupServer loads configuration and returns ServerConfig and Logger
 func SetupServer() (ServerConfig, *slog.Logger) {
-	var serverConfigLive ServerConfig
+	serverConfigLive := ServerConfig{}
+	frontEndConfigLive := FrontEndConfig{}
 
-	// Read main config file (serverConfig.toml)
-	viper.AddConfigPath("config/")
-	viper.AddConfigPath(".")
-	viper.SetConfigName("serverConfig")
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		panic(fmt.Errorf("fatal error config file: %s \n", err))
-	}
-
-	// Setup environment variable support
-	viper.SetEnvPrefix("GOEDMS")
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// Optionally load .env file (don't fail if it doesn't exist)
-	viper.SetConfigFile(".env")
-	if err := viper.MergeInConfig(); err == nil {
-		fmt.Println("📄 Loaded configuration from .env file")
-	}
+	// Load .env file (silently ignore if doesn't exist)
+	_ = godotenv.Load(".env")
+	_ = godotenv.Load("config.env")
 
 	logger := setupLogging()
-	ingressDir := filepath.ToSlash(viper.GetString("ingress.IngressPath")) //Converting the string literal into a filepath
-	ingressDirAbs, err := filepath.Abs(ingressDir)                         //Converting to an absolute file path
+	Logger = logger
+
+	// Load configuration from environment variables with defaults
+
+	// Server configuration
+	serverConfigLive.ListenAddrPort = getEnv("SERVER_PORT", "8000")
+	serverConfigLive.ListenAddrIP = getEnv("SERVER_ADDR", "")
+
+	// Database configuration
+	serverConfigLive.DatabaseType = getEnv("DATABASE_TYPE", "postgres")
+	serverConfigLive.DatabaseConnString = buildDatabaseConnectionString(logger)
+	logger.Info("Database configuration loaded", "type", serverConfigLive.DatabaseType)
+
+	// Ingress configuration
+	ingressDir := filepath.ToSlash(getEnv("INGRESS_PATH", "ingress"))
+	ingressDirAbs, err := filepath.Abs(ingressDir)
 	if err != nil {
 		logger.Error("Failed creating absolute path for ingress directory", "error", err)
 	}
 	serverConfigLive.IngressPath = ingressDirAbs
-	logger.Info("Base Logger is setup!")
-	serverConfigLive.ListenAddrPort = viper.GetString("serverConfig.ServerPort")
-	serverConfigLive.ListenAddrIP = viper.GetString("serverConfig.ServerAddr")
-	serverConfigLive.DatabaseType = viper.GetString("database.Type")
-	if serverConfigLive.DatabaseType == "" {
-		serverConfigLive.DatabaseType = "postgres" // Default to PostgreSQL
-		logger.Info("No database type specified, defaulting to PostgreSQL")
-	}
 
-	// Build connection string from individual components or use provided string
-	serverConfigLive.DatabaseConnString = buildDatabaseConnectionString(logger)
-	logger.Info("Database configuration loaded", "type", serverConfigLive.DatabaseType)
-	serverConfigLive.IngressInterval = viper.GetInt("ingress.scheduling.IngressInterval")
-	serverConfigLive.IngressPreserve = viper.GetBool("ingress.handling.PreserveDirStructure")
-	serverConfigLive.IngressDelete = viper.GetBool("ingress.completed.IngressDeleteOnProcess")
-	ingressMoveFolder := filepath.ToSlash(viper.GetString("ingress.completed.IngressMoveFolder"))
+	serverConfigLive.IngressInterval = getEnvInt("INGRESS_INTERVAL", 10)
+	serverConfigLive.IngressPreserve = getEnvBool("INGRESS_PRESERVE_STRUCTURE", true)
+	serverConfigLive.IngressDelete = getEnvBool("INGRESS_DELETE", false)
+
+	ingressMoveFolder := filepath.ToSlash(getEnv("INGRESS_MOVE_FOLDER", "done"))
 	ingressMoveFolderABS, err := filepath.Abs(ingressMoveFolder)
 	if err != nil {
 		logger.Error("Failed creating absolute path for ingress move folder", "error", err)
 	}
 	serverConfigLive.IngressMoveFolder = ingressMoveFolderABS
-	os.MkdirAll(ingressMoveFolderABS, os.ModePerm) //creating the directory for moving now
+	os.MkdirAll(ingressMoveFolderABS, os.ModePerm)
+
 	fmt.Println("Ingress Interval: ", serverConfigLive.IngressInterval)
 	fmt.Println("\n========================================")
 	fmt.Println("   goEDMS - Document Management System")
@@ -174,128 +186,120 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	if serverConfigLive.ListenAddrIP == "" {
 		fmt.Println("(Listening on all network interfaces)")
 	}
-	fmt.Println("Detailed logs: goedms.log")
+	fmt.Printf("Detailed logs: %s\n", getEnv("LOG_FILE", "goedms.log"))
 	fmt.Println("Initializing...")
-	fmt.Println("")
-	documentPathRelative := filepath.ToSlash(viper.GetString("documentLibrary.DocumentFileSystemLocation"))
-	serverConfigLive.DocumentPath, err = filepath.Abs(documentPathRelative)
+
+	// Document storage configuration
+	documentPathRelative := filepath.ToSlash(getEnv("DOCUMENT_PATH", "documents"))
+	documentPathAbs, err := filepath.Abs(documentPathRelative)
 	if err != nil {
-		logger.Error("Failed creating absolute path for document library", "error", err)
+		logger.Error("Error creating document path", "path", documentPathRelative, "error", err)
 	}
-	newDocumentPath := filepath.ToSlash(viper.GetString("documentLibrary.DefaultNewDocumentFolder"))
+	serverConfigLive.DocumentPath = documentPathAbs
+
+	newDocumentPath := filepath.ToSlash(getEnv("NEW_DOCUMENT_FOLDER", "New"))
 	serverConfigLive.NewDocumentFolderRel = newDocumentPath
-	serverConfigLive.NewDocumentFolder = filepath.Join(serverConfigLive.DocumentPath, newDocumentPath)
-	tesseractPathConfig := viper.GetString("ocr.TesseractBin")
-	if tesseractPathConfig != "" {
-		serverConfigLive.TesseractPath, err = filepath.Abs(filepath.ToSlash(tesseractPathConfig))
-		if err != nil {
-			logger.Warn("Failed creating absolute path for tesseract binary, OCR will be disabled", "error", err)
-			serverConfigLive.TesseractPath = ""
-		} else {
-			logger.Info("Checking tesseract executable path...")
-			err = checkExecutables(serverConfigLive.TesseractPath, logger)
-			if err != nil {
-				logger.Warn("Tesseract executable not found, OCR will be disabled", "path", serverConfigLive.TesseractPath)
-				serverConfigLive.TesseractPath = ""
-			} else {
-				logger.Info("Tesseract found and validated, OCR enabled", "path", serverConfigLive.TesseractPath)
-			}
-		}
+	serverConfigLive.NewDocumentFolder = filepath.Join(documentPathAbs, newDocumentPath)
+
+	// OCR configuration
+	tesseractPathConfig := getEnv("TESSERACT_PATH", "/usr/bin/tesseract")
+	logger.Info("Checking tesseract executable path...")
+	if _, err := os.Stat(tesseractPathConfig); err == nil {
+		logger.Debug("Tesseract executable found", "path", tesseractPathConfig)
+		serverConfigLive.TesseractPath = tesseractPathConfig
+		logger.Info("Tesseract found and validated, OCR enabled", "path", tesseractPathConfig)
 	} else {
-		logger.Info("No Tesseract path configured, OCR will be disabled")
+		logger.Warn("Tesseract executable not found, OCR will be disabled", "path", tesseractPathConfig, "error", err)
+		serverConfigLive.TesseractPath = ""
 	}
-	serverConfigLive.UseReverseProxy = viper.GetBool("reverseProxy.ProxyEnabled")
-	serverConfigLive.BaseURL = viper.GetString("reverseProxy.BaseURL")
-	os.MkdirAll(serverConfigLive.NewDocumentFolder, os.ModePerm)
-	frontEndConfigLive := setupFrontEnd(serverConfigLive, logger)
+
+	// Authentication configuration
+	serverConfigLive.WebUIPass = getEnvBool("WEB_UI_AUTH", false)
+	serverConfigLive.ClientUsername = getEnv("WEB_UI_USER", "admin")
+	serverConfigLive.ClientPassword = getEnv("WEB_UI_PASSWORD", "Password1")
+
+	// Reverse proxy configuration
+	serverConfigLive.UseReverseProxy = getEnvBool("PROXY_ENABLED", false)
+	serverConfigLive.BaseURL = getEnv("BASE_URL", "https://goedms.domain.org")
+
+	if serverConfigLive.UseReverseProxy {
+		logger.Info("Using Reverse Proxy", "baseURL", serverConfigLive.BaseURL)
+	} else {
+		logger.Info("Using relative URLs for API calls (frontend will use same host it was served from)")
+	}
+
+	// Frontend configuration
+	frontEndConfigLive.NewDocumentNumber = getEnvInt("NEW_DOCUMENT_COUNT", 5)
+	frontEndConfigLive.ServerAPIURL = getEnv("SERVER_API_URL", "")
 	serverConfigLive.FrontEndConfig = frontEndConfigLive
+
+	// Notifications
+	serverConfigLive.PushBulletToken = getEnv("PUSHBULLET_TOKEN", "")
+
+	logger.Info("About to setup database", "type", serverConfigLive.DatabaseType)
+
 	return serverConfigLive, logger
 }
 
-func setupFrontEnd(serverConfigLive ServerConfig, logger *slog.Logger) FrontEndConfig {
-	var frontEndConfigLive FrontEndConfig
-	var frontEndURL string
-	frontEndConfigLive.NewDocumentNumber = viper.GetInt("frontend.NewDocumentNumber") //number of new documents to display //TODO: maybe not using this...
-	frontEndConfigLive.ServerAPIURL = viper.GetString("serverConfig.APIURL")          //Used for docker to manually specify URL for backend
-	//TODO add check for docker container api URL and generate it here
-	if frontEndConfigLive.ServerAPIURL != "" { //if this is NOT blank it is docker specifying the URL
-		frontEndURL = fmt.Sprintf("http://%s", frontEndConfigLive.ServerAPIURL)
+// setupLogging configures the application logger
+func setupLogging() *slog.Logger {
+	logLevel := getEnv("LOG_LEVEL", "debug")
+	var level slog.Level
+
+	switch logLevel {
+	case "debug":
+		level = slog.LevelDebug
+	case "info":
+		level = slog.LevelInfo
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelDebug
+	}
+
+	handlerOptions := &slog.HandlerOptions{Level: level}
+
+	logOutput := getEnv("LOG_OUTPUT", "file")
+	var logWriter io.Writer
+
+	if logOutput == "stdout" {
+		logWriter = os.Stdout
 	} else {
-		if serverConfigLive.UseReverseProxy { //if using a proxy set the proxy URL
-			frontEndURL = serverConfigLive.BaseURL
-		} else { //If NOT using a proxy, use relative URLs (empty string) so frontend uses same host it was served from
-			frontEndURL = ""
-			logger.Info("Using relative URLs for API calls (frontend will use same host it was served from)")
+		logPath, err := filepath.Abs(filepath.ToSlash(getEnv("LOG_FILE", "goedms.log")))
+		if err != nil {
+			fmt.Printf("Error creating log file path: %v\n", err)
+			logWriter = os.Stdout
+		} else {
+			logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			if err != nil {
+				fmt.Printf("Failed to open log file: %v\n", err)
+				logWriter = os.Stdout
+			} else {
+				logWriter = logFile
+				fmt.Println("Logging to file: ", logPath)
+			}
 		}
 	}
-	var frontEndJS = fmt.Sprintf(`window['runConfig'] = {
-		apiUrl: "%s"
-	}`, frontEndURL) //Creating the react API file so the frontend will connect with the backend
-	err := os.WriteFile("public/built/frontend-config.js", []byte(frontEndJS), 0644)
-	if err != nil {
-		logger.Error("Error writing frontend config to public/built/frontend-config.js", "error", err)
-		os.Exit(1)
-	}
-	return frontEndConfigLive
+
+	handler := slog.NewTextHandler(logWriter, handlerOptions)
+	return slog.New(handler)
 }
 
-func getDefaultIP(logger *slog.Logger) (*string, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:80") //attempting to determine the default IP by connecting out
+// GetPreferredOutboundIP gets preferred outbound IP of this machine
+func GetPreferredOutboundIP() (net.IP, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		logger.Error("Error discovering Local IP! Either network connection error (outbound connection is used to determine default IP) or error determining default IP!", "error", err)
 		return nil, err
 	}
 	defer conn.Close()
-	localaddr := conn.LocalAddr().(*net.UDPAddr).IP.String()
-	logger.Info("Local IP Determined", "ip", localaddr)
-	return &localaddr, nil
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP, nil
 }
 
-func setupLogging() *slog.Logger {
-	logLevelString := viper.GetString("logging.Level")
-	var loglevel slog.Level
-	switch logLevelString {
-	case "Debug", "debug":
-		loglevel = slog.LevelDebug
-	case "Info", "info":
-		loglevel = slog.LevelInfo
-	case "Warn", "warn":
-		loglevel = slog.LevelWarn
-	case "Error", "error":
-		loglevel = slog.LevelError
-	default:
-		loglevel = slog.LevelWarn
-	}
-
-	var logWriter io.Writer
-	logOutput := viper.GetString("logging.OutputPath")
-	if logOutput == "file" {
-		logPath, err := filepath.Abs(filepath.ToSlash(viper.GetString("logging.LogFileLocation")))
-		if err != nil {
-			fmt.Println("Unable to create log file path: ", err)
-			logPath = "output.log"
-		}
-		logFile, err := os.Create(logPath)
-		if err != nil {
-			fmt.Println("Unable to create log file: ", err)
-			logWriter = os.Stdout
-		} else {
-			logWriter = logFile
-			fmt.Println("Logging to file: ", logPath)
-		}
-	} else {
-		logWriter = os.Stdout
-		fmt.Println("Will be logging to stdout...")
-	}
-
-	opts := &slog.HandlerOptions{
-		Level: loglevel,
-	}
-	handler := slog.NewTextHandler(logWriter, opts)
-	logger := slog.New(handler)
-	return logger
-}
-
+// checkExecutables verifies that an executable exists at the given path
 func checkExecutables(tesseractPath string, logger *slog.Logger) error {
 	_, err := os.Stat(tesseractPath)
 	if err != nil {

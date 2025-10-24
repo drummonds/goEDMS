@@ -540,11 +540,60 @@ func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
 		dbType = "postgres" // default
 	}
 
+	// Parse database connection string to extract details
+	connString := serverHandler.ServerConfig.DatabaseConnString
+	dbHost := ""
+	dbPort := ""
+	dbName := ""
+	isEphemeral := false
+
+	// Check if it's an empty connection string (indicates ephemeral database)
+	if connString == "" {
+		isEphemeral = true
+		dbHost = "ephemeral (temporary)"
+		dbPort = "N/A"
+		dbName = "temporary test database"
+	} else {
+		// Parse PostgreSQL connection string
+		// Format: "host=localhost port=5432 user=postgres password=postgres dbname=goedms sslmode=disable"
+		parts := strings.Split(connString, " ")
+		for _, part := range parts {
+			kv := strings.SplitN(part, "=", 2)
+			if len(kv) == 2 {
+				key := strings.TrimSpace(kv[0])
+				value := strings.TrimSpace(kv[1])
+				switch key {
+				case "host":
+					dbHost = value
+				case "port":
+					dbPort = value
+				case "dbname":
+					dbName = value
+				}
+			}
+		}
+
+		// If we couldn't parse values, provide defaults
+		if dbHost == "" {
+			dbHost = "localhost"
+		}
+		if dbPort == "" {
+			dbPort = "5432"
+		}
+		if dbName == "" {
+			dbName = "goedms"
+		}
+	}
+
 	aboutInfo := map[string]interface{}{
 		"version":       gitVersion,
 		"ocrConfigured": ocrConfigured,
 		"ocrPath":       serverHandler.ServerConfig.TesseractPath,
 		"databaseType":  dbType,
+		"databaseHost":  dbHost,
+		"databasePort":  dbPort,
+		"databaseName":  dbName,
+		"isEphemeral":   isEphemeral,
 	}
 
 	return c.JSON(http.StatusOK, aboutInfo)

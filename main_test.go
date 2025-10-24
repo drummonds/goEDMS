@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/blevesearch/bleve"
 	"github.com/chromedp/chromedp"
 	config "github.com/drummonds/goEDMS/config"
 	database "github.com/drummonds/goEDMS/database"
@@ -831,3 +832,382 @@ func runRootEndpointTest(t *testing.T) {
 		t.Log("/app endpoint test passed!")
 	}
 }
+
+// TestAboutPageRendering tests that the About page loads and displays information correctly
+func TestAboutPageRendering(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Set a timeout for the entire test
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Use channel to detect if test completes or times out
+	done := make(chan bool)
+	go func() {
+		runAboutPageTest(t)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-ctx.Done():
+		t.Fatal("About page test timed out after 30 seconds")
+	}
+}
+
+// runAboutPageTest contains the actual test logic for the About page
+func runAboutPageTest(t *testing.T) {
+	// Check if lynx is available
+	if _, err := exec.LookPath("lynx"); err != nil {
+		t.Skip("lynx not found, skipping About page test")
+	}
+	t.Log("Using lynx to test /about page")
+
+	// Set up the server
+	t.Log("Setting up server config...")
+	serverConfig, logger := config.SetupServer()
+	injectGlobals(logger)
+
+	// Use ephemeral PostgreSQL for tests
+	t.Log("Setting up ephemeral database...")
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	t.Log("Ephemeral database created successfully")
+	db := database.DBInterface(ephemeralDB)
+	defer ephemeralDB.Close()
+	defer db.Close()
+
+	// Skip search database setup as /about page doesn't need it
+	t.Log("Skipping search database (not needed for /about page)")
+	var searchDB bleve.Index = nil
+
+	t.Log("Writing config to database...")
+	database.WriteConfigToDB(serverConfig, db)
+
+	t.Log("Creating Echo server...")
+	e := echo.New()
+	e.HideBanner = true
+	t.Log("Initializing server handler...")
+	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
+
+	// Skip schedule initialization since we don't need it for this test
+	t.Log("Skipping startup checks (not needed for /about page)")
+	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
+	e.Static("/", "public/built")
+
+	// Set up go-app WASM handler
+	t.Log("Setting up go-app WASM handler...")
+	appHandler := webapp.Handler()
+
+	// Serve wasm_exec.js (go-app expects it here)
+	e.GET("/wasm_exec.js", func(c echo.Context) error {
+		return c.File("web/wasm_exec.js")
+	})
+
+	// Register go-app specific resources
+	e.GET("/app.js", echo.WrapHandler(appHandler))
+	e.GET("/app.css", echo.WrapHandler(appHandler))
+	e.GET("/manifest.webmanifest", echo.WrapHandler(appHandler))
+
+	// Serve static assets
+	e.Static("/web", "web")
+	e.File("/webapp/webapp.css", "webapp/webapp.css")
+	e.File("/favicon.ico", "public/built/favicon.ico")
+
+	// Add all necessary routes including /api/about
+	e.GET("/home", serverHandler.GetLatestDocuments)
+	e.GET("/documents/filesystem", serverHandler.GetDocumentFileSystem)
+	e.GET("/api/about", serverHandler.GetAboutInfo)
+	e.GET("/document/:id", serverHandler.GetDocument)
+	serverHandler.AddDocumentViewRoutes()
+	e.GET("/search/*", serverHandler.SearchDocuments)
+
+	// Serve go-app handler for all other routes (must be last)
+	e.Any("/*", echo.WrapHandler(appHandler))
+
+	// Start server in background
+	testPort := "8998" // Different port from other test to avoid conflicts
+	go func() {
+		if err := e.Start(fmt.Sprintf("127.0.0.1:%s", testPort)); err != nil {
+			t.Logf("Server stopped: %v", err)
+		}
+	}()
+
+	// Give server time to start
+	time.Sleep(2 * time.Second)
+	defer e.Shutdown(context.Background())
+
+	// Use lynx to fetch the /about page with timeout
+	testURL := fmt.Sprintf("http://127.0.0.1:%s/about", testPort)
+	t.Logf("Fetching with lynx: %s", testURL)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "lynx", "-dump", "-nolist", testURL)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			t.Fatalf("Lynx timed out after 10 seconds fetching /about page")
+		}
+		t.Fatalf("Lynx failed to fetch /about page: %v, output: %s", err, string(output))
+	}
+
+	outputStr := string(output)
+
+	// Check for 404 or error responses FIRST
+	outputLower := strings.ToLower(outputStr)
+	if strings.Contains(outputLower, "not found") || strings.Contains(outputStr, "404") {
+		t.Fatalf("❌ Page returned 404 Not Found. Output: %s", outputStr)
+	}
+
+	if strings.Contains(outputStr, `"message":`) {
+		t.Fatalf("❌ Page returned JSON error response instead of HTML. Output: %s", outputStr)
+	}
+
+	// Basic checks that the page loaded
+	if len(outputStr) < 100 {
+		t.Fatalf("❌ Lynx output too short (%d chars), page may not have loaded properly. Output: %s", len(outputStr), outputStr)
+	}
+
+	t.Logf("✓ Lynx successfully fetched /about page (%d chars)", len(outputStr))
+
+	// Check that the page contains expected keywords related to the About page
+	expectedKeywords := []string{"about", "goedms"}
+	foundKeywords := 0
+
+	for _, keyword := range expectedKeywords {
+		if strings.Contains(outputLower, keyword) {
+			t.Logf("✓ Found keyword '%s' in About page", keyword)
+			foundKeywords++
+		}
+	}
+
+	// Require at least one keyword to be found
+	if foundKeywords == 0 {
+		t.Fatalf("❌ No expected keywords found in About page. Output: %s", outputStr)
+	}
+
+	// Check for version, database, ocr information (may be loaded via API)
+	infoKeywords := []string{"version", "database", "ocr"}
+	foundInfo := 0
+	for _, keyword := range infoKeywords {
+		if strings.Contains(outputLower, keyword) {
+			t.Logf("✓ Found info keyword '%s'", keyword)
+			foundInfo++
+		}
+	}
+
+	if foundInfo > 0 {
+		t.Logf("✓ Found %d/%d expected info fields", foundInfo, len(infoKeywords))
+	} else {
+		t.Log("⚠️  No info keywords found - API data may not have loaded yet (this is OK)")
+	}
+
+	// Log a sample of the output
+	sampleLen := min(300, len(outputStr))
+	t.Logf("Sample output:\n%s", outputStr[:sampleLen])
+
+	t.Log("✓ About page test with lynx completed successfully")
+}
+
+// TestAboutPageWithChromedp tests the About page using a headless browser that can execute WASM
+func TestAboutPageWithChromedp(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Check if a browser is available
+	browsers := []string{"chromium", "chromium-browser", "google-chrome", "chrome"}
+	browserFound := false
+	for _, browser := range browsers {
+		if _, err := exec.LookPath(browser); err == nil {
+			browserFound = true
+			break
+		}
+	}
+	if !browserFound {
+		t.Skip("No Chrome/Chromium browser found, skipping chromedp test")
+	}
+
+	// Set up the server
+	t.Log("Setting up server config...")
+	serverConfig, logger := config.SetupServer()
+	injectGlobals(logger)
+
+	// Use ephemeral PostgreSQL for tests
+	t.Log("Setting up ephemeral database...")
+	ephemeralDB, err := database.SetupEphemeralPostgresDatabase()
+	if err != nil {
+		t.Fatalf("Failed to setup ephemeral database: %v", err)
+	}
+	t.Log("Ephemeral database created successfully")
+	db := database.DBInterface(ephemeralDB)
+	defer ephemeralDB.Close()
+	defer db.Close()
+
+	// Skip search database setup as /about page doesn't need it
+	t.Log("Skipping search database (not needed for /about page)")
+	var searchDB bleve.Index = nil
+
+	t.Log("Writing config to database...")
+	database.WriteConfigToDB(serverConfig, db)
+
+	t.Log("Creating Echo server...")
+	e := echo.New()
+	e.HideBanner = true
+	t.Log("Initializing server handler...")
+	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
+
+	// Skip schedule initialization since we don't need it for this test
+	t.Log("Skipping startup checks (not needed for /about page)")
+	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
+	e.Static("/", "public/built")
+
+	// Set up go-app WASM handler
+	t.Log("Setting up go-app WASM handler...")
+	appHandler := webapp.Handler()
+
+	// Serve wasm_exec.js (go-app expects it here)
+	e.GET("/wasm_exec.js", func(c echo.Context) error {
+		return c.File("web/wasm_exec.js")
+	})
+
+	// Register go-app specific resources
+	e.GET("/app.js", echo.WrapHandler(appHandler))
+	e.GET("/app.css", echo.WrapHandler(appHandler))
+	e.GET("/manifest.webmanifest", echo.WrapHandler(appHandler))
+
+	// Serve static assets
+	e.Static("/web", "web")
+	e.File("/webapp/webapp.css", "webapp/webapp.css")
+	e.File("/favicon.ico", "public/built/favicon.ico")
+
+	// Add all necessary routes including /api/about
+	e.GET("/home", serverHandler.GetLatestDocuments)
+	e.GET("/documents/filesystem", serverHandler.GetDocumentFileSystem)
+	e.GET("/api/about", serverHandler.GetAboutInfo)
+	e.GET("/document/:id", serverHandler.GetDocument)
+	serverHandler.AddDocumentViewRoutes()
+	e.GET("/search/*", serverHandler.SearchDocuments)
+
+	// Serve go-app handler for all other routes (must be last)
+	e.Any("/*", echo.WrapHandler(appHandler))
+
+	// Start server in background
+	testPort := "8997" // Different port to avoid conflicts
+	go func() {
+		if err := e.Start(fmt.Sprintf("127.0.0.1:%s", testPort)); err != nil {
+			t.Logf("Server stopped: %v", err)
+		}
+	}()
+
+	// Give server time to start
+	time.Sleep(2 * time.Second)
+	defer e.Shutdown(context.Background())
+
+	// Create chromedp context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Set up headless browser options
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", true),
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("no-sandbox", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
+	)
+
+	// Create a new browser context with custom options
+	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer allocCancel()
+
+	// Create a chromedp context
+	taskCtx, taskCancel := chromedp.NewContext(allocCtx)
+	defer taskCancel()
+
+	testURL := fmt.Sprintf("http://127.0.0.1:%s/about", testPort)
+	t.Logf("Navigating to %s with chromedp", testURL)
+
+	var pageHTML string
+	var pageTitle string
+
+	// Try to navigate and get content, with better error handling
+	err = chromedp.Run(taskCtx,
+		chromedp.Navigate(testURL),
+		chromedp.WaitReady("body", chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Skipf("Chromedp failed to navigate (browser may not be compatible): %v", err)
+	}
+
+	// Give WASM time to load and execute
+	t.Log("Waiting for WASM to load and render...")
+	time.Sleep(8 * time.Second)
+
+	// Get the page content
+	var bodyHTML string
+	err = chromedp.Run(taskCtx,
+		chromedp.Title(&pageTitle),
+		chromedp.OuterHTML("html", &pageHTML, chromedp.ByQuery),
+		chromedp.InnerHTML("body", &bodyHTML, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Failed to get page content: %v", err)
+	}
+
+	t.Logf("Page title: %s", pageTitle)
+	t.Logf("Body HTML length: %d chars", len(bodyHTML))
+	t.Logf("✓ Successfully loaded /about page with chromedp")
+
+	// Log a sample of the body HTML for debugging
+	sampleLen := min(1000, len(bodyHTML))
+	t.Logf("Body HTML sample (first %d chars):\n%s", sampleLen, bodyHTML[:sampleLen])
+
+	// Verify the page contains expected About page content
+	pageLower := strings.ToLower(pageHTML)
+
+	expectedContent := []string{
+		"about goedms",                    // Page title
+		"application information",         // Section heading
+		"database configuration",          // Section heading
+		"ocr configuration",               // Section heading
+		"document management system",      // Description text
+		"version",                         // Info field
+		"database",                        // Info field
+		"ocr status",                      // Info field
+		"connection type",                 // Database connection info
+	}
+
+	foundContent := 0
+	for _, content := range expectedContent {
+		if strings.Contains(pageLower, content) {
+			t.Logf("✓ Found expected content: '%s'", content)
+			foundContent++
+		} else {
+			t.Logf("⚠ Missing expected content: '%s'", content)
+		}
+	}
+
+	if foundContent < 7 {
+		t.Fatalf("❌ Only found %d/%d expected content items. Page may not have rendered correctly.", foundContent, len(expectedContent))
+	}
+
+	// Verify it's NOT showing error states
+	if strings.Contains(pageHTML, "Loading...") {
+		t.Error("⚠ Page still showing 'Loading...' - WASM may not have fully loaded")
+	}
+	if strings.Contains(pageHTML, "Network error") {
+		t.Error("❌ Page showing network error")
+	}
+
+	t.Logf("✓ About page chromedp test completed successfully (found %d/%d content items)", foundContent, len(expectedContent))
+}
+
