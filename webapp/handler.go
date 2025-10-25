@@ -14,6 +14,7 @@ func Handler() http.Handler {
 	app.Route("/ingest", func() app.Composer { return &App{} })
 	app.Route("/clean", func() app.Composer { return &App{} })
 	app.Route("/search", func() app.Composer { return &App{} })
+	app.Route("/wordcloud", func() app.Composer { return &App{} })
 	app.Route("/about", func() app.Composer { return &App{} })
 	app.RunWhenOnBrowser()
 
@@ -29,6 +30,7 @@ func Handler() http.Handler {
 		},
 		Styles: []string{
 			"/webapp/webapp.css",
+			"/webapp/wordcloud.css",
 		},
 		RawHeaders: []string{
 			`<meta name="viewport" content="width=device-width, initial-scale=1">`,

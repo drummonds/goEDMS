@@ -55,7 +55,7 @@ func (h *HomePage) OnMount(ctx app.Context) {
 // fetchDocuments fetches documents for a specific page
 func (h *HomePage) fetchDocuments(ctx app.Context, page int) {
 	ctx.Async(func() {
-		url := fmt.Sprintf("/home?page=%d", page)
+		url := fmt.Sprintf("/api/documents/latest?page=%d", page)
 		res := app.Window().Call("fetch", url)
 
 		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {

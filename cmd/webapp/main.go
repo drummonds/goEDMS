@@ -15,6 +15,7 @@ func main() {
 	app.Route("/ingest", func() app.Composer { return &webapp.App{} })
 	app.Route("/clean", func() app.Composer { return &webapp.App{} })
 	app.Route("/search", func() app.Composer { return &webapp.App{} })
+	app.Route("/wordcloud", func() app.Composer { return &webapp.App{} })
 	app.Route("/about", func() app.Composer { return &webapp.App{} })
 
 	// This main function is for the WASM build only

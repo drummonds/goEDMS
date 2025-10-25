@@ -46,18 +46,22 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 
 	// Setup routes
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
-	e.GET("/home", serverHandler.GetLatestDocuments)
-	e.GET("/documents/filesystem", serverHandler.GetDocumentFileSystem)
-	e.GET("/document/:id", serverHandler.GetDocument)
-	e.DELETE("/document/*", serverHandler.DeleteFile)
-	e.PATCH("/document/move/*", serverHandler.MoveDocuments)
-	e.POST("/document/upload", serverHandler.UploadDocuments)
-	e.GET("/folder/:folder", serverHandler.GetFolder)
-	e.POST("/folder/*", serverHandler.CreateFolder)
-	e.GET("/search/*", serverHandler.SearchDocuments)
+	e.GET("/api/documents/latest", serverHandler.GetLatestDocuments)
+	e.GET("/api/documents/filesystem", serverHandler.GetDocumentFileSystem)
+	e.GET("/api/document/:id", serverHandler.GetDocument)
+	e.DELETE("/api/document/*", serverHandler.DeleteFile)
+	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
+	e.POST("/api/document/upload", serverHandler.UploadDocuments)
+	e.GET("/api/folder/:folder", serverHandler.GetFolder)
+	e.POST("/api/folder/*", serverHandler.CreateFolder)
+	e.GET("/api/search", serverHandler.SearchDocuments)
 	e.GET("/api/about", serverHandler.GetAboutInfo)
 	e.POST("/api/ingest", serverHandler.RunIngestNow)
 	e.POST("/api/clean", serverHandler.CleanDatabase)
+
+	// Word cloud routes
+	e.GET("/api/wordcloud", serverHandler.GetWordCloud)
+	e.POST("/api/wordcloud/recalculate", serverHandler.RecalculateWordCloud)
 
 	cleanup := func() {
 		testDB.Close()
@@ -72,7 +76,7 @@ func TestGetLatestDocuments(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Get latest documents - empty database", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/home", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/documents/latest", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -104,7 +108,7 @@ func TestGetLatestDocuments(t *testing.T) {
 	})
 
 	t.Run("Get latest documents - with pagination", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/home?page=1", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/documents/latest?page=1", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -139,7 +143,7 @@ func TestGetLatestDocuments(t *testing.T) {
 	})
 
 	t.Run("Get latest documents - invalid page number", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/home?page=invalid", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/documents/latest?page=invalid", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -155,7 +159,7 @@ func TestGetDocumentFileSystem(t *testing.T) {
 	e, _, cleanup := setupTestServer(t)
 	defer cleanup()
 
-	req := httptest.NewRequest(http.MethodGet, "/documents/filesystem", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/documents/filesystem", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
@@ -180,7 +184,7 @@ func TestSearchDocuments(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Search - empty query term", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/search/?term=", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/search?term=", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -191,7 +195,7 @@ func TestSearchDocuments(t *testing.T) {
 	})
 
 	t.Run("Search - with query term", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/search/?term=test", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/search?term=test", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -213,7 +217,7 @@ func TestSearchDocuments(t *testing.T) {
 	})
 
 	t.Run("Search - phrase search", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/search/?term=test+document", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/search?term=test+document", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -254,7 +258,7 @@ func TestUploadDocument(t *testing.T) {
 
 		writer.Close()
 
-		req := httptest.NewRequest(http.MethodPost, "/document/upload", body)
+		req := httptest.NewRequest(http.MethodPost, "/api/document/upload", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		rec := httptest.NewRecorder()
 
@@ -275,7 +279,7 @@ func TestUploadDocument(t *testing.T) {
 		writer := multipart.NewWriter(body)
 		writer.Close()
 
-		req := httptest.NewRequest(http.MethodPost, "/document/upload", body)
+		req := httptest.NewRequest(http.MethodPost, "/api/document/upload", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		rec := httptest.NewRecorder()
 
@@ -299,7 +303,7 @@ func TestGetDocument(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Get document - non-existent ID", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/document/nonexistent123", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/document/nonexistent123", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -309,7 +313,7 @@ func TestGetDocument(t *testing.T) {
 	})
 
 	t.Run("Get document - invalid ID format", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/document/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/document/", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -326,7 +330,7 @@ func TestDeleteDocument(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Delete document - non-existent", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodDelete, "/document/nonexistent123", nil)
+		req := httptest.NewRequest(http.MethodDelete, "/api/document/nonexistent123", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -343,7 +347,7 @@ func TestFolderOperations(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Create folder", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/folder/test_api_folder", nil)
+		req := httptest.NewRequest(http.MethodPost, "/api/folder/test_api_folder", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -358,7 +362,7 @@ func TestFolderOperations(t *testing.T) {
 	})
 
 	t.Run("Get folder contents - non-existent", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/folder/nonexistent_folder", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/folder/nonexistent_folder", nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 
@@ -444,7 +448,7 @@ func TestMoveDocument(t *testing.T) {
 		}
 		bodyBytes, _ := json.Marshal(moveData)
 
-		req := httptest.NewRequest(http.MethodPatch, "/document/move/nonexistent123", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequest(http.MethodPatch, "/api/document/move/nonexistent123", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
@@ -470,7 +474,7 @@ func TestAPIPerformance(t *testing.T) {
 		start := time.Now()
 
 		for i := 0; i < iterations; i++ {
-			req := httptest.NewRequest(http.MethodGet, "/home", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/documents/latest", nil)
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)
 
@@ -494,7 +498,7 @@ func TestAPIPerformance(t *testing.T) {
 		start := time.Now()
 
 		for i := 0; i < iterations; i++ {
-			req := httptest.NewRequest(http.MethodGet, "/search/?term=test", nil)
+			req := httptest.NewRequest(http.MethodGet, "/api/search?term=test", nil)
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)
 
@@ -527,7 +531,7 @@ func TestConcurrentRequests(t *testing.T) {
 
 		for i := 0; i < concurrency; i++ {
 			go func(id int) {
-				req := httptest.NewRequest(http.MethodGet, "/home", nil)
+				req := httptest.NewRequest(http.MethodGet, "/api/documents/latest", nil)
 				rec := httptest.NewRecorder()
 				e.ServeHTTP(rec, req)
 
@@ -561,9 +565,9 @@ func TestContentTypes(t *testing.T) {
 		method       string
 		expectedType string
 	}{
-		{"Home endpoint", "/home", "GET", "application/json"},
-		{"Search endpoint", "/search/test", "GET", "application/json"},
-		{"Filesystem endpoint", "/documents/filesystem", "GET", "application/json"},
+		{"Home endpoint", "/api/documents/latest", "GET", "application/json"},
+		{"Search endpoint", "/api/searchtest", "GET", "application/json"},
+		{"Filesystem endpoint", "/api/documents/filesystem", "GET", "application/json"},
 	}
 
 	for _, tt := range tests {
@@ -592,7 +596,7 @@ func TestErrorHandling(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Invalid JSON in request body", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPatch, "/document/move/test123", bytes.NewReader([]byte("invalid json")))
+		req := httptest.NewRequest(http.MethodPatch, "/api/document/move/test123", bytes.NewReader([]byte("invalid json")))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
@@ -608,7 +612,7 @@ func TestErrorHandling(t *testing.T) {
 		for i := range longID {
 			longID = longID[:i] + "a" + longID[i+1:]
 		}
-		req := httptest.NewRequest(http.MethodGet, "/document/"+longID, nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/document/"+longID, nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 

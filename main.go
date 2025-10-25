@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 
@@ -69,6 +70,50 @@ func main() {
 
 	e := echo.New()
 	Logger.Info("Echo created")
+
+	// Custom 404 handler
+	e.HTTPErrorHandler = func(err error, c echo.Context) {
+		code := http.StatusInternalServerError
+		if he, ok := err.(*echo.HTTPError); ok {
+			code = he.Code
+		}
+
+		// For 404 errors, serve custom HTML page
+		if code == http.StatusNotFound {
+			// Check if this is an API request
+			if strings.HasPrefix(c.Request().URL.Path, "/api/") {
+				// Return JSON for API endpoints
+				c.JSON(http.StatusNotFound, map[string]string{
+					"error": "Not Found",
+					"message": "The requested API endpoint does not exist",
+					"path": c.Request().URL.Path,
+				})
+				return
+			}
+
+			// For non-API requests, serve custom 404 HTML
+			// If the 404.html file exists, serve it
+			if err := c.File("public/built/404.html"); err == nil {
+				return
+			}
+
+			// Fallback: serve inline HTML if file doesn't exist
+			c.HTML(http.StatusNotFound, `<!DOCTYPE html>
+<html>
+<head><title>404 - Not Found</title></head>
+<body style="font-family: sans-serif; text-align: center; padding: 50px;">
+	<h1>404 - Page Not Found</h1>
+	<p>The page you're looking for doesn't exist.</p>
+	<a href="/" style="color: #3498db; text-decoration: none; font-size: 18px;">← Go to Home Page</a>
+</body>
+</html>`)
+			return
+		}
+
+		// For other errors, use default handler
+		e.DefaultHTTPErrorHandler(err, c)
+	}
+
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig} //injecting the database into the handler for routes
 	Logger.Info("About to initialize schedules")
 	serverHandler.InitializeSchedules(db) //initialize all the cron jobs
@@ -93,33 +138,44 @@ func main() {
 	// Serve static assets
 	e.Static("/web", "web")
 	e.File("/webapp/webapp.css", "webapp/webapp.css")
+	e.File("/webapp/wordcloud.css", "webapp/wordcloud.css")
 	e.File("/favicon.ico", "public/built/favicon.ico")
 
 	Logger.Info("Logger enabled!!")
 
 	//injecting database into the context so we can access it
-	//Start the API routes
-	e.GET("/home", serverHandler.GetLatestDocuments)
-	e.GET("/documents/filesystem", serverHandler.GetDocumentFileSystem)
-	e.GET("/document/:id", serverHandler.GetDocument)
-	e.DELETE("/document/*", serverHandler.DeleteFile)
-	e.PATCH("document/move/*", serverHandler.MoveDocuments)
-	e.POST("/document/upload", serverHandler.UploadDocuments)
-	serverHandler.AddDocumentViewRoutes() //Add all existing documents to direct view links
-	e.GET("/folder/:folder", serverHandler.GetFolder)
-	e.POST("/folder/*", serverHandler.CreateFolder)
-	e.GET("/search/*", serverHandler.SearchDocuments)
+	//Start the API routes - all under /api/* prefix for clarity
+
+	// Document API routes
+	e.GET("/api/documents/latest", serverHandler.GetLatestDocuments)
+	e.GET("/api/documents/filesystem", serverHandler.GetDocumentFileSystem)
+	e.GET("/api/document/:id", serverHandler.GetDocument)
+	e.DELETE("/api/document/*", serverHandler.DeleteFile)
+	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
+	e.POST("/api/document/upload", serverHandler.UploadDocuments)
+
+	// Folder API routes
+	e.GET("/api/folder/:folder", serverHandler.GetFolder)
+	e.POST("/api/folder/*", serverHandler.CreateFolder)
+
+	// Search API routes
+	e.GET("/api/search", serverHandler.SearchDocuments)
+	e.POST("/api/search/reindex", serverHandler.ReindexSearchDocuments)
 
 	// Admin API routes
 	e.POST("/api/ingest", serverHandler.RunIngestNow)
 	e.POST("/api/clean", serverHandler.CleanDatabase)
 	e.GET("/api/about", serverHandler.GetAboutInfo)
 
-	// Word cloud routes
+	// Word cloud API routes
 	e.GET("/api/wordcloud", serverHandler.GetWordCloud)
 	e.POST("/api/wordcloud/recalculate", serverHandler.RecalculateWordCloud)
 
+	// Document view routes (serve actual files - not JSON, so not under /api/*)
+	serverHandler.AddDocumentViewRoutes() //Add all existing documents to direct view links
+
 	// Serve go-app handler for all other routes (must be last)
+	// The WASM app handles its own client-side routing and 404s via NotFoundPage component
 	e.Any("/*", echo.WrapHandler(appHandler))
 
 	if serverConfig.ListenAddrIP == "" {

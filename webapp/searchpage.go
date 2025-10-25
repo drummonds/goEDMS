@@ -18,6 +18,18 @@ type SearchPage struct {
 	searched     bool
 }
 
+// OnMount is called when the component is mounted
+func (s *SearchPage) OnMount(ctx app.Context) {
+	// Check if there's a search term in the URL
+	urlPath := ctx.Page().URL()
+	if urlObj, err := url.Parse(urlPath.String()); err == nil {
+		if term := urlObj.Query().Get("term"); term != "" {
+			s.searchTerm = term
+			s.performSearch(ctx)
+		}
+	}
+}
+
 // Render renders the search page
 func (s *SearchPage) Render() app.UI {
 	var content app.UI
@@ -85,7 +97,7 @@ func (s *SearchPage) performSearch(ctx app.Context) {
 
 	ctx.Async(func() {
 		encodedTerm := url.QueryEscape(s.searchTerm)
-		searchURL := fmt.Sprintf("/search/?term=%s", encodedTerm)
+		searchURL := fmt.Sprintf("/api/search?term=%s", encodedTerm)
 
 		res := app.Window().Call("fetch", searchURL)
 

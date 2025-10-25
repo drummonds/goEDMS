@@ -202,6 +202,26 @@ func (serverHandler *ServerHandler) SearchDocuments(context echo.Context) error 
 	return context.JSON(http.StatusOK, fullResults)
 }
 
+// ReindexSearchDocuments reindexes all documents for full-text search
+func (serverHandler *ServerHandler) ReindexSearchDocuments(context echo.Context) error {
+	Logger.Info("Search reindex triggered via API")
+
+	count, err := serverHandler.DB.ReindexSearchDocuments()
+	if err != nil {
+		Logger.Error("Reindex failed", "error", err)
+		return context.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"error":   "Reindex failed",
+			"message": err.Error(),
+		})
+	}
+
+	Logger.Info("Search reindex completed", "documents", count)
+	return context.JSON(http.StatusOK, map[string]interface{}{
+		"message":            "Search reindex completed successfully",
+		"documents_reindexed": count,
+	})
+}
+
 // GetDocument will return a document by ULID
 func (serverHandler *ServerHandler) GetDocument(context echo.Context) error {
 	ulidStr := context.Param("id")
@@ -582,6 +602,14 @@ func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
 	go func() {
 		serverHandler.ingressJobFunc(serverHandler.ServerConfig, serverHandler.DB)
 		Logger.Info("Manual ingestion completed")
+
+		// Recalculate word cloud after ingestion
+		Logger.Info("Recalculating word cloud after ingestion")
+		if err := serverHandler.DB.RecalculateAllWordFrequencies(); err != nil {
+			Logger.Error("Word cloud recalculation failed after ingestion", "error", err)
+		} else {
+			Logger.Info("Word cloud recalculation completed successfully after ingestion")
+		}
 	}()
 
 	return c.String(http.StatusOK, "Ingestion started")
@@ -655,6 +683,16 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 	}
 
 	Logger.Info("Database cleanup completed", "scanned", scannedCount, "deleted", deletedCount, "moved", movedCount)
+
+	// Recalculate word cloud after cleanup in a goroutine
+	go func() {
+		Logger.Info("Recalculating word cloud after database cleanup")
+		if err := serverHandler.DB.RecalculateAllWordFrequencies(); err != nil {
+			Logger.Error("Word cloud recalculation failed after cleanup", "error", err)
+		} else {
+			Logger.Info("Word cloud recalculation completed successfully after cleanup")
+		}
+	}()
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"message": "Cleanup completed successfully",

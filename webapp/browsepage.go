@@ -48,7 +48,7 @@ func (b *BrowsePage) OnMount(ctx app.Context) {
 // fetchFileSystem fetches the file tree from the API
 func (b *BrowsePage) fetchFileSystem(ctx app.Context) {
 	ctx.Async(func() {
-		res := app.Window().Call("fetch", "/documents/filesystem")
+		res := app.Window().Call("fetch", "/api/documents/filesystem")
 
 		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 			if len(args) == 0 {

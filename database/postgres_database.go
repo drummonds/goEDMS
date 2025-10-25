@@ -512,3 +512,24 @@ func formatSearchTerm(term string) string {
 	// Single word: add prefix matching
 	return strings.ToLower(term) + ":*"
 }
+
+// ReindexSearchDocuments reindexes all documents to populate the full_text_search column
+// Returns the number of documents reindexed
+func (p *PostgresDB) ReindexSearchDocuments() (int, error) {
+	// Update all documents to populate/refresh their full_text_search column
+	query := `UPDATE documents
+	          SET full_text_search = to_tsvector('english', COALESCE(full_text, '') || ' ' || COALESCE(name, ''))
+	          WHERE full_text IS NOT NULL AND full_text != ''`
+
+	result, err := p.db.Exec(query)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(rowsAffected), nil
+}

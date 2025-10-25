@@ -52,6 +52,7 @@ type DBInterface interface {
 	SaveConfig(config *config.ServerConfig) error
 	GetConfig() (*config.ServerConfig, error)
 	SearchDocuments(searchTerm string) ([]Document, error)
+	ReindexSearchDocuments() (int, error)
 	// Word cloud methods
 	GetTopWords(limit int) ([]WordFrequency, error)
 	GetWordCloudMetadata() (*WordCloudMetadata, error)
