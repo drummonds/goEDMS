@@ -193,6 +193,20 @@ Main Tasks:
 - `task docker:build` - Build Docker image
 - `task docker:run` - Run Docker container
 
+## running Go tests:
+You can run the tests with:
+# All search tests
+go test -v -run TestSearch
+
+# Just API tests
+go test -v -run TestSearchEndpoint
+
+# Just frontend tests  
+go test -v ./webapp -run TestSearch
+
+# Performance tests (not in short mode)
+go test -v -run TestSearchPerformance
+
 ## Quick Start:
 
 1. Install Task: https://taskfile.dev/installation/
