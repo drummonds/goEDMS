@@ -41,6 +41,8 @@ func (a *App) renderPage() app.UI {
 		return &CleanPage{}
 	case "/search":
 		return &SearchPage{}
+	case "/wordcloud":
+		return &WordCloudPage{}
 	case "/about":
 		return &AboutPage{}
 	default:

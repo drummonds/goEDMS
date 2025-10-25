@@ -115,6 +115,10 @@ func main() {
 	e.POST("/api/clean", serverHandler.CleanDatabase)
 	e.GET("/api/about", serverHandler.GetAboutInfo)
 
+	// Word cloud routes
+	e.GET("/api/wordcloud", serverHandler.GetWordCloud)
+	e.POST("/api/wordcloud/recalculate", serverHandler.RecalculateWordCloud)
+
 	// Serve go-app handler for all other routes (must be last)
 	e.Any("/*", echo.WrapHandler(appHandler))
 

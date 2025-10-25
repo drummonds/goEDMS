@@ -52,6 +52,11 @@ type DBInterface interface {
 	SaveConfig(config *config.ServerConfig) error
 	GetConfig() (*config.ServerConfig, error)
 	SearchDocuments(searchTerm string) ([]Document, error)
+	// Word cloud methods
+	GetTopWords(limit int) ([]WordFrequency, error)
+	GetWordCloudMetadata() (*WordCloudMetadata, error)
+	RecalculateAllWordFrequencies() error
+	UpdateWordFrequencies(docID string) error
 }
 
 // SetupDatabase initializes the database based on configuration
