@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blevesearch/bleve"
 	"github.com/chromedp/chromedp"
 	config "github.com/drummonds/goEDMS/config"
 	database "github.com/drummonds/goEDMS/database"
@@ -107,19 +106,14 @@ func runFrontendRenderingTest(t *testing.T) {
 	}
 	db := database.DBInterface(ephemeralDB)
 	defer ephemeralDB.Close()
-	searchDB, err := database.SetupSearchDB()
-	if err != nil {
-		t.Skipf("Unable to setup index database (may be locked): %v", err)
-	}
 	defer db.Close()
-	defer searchDB.Close()
 
 	database.WriteConfigToDB(serverConfig, db)
 
 	e := echo.New()
 	e.HideBanner = true // Hide Echo banner for cleaner test output
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
-	serverHandler.InitializeSchedules(db, searchDB)
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitializeSchedules(db)
 	serverHandler.StartupChecks()
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 	e.Static("/", "public/built")
@@ -270,19 +264,14 @@ func runTestWithLynx(t *testing.T) error {
 	}
 	db := database.DBInterface(ephemeralDB)
 	defer ephemeralDB.Close()
-	searchDB, err := database.SetupSearchDB()
-	if err != nil {
-		t.Skipf("Unable to setup index database (may be locked): %v", err)
-	}
 	defer db.Close()
-	defer searchDB.Close()
 
 	database.WriteConfigToDB(serverConfig, db)
 
 	e := echo.New()
 	e.HideBanner = true
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
-	serverHandler.InitializeSchedules(db, searchDB)
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitializeSchedules(db)
 	serverHandler.StartupChecks()
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 	e.Static("/", "public/built")
@@ -375,19 +364,14 @@ func runTestWithCurl(t *testing.T) error {
 	}
 	db := database.DBInterface(ephemeralDB)
 	defer ephemeralDB.Close()
-	searchDB, err := database.SetupSearchDB()
-	if err != nil {
-		t.Skipf("Unable to setup index database (may be locked): %v", err)
-	}
 	defer db.Close()
-	defer searchDB.Close()
 
 	database.WriteConfigToDB(serverConfig, db)
 
 	e := echo.New()
 	e.HideBanner = true
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
-	serverHandler.InitializeSchedules(db, searchDB)
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitializeSchedules(db)
 	serverHandler.StartupChecks()
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 	e.Static("/", "public/built")
@@ -531,22 +515,17 @@ func runIngressStartupTest(t *testing.T) {
 	}
 	db := database.DBInterface(ephemeralDB)
 	defer ephemeralDB.Close()
-	searchDB, err := database.SetupSearchDB()
-	if err != nil {
-		t.Skipf("Unable to setup index database (may be locked): %v", err)
-	}
 	defer db.Close()
-	defer searchDB.Close()
 
 	// Update config in database
 	database.WriteConfigToDB(serverConfig, db)
 
 	e := echo.New()
 	e.HideBanner = true
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
 
 	// Initialize schedules (this should trigger ingress job at startup)
-	serverHandler.InitializeSchedules(db, searchDB)
+	serverHandler.InitializeSchedules(db)
 
 	// Give the ingress job time to process the document
 	// Since it runs in a goroutine, we need to wait a bit
@@ -714,19 +693,14 @@ func runRootEndpointTest(t *testing.T) {
 	}
 	db := database.DBInterface(ephemeralDB)
 	defer ephemeralDB.Close()
-	searchDB, err := database.SetupSearchDB()
-	if err != nil {
-		t.Skipf("Unable to setup index database (may be locked): %v", err)
-	}
 	defer db.Close()
-	defer searchDB.Close()
 
 	database.WriteConfigToDB(serverConfig, db)
 
 	e := echo.New()
 	e.HideBanner = true
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
-	serverHandler.InitializeSchedules(db, searchDB)
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitializeSchedules(db)
 	serverHandler.StartupChecks()
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
 
@@ -884,7 +858,6 @@ func runAboutPageTest(t *testing.T) {
 
 	// Skip search database setup as /about page doesn't need it
 	t.Log("Skipping search database (not needed for /about page)")
-	var searchDB bleve.Index = nil
 
 	t.Log("Writing config to database...")
 	database.WriteConfigToDB(serverConfig, db)
@@ -893,7 +866,7 @@ func runAboutPageTest(t *testing.T) {
 	e := echo.New()
 	e.HideBanner = true
 	t.Log("Initializing server handler...")
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
 
 	// Skip schedule initialization since we don't need it for this test
 	t.Log("Skipping startup checks (not needed for /about page)")
@@ -1053,7 +1026,6 @@ func TestAboutPageWithChromedp(t *testing.T) {
 
 	// Skip search database setup as /about page doesn't need it
 	t.Log("Skipping search database (not needed for /about page)")
-	var searchDB bleve.Index = nil
 
 	t.Log("Writing config to database...")
 	database.WriteConfigToDB(serverConfig, db)
@@ -1062,7 +1034,7 @@ func TestAboutPageWithChromedp(t *testing.T) {
 	e := echo.New()
 	e.HideBanner = true
 	t.Log("Initializing server handler...")
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig}
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
 
 	// Skip schedule initialization since we don't need it for this test
 	t.Log("Skipping startup checks (not needed for /about page)")

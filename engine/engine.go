@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/blevesearch/bleve"
 	"github.com/disintegration/imaging"
 	"github.com/drummonds/goEDMS/config"
 	"github.com/drummonds/goEDMS/database"
@@ -20,7 +19,7 @@ import (
 	"github.com/ledongthuc/pdf"
 )
 
-func (serverHandler *ServerHandler) ingressJobFunc(serverConfig config.ServerConfig, db database.DBInterface, searchDB bleve.Index) {
+func (serverHandler *ServerHandler) ingressJobFunc(serverConfig config.ServerConfig, db database.DBInterface) {
 	// Add panic recovery to prevent entire application crash
 	defer func() {
 		if r := recover(); r != nil {
@@ -108,7 +107,7 @@ func (serverHandler *ServerHandler) ingressDocument(filePath string, source stri
 }
 
 func (serverHandler *ServerHandler) addDocumentToDatabase(filePath string, fullText string, source string) error {
-	document, err := database.AddNewDocument(filePath, fullText, serverHandler.DB, serverHandler.SearchDB) //Adds everything but the URL, that is added afterwards
+	document, err := database.AddNewDocument(filePath, fullText, serverHandler.DB) //Adds everything but the URL, that is added afterwards
 	if err != nil {
 		Logger.Error("Failed to add document to database", "document", document, "error", err) //TODO: Handle document that we were unable to add
 		return err

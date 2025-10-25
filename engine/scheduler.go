@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/blevesearch/bleve"
 	database "github.com/drummonds/goEDMS/database"
 	"github.com/robfig/cron/v3"
 )
@@ -13,7 +12,7 @@ import (
 var Logger *slog.Logger
 
 // InitializeSchedules starts all the cron jobs (currently just one)
-func (serverHandler *ServerHandler) InitializeSchedules(db database.DBInterface, searchDB bleve.Index) {
+func (serverHandler *ServerHandler) InitializeSchedules(db database.DBInterface) {
 	serverConfig, err := database.FetchConfigFromDB(db)
 	if err != nil {
 		fmt.Println("Error reading db when initializing")
@@ -21,11 +20,11 @@ func (serverHandler *ServerHandler) InitializeSchedules(db database.DBInterface,
 
 	// Run ingress job immediately at startup in a goroutine
 	Logger.Info("Running ingress job at startup")
-	go serverHandler.ingressJobFunc(serverConfig, db, searchDB)
+	go serverHandler.ingressJobFunc(serverConfig, db)
 
 	c := cron.New()
 	var ingressJob cron.Job
-	ingressJob = cron.FuncJob(func() { serverHandler.ingressJobFunc(serverConfig, db, searchDB) })
+	ingressJob = cron.FuncJob(func() { serverHandler.ingressJobFunc(serverConfig, db) })
 	ingressJob = cron.NewChain(cron.SkipIfStillRunning(cron.DefaultLogger)).Then(ingressJob) //ensure we don't kick off another if old one is still running
 	c.AddJob(fmt.Sprintf("@every %dm", serverConfig.IngressInterval), ingressJob)
 	//c.AddJob("@every 1m", ingressJob)

@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/blevesearch/bleve"
 	config "github.com/drummonds/goEDMS/config"
 	"github.com/oklog/ulid/v2"
 )
@@ -52,6 +51,7 @@ type DBInterface interface {
 	UpdateDocumentFolder(ulid string, folder string) error
 	SaveConfig(config *config.ServerConfig) error
 	GetConfig() (*config.ServerConfig, error)
+	SearchDocuments(searchTerm string) ([]Document, error)
 }
 
 // SetupDatabase initializes the database based on configuration
@@ -110,7 +110,7 @@ func WriteConfigToDB(serverConfig config.ServerConfig, db DBInterface) {
 }
 
 // AddNewDocument adds a new document to the database
-func AddNewDocument(filePath string, fullText string, db DBInterface, searchDB bleve.Index) (*Document, error) {
+func AddNewDocument(filePath string, fullText string, db DBInterface) (*Document, error) {
 	serverConfig, err := FetchConfigFromDB(db)
 	if err != nil {
 		Logger.Error("Unable to fetch config to add new document", "filePath", filePath, "error", err)
@@ -156,12 +156,8 @@ func AddNewDocument(filePath string, fullText string, db DBInterface, searchDB b
 	newDocument.ULID = newULID
 	newDocument.DocumentType = filepath.Ext(filePath)
 	newDocument.FullText = fullText
-	Logger.Debug("Adding full text for search to bleve", "fullText", newDocument.FullText)
-	err = searchDB.Index(newDocument.ULID.String(), newDocument.FullText) // adding to bleve using the ULID as the ID and the fulltext TODO: Perhaps add entire struct this will give more search options
-	if err != nil {
-		Logger.Error("Unable to index Document in Bleve Search", "name", newDocument.Name, "error", err)
-		return nil, err
-	}
+	Logger.Debug("Adding document to database", "fullText", newDocument.FullText)
+	// PostgreSQL full-text search will be automatically indexed via trigger
 	err = db.SaveDocument(&newDocument) // Writing it in document bucket
 	if err != nil {
 		Logger.Error("Unable to write document to bucket", "error", err)
@@ -279,15 +275,6 @@ func DeleteDocument(docULIDSt string, db DBInterface) error {
 	return nil
 }
 
-// DeleteDocumentFromSearch deletes everything in the search engine
-func DeleteDocumentFromSearch(deleteDocument Document, searchDB bleve.Index) error {
-	err := searchDB.Delete(deleteDocument.ULID.String()) //Delete everything tied to the ULID in bleve
-	if err != nil {
-		Logger.Error("Unable to delete document index in Bleve Search", "name", deleteDocument.Name, "error", err)
-		return err
-	}
-	return nil
-}
 
 func checkDuplicateDocument(fileHash string, fileName string, db DBInterface) bool { // TODO: Check for duplicates before you do a shit ton of processing, why wasn't this obvious?
 	document, err := db.GetDocumentByHash(fileHash)

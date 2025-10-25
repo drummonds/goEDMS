@@ -81,7 +81,7 @@ For local development with a persistent PostgreSQL database:
 
 2. **Create a database and user**
    ```bash
-   sudo -u postgres psql
+sudo -u postgres psql   
    CREATE DATABASE goedms;
    CREATE USER goedms WITH PASSWORD 'your_password';
    GRANT ALL PRIVILEGES ON DATABASE goedms TO goedms;
@@ -91,7 +91,7 @@ For local development with a persistent PostgreSQL database:
 3. **Copy and configure .env file**
    ```bash
    cp .env.example .env
-   ```
+   ```I think it takes the same as other search
 
 4. **Edit .env** with your database credentials:
    ```bash

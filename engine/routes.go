@@ -10,9 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
-	"github.com/blevesearch/bleve"
 	"github.com/drummonds/goEDMS/config"
 	"github.com/drummonds/goEDMS/database"
 	"github.com/labstack/echo/v4"
@@ -21,7 +19,6 @@ import (
 // ServerHandler will inject the variables needed into routes
 type ServerHandler struct {
 	DB           database.DBInterface
-	SearchDB     bleve.Index
 	Echo         *echo.Echo
 	ServerConfig config.ServerConfig
 }
@@ -116,11 +113,7 @@ func (serverHandler *ServerHandler) DeleteFile(context echo.Context) error {
 		Logger.Error("Unable to delete document from file system", "path", document.Path, "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
-	err = database.DeleteDocumentFromSearch(document, serverHandler.SearchDB)
-	if err != nil {
-		Logger.Error("Unable to delete document from bleve search", "path", document.Path, "error", err)
-		return context.JSON(http.StatusNotFound, err)
-	}
+	// PostgreSQL full-text search index is automatically updated via trigger when document is deleted
 	return context.JSON(http.StatusOK, "Document Deleted")
 }
 
@@ -181,47 +174,29 @@ func (serverHandler *ServerHandler) MoveDocuments(context echo.Context) error {
 	return context.JSON(http.StatusOK, "Ok")
 }
 
-// SearchDocuments will take the search terms and search all documents
+// SearchDocuments will take the search terms and search all documents using PostgreSQL full-text search
 func (serverHandler *ServerHandler) SearchDocuments(context echo.Context) error {
 	searchParams := context.QueryParams()
 	searchTerm := searchParams.Get("term")
 	if searchTerm == "" {
 		return context.JSON(http.StatusNotFound, "Empty search term")
 	}
-	var phraseSearch bool
-	var searchResults *bleve.SearchResult
-	var err error
-	for _, char := range searchTerm { //TODO, right now both phrase and single term go to same place
-		if unicode.IsSpace(char) { //if there is a space in the result, do a phrase search
-			Logger.Debug("Found space in search term, converting to phrase", "searchTerm", searchTerm)
-			phraseSearch = true
-			searchResults, err = SearchGeneralPhrase(searchTerm, serverHandler.SearchDB)
-			if err != nil {
-				Logger.Error("Search failed", "error", err)
-				return context.JSON(http.StatusInternalServerError, err)
-			}
-		}
+
+	Logger.Debug("Performing PostgreSQL full-text search", "searchTerm", searchTerm)
+	documents, err := serverHandler.DB.SearchDocuments(searchTerm)
+	if err != nil {
+		Logger.Error("Search failed", "error", err)
+		return context.JSON(http.StatusInternalServerError, err)
 	}
-	if !phraseSearch { //if no space found in search term
-		Logger.Debug("Performing Single Term Search", "searchTerm", searchTerm)
-		searchResults, err = SearchGeneralPhrase(searchTerm, serverHandler.SearchDB)
-		if err != nil {
-			Logger.Error("Search returned an error", "error", err, "searchTerm", searchTerm)
-			return context.JSON(http.StatusInternalServerError, err)
-		}
-	}
-	if searchResults.Total == 0 {
+
+	if len(documents) == 0 {
 		Logger.Info("Search returned no results", "searchTerm", searchTerm)
 		return context.JSON(http.StatusNoContent, nil)
 	}
-	documents, err := ParseSearchResults(searchResults, serverHandler.DB)
-	if err != nil {
-		Logger.Error("Unable to convert results to documents", "error", err)
-		return context.JSON(http.StatusInternalServerError, err)
-	}
+
 	fullResults, err := convertDocumentsToFileTree(documents)
 	if err != nil {
-		Logger.Error("Unable to get documents from search", "error", err)
+		Logger.Error("Unable to convert search results to file tree", "error", err)
 		return context.JSON(http.StatusNotFound, err)
 	}
 	return context.JSON(http.StatusOK, fullResults)
@@ -605,7 +580,7 @@ func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
 
 	// Run ingestion in a goroutine so we can return immediately
 	go func() {
-		serverHandler.ingressJobFunc(serverHandler.ServerConfig, serverHandler.DB, serverHandler.SearchDB)
+		serverHandler.ingressJobFunc(serverHandler.ServerConfig, serverHandler.DB)
 		Logger.Info("Manual ingestion completed")
 	}()
 
@@ -658,14 +633,9 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 				Logger.Error("Failed to delete document from DB", "error", err, "id", doc.StormID)
 				continue
 			}
-
-			// Delete from search index
-			if err := serverHandler.SearchDB.Delete(doc.ULID.String()); err != nil {
-				Logger.Error("Failed to delete document from search index", "error", err, "ulid", doc.ULID)
-			}
-
-			deletedCount++
+		deletedCount++
 		}
+
 	}
 
 	// Step 2: Find orphaned files in document storage and move them to ingress

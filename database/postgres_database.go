@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -463,4 +464,51 @@ func (p *PostgresDB) GetNewestDocumentsWithPagination(page int, pageSize int) ([
 	}
 
 	return docs, totalCount, nil
+}
+
+// SearchDocuments performs full-text search using PostgreSQL's native search capabilities
+// Supports both prefix matching and phrase search
+func (p *PostgresDB) SearchDocuments(searchTerm string) ([]Document, error) {
+	// Convert search term to tsquery format
+	// For prefix search: "test" becomes "test:*"
+	// For phrase search: "test document" becomes "test <-> document"
+
+	query := `SELECT id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url
+	          FROM documents
+	          WHERE full_text_search @@ to_tsquery('english', $1)
+	          ORDER BY ts_rank(full_text_search, to_tsquery('english', $1)) DESC`
+
+	// Format the search term for PostgreSQL full-text search
+	// Add prefix matching support with :*
+	formattedTerm := formatSearchTerm(searchTerm)
+
+	rows, err := p.db.Query(query, formattedTerm)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanDocuments(rows)
+}
+
+// formatSearchTerm converts a search term into PostgreSQL tsquery format
+func formatSearchTerm(term string) string {
+	// Remove special characters that would break tsquery
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return ""
+	}
+
+	// Check if it's a phrase (contains spaces)
+	if strings.Contains(term, " ") {
+		// Phrase search: split into words and join with <->
+		words := strings.Fields(term)
+		for i := range words {
+			words[i] = strings.ToLower(words[i]) + ":*"
+		}
+		return strings.Join(words, " <-> ")
+	}
+
+	// Single word: add prefix matching
+	return strings.ToLower(term) + ":*"
 }

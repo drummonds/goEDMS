@@ -63,22 +63,15 @@ func main() {
 		db = database.SetupDatabase(serverConfig.DatabaseType, serverConfig.DatabaseConnString)
 		defer db.Close()
 	}
-	Logger.Info("Database setup complete, about to setup search DB")
-	searchDB, err := database.SetupSearchDB()
-	if err != nil {
-		Logger.Error("Unable to setup index database", "error", err)
-		os.Exit(1)
-	}
-	Logger.Info("Search DB setup complete")
-	defer searchDB.Close()
+	Logger.Info("Database setup complete")
 	database.WriteConfigToDB(serverConfig, db) //writing the config to the database
 	Logger.Info("Config written to DB")
 
 	e := echo.New()
 	Logger.Info("Echo created")
-	serverHandler := engine.ServerHandler{DB: db, SearchDB: searchDB, Echo: e, ServerConfig: serverConfig} //injecting the database into the handler for routes
+	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig} //injecting the database into the handler for routes
 	Logger.Info("About to initialize schedules")
-	serverHandler.InitializeSchedules(db, searchDB) //initialize all the cron jobs
+	serverHandler.InitializeSchedules(db) //initialize all the cron jobs
 	Logger.Info("Schedules initialized, about to run startup checks")
 	serverHandler.StartupChecks() //Run all the sanity checks
 	Logger.Info("Startup checks complete")

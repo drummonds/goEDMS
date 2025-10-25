@@ -33,10 +33,6 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 	t.Cleanup(func() {
 		ephemeralDB.Close()
 	})
-	searchDB, err := database.SetupSearchDB()
-	if err != nil {
-		t.Fatalf("Unable to setup search database: %v", err)
-	}
 
 	database.WriteConfigToDB(serverConfig, testDB)
 
@@ -44,7 +40,6 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 	e.HideBanner = true
 	serverHandler := &engine.ServerHandler{
 		DB:           testDB,
-		SearchDB:     searchDB,
 		Echo:         e,
 		ServerConfig: serverConfig,
 	}
@@ -66,7 +61,6 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 
 	cleanup := func() {
 		testDB.Close()
-		searchDB.Close()
 	}
 
 	return e, serverHandler, cleanup
