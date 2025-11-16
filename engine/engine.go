@@ -231,7 +231,46 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		}
 	}
 
-	// Step 3: Recalculate word cloud
+	// Step 3: Recreate missing sidecar .txt files from database
+	db.UpdateJobProgress(jobID, 70, "Checking sidecar .txt files")
+	sidecarCount := 0
+	if serverHandler.ServerConfig.UseSidecarTxt {
+		Logger.Info("Checking for missing sidecar .txt files")
+		for i, doc := range documents {
+			// Skip if document was deleted in step 1
+			if doc.Path == "" {
+				continue
+			}
+
+			// Check if file still exists (it might have been deleted in step 1)
+			if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
+				continue
+			}
+
+			// Check if sidecar .txt file exists
+			sidecarPath := getSidecarTxtPath(doc.Path)
+			if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
+				// Sidecar doesn't exist but document has text in database
+				if doc.FullText != "" {
+					Logger.Info("Recreating missing sidecar .txt file", "document", doc.Path, "sidecar", sidecarPath)
+					if err := saveSidecarTxtFile(doc.Path, doc.FullText); err != nil {
+						Logger.Error("Failed to recreate sidecar .txt file", "document", doc.Path, "error", err)
+					} else {
+						sidecarCount++
+					}
+				}
+			}
+
+			// Update progress periodically
+			if i%100 == 0 {
+				progress := 70 + int((float64(i)/float64(totalDocs))*10)
+				db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking sidecar files %d/%d", i+1, totalDocs))
+			}
+		}
+		Logger.Info("Sidecar .txt file check complete", "recreated", sidecarCount)
+	}
+
+	// Step 4: Recalculate word cloud
 	db.UpdateJobProgress(jobID, 80, "Recalculating word cloud")
 	Logger.Info("Recalculating word cloud after database cleanup")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
@@ -239,7 +278,7 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "moved": %d}`, totalDocs, deletedCount, movedCount)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "moved": %d, "sidecarRecreated": %d}`, totalDocs, deletedCount, movedCount, sidecarCount)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
