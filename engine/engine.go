@@ -270,15 +270,55 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		Logger.Info("Sidecar .txt file check complete", "recreated", sidecarCount)
 	}
 
-	// Step 4: Recalculate word cloud
-	db.UpdateJobProgress(jobID, 80, "Recalculating word cloud")
+	// Step 4: Regenerate missing thumbnails for PDF documents
+	db.UpdateJobProgress(jobID, 75, "Checking document thumbnails")
+	thumbnailCount := 0
+	Logger.Info("Checking for missing thumbnails")
+	for i, doc := range documents {
+		// Skip if document was deleted in step 1
+		if doc.Path == "" {
+			continue
+		}
+
+		// Only generate thumbnails for PDF files
+		if filepath.Ext(doc.Path) != ".pdf" {
+			continue
+		}
+
+		// Check if file still exists
+		if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
+			continue
+		}
+
+		// Check if thumbnail exists
+		thumbnailPath := getThumbnailPath(doc.Path)
+		if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
+			// Thumbnail doesn't exist, generate it
+			Logger.Info("Regenerating missing thumbnail", "document", doc.Path, "thumbnail", thumbnailPath)
+			if err := saveThumbnailFile(doc.Path); err != nil {
+				Logger.Error("Failed to regenerate thumbnail", "document", doc.Path, "error", err)
+			} else {
+				thumbnailCount++
+			}
+		}
+
+		// Update progress periodically
+		if i%100 == 0 {
+			progress := 75 + int((float64(i)/float64(totalDocs))*5)
+			db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking thumbnails %d/%d", i+1, totalDocs))
+		}
+	}
+	Logger.Info("Thumbnail check complete", "regenerated", thumbnailCount)
+
+	// Step 5: Recalculate word cloud
+	db.UpdateJobProgress(jobID, 85, "Recalculating word cloud")
 	Logger.Info("Recalculating word cloud after database cleanup")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
 		Logger.Error("Word cloud recalculation failed after cleanup", "error", err)
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "moved": %d, "sidecarRecreated": %d}`, totalDocs, deletedCount, movedCount, sidecarCount)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "moved": %d, "sidecarRecreated": %d, "thumbnailsRegenerated": %d}`, totalDocs, deletedCount, movedCount, sidecarCount, thumbnailCount)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}

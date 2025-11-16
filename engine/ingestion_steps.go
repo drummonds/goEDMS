@@ -82,9 +82,11 @@ func (serverHandler *ServerHandler) IngestDocumentWithSteps(filePath string, db 
 		// Don't return error - the document record and file already exist, which is the important part
 	}
 
-	// Add document view route
+	// Add document view route (skip if Echo is not initialized, e.g., during testing)
 	documentURL := "/document/view/" + doc.ULID.String()
-	serverHandler.Echo.File(documentURL, doc.Path)
+	if serverHandler.Echo != nil {
+		serverHandler.Echo.File(documentURL, doc.Path)
+	}
 	_, err = database.UpdateDocumentField(doc.ULID.String(), "URL", documentURL, db)
 	if err != nil {
 		Logger.Error("Unable to update document URL field", "error", err, "ulid", doc.ULID.String())
@@ -209,6 +211,25 @@ func (serverHandler *ServerHandler) moveAndVerifyFile(sourcePath, destPath, expe
 		// Don't fail the operation - the file was copied successfully
 	}
 
+	// If sidecar .txt file exists in ingress, move it to documents too
+	if serverHandler.ServerConfig.UseSidecarTxt {
+		sourceSidecarPath := getSidecarTxtPath(sourcePath)
+		if _, err := os.Stat(sourceSidecarPath); err == nil {
+			// Sidecar exists in ingress, move it to documents
+			destSidecarPath := getSidecarTxtPath(destPath)
+			sidecarContent, err := os.ReadFile(sourceSidecarPath)
+			if err == nil {
+				if err := os.WriteFile(destSidecarPath, sidecarContent, 0644); err != nil {
+					Logger.Warn("Failed to copy sidecar .txt file", "source", sourceSidecarPath, "dest", destSidecarPath, "error", err)
+				} else {
+					Logger.Info("Moved sidecar .txt file", "source", sourceSidecarPath, "dest", destSidecarPath)
+					// Delete source sidecar file
+					os.Remove(sourceSidecarPath)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -270,7 +291,11 @@ func (serverHandler *ServerHandler) extractText(filePath string) (string, error)
 
 // updateDocumentText updates the document with extracted text
 func (serverHandler *ServerHandler) updateDocumentText(doc *database.Document, fullText string, db database.Repository) error {
-	_, err := database.UpdateDocumentField(doc.ULID.String(), "FullText", fullText, db)
+	// Update the document's full text field
+	doc.FullText = fullText
+
+	// Save the updated document (SaveDocument does an upsert)
+	err := db.SaveDocument(doc)
 	if err != nil {
 		return fmt.Errorf("unable to update full text: %w", err)
 	}
@@ -280,6 +305,14 @@ func (serverHandler *ServerHandler) updateDocumentText(doc *database.Document, f
 		if err := saveSidecarTxtFile(doc.Path, fullText); err != nil {
 			Logger.Warn("Failed to save sidecar .txt file", "document", doc.Path, "error", err)
 			// Don't fail the ingestion if sidecar save fails
+		}
+	}
+
+	// Generate thumbnail for PDF documents
+	if filepath.Ext(doc.Path) == ".pdf" {
+		if err := saveThumbnailFile(doc.Path); err != nil {
+			Logger.Warn("Failed to generate thumbnail", "document", doc.Path, "error", err)
+			// Don't fail the ingestion if thumbnail generation fails
 		}
 	}
 
