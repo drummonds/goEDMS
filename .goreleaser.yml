@@ -2,6 +2,8 @@
 # Test with: goreleaser release --snapshot --clean
 # Release with: goreleaser release (requires GITHUB_TOKEN)
 
+version: 2
+
 project_name: godocs
 
 before:
@@ -46,11 +48,11 @@ archives:
       - web/*
       - public/**/*
 
-checksum:
+checksums:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
