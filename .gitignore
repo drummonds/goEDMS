@@ -32,3 +32,6 @@ test_godocs*
 testdocs
 
 node_modules
+
+# Generated WASM
+web/*.wasm
