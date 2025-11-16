@@ -44,17 +44,18 @@ type fullFileSystem struct {
 }
 
 type fileTreeStruct struct {
-	ID          string   `json:"id"`
-	ULIDStr     string   `json:"ulid"`
-	Name        string   `json:"name"`
-	Size        int64    `json:"size"`
-	ModDate     string   `json:"modDate"`
-	Openable    bool     `json:"openable"`
-	ParentID    string   `json:"parentID"`
-	IsDir       bool     `json:"isDir"`
-	ChildrenIDs []string `json:"childrenIDs"`
-	FullPath    string   `json:"fullPath"`
-	FileURL     string   `json:"fileURL"`
+	ID           string   `json:"id"`
+	ULIDStr      string   `json:"ulid"`
+	Name         string   `json:"name"`
+	Size         int64    `json:"size"`
+	ModDate      string   `json:"modDate"`
+	Openable     bool     `json:"openable"`
+	ParentID     string   `json:"parentID"`
+	IsDir        bool     `json:"isDir"`
+	ChildrenIDs  []string `json:"childrenIDs"`
+	FullPath     string   `json:"fullPath"`
+	FileURL      string   `json:"fileURL"`
+	ThumbnailURL string   `json:"thumbnailURL,omitempty"`
 }
 
 // AddDocumentViewRoutes adds all of the current documents to an echo route
@@ -303,6 +304,29 @@ func (serverHandler *ServerHandler) GetDocument(context echo.Context) error {
 
 }
 
+// GetDocumentThumbnail serves the thumbnail image for a document
+func (serverHandler *ServerHandler) GetDocumentThumbnail(context echo.Context) error {
+	ulidStr := context.Param("id")
+	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
+	if err != nil {
+		Logger.Error("GetDocumentThumbnail API call failed", "error", err)
+		return context.JSON(httpStatus, err)
+	}
+
+	// Get thumbnail path
+	thumbnailPath := getThumbnailPath(document.Path)
+
+	// Check if thumbnail exists
+	if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
+		return context.JSON(http.StatusNotFound, map[string]string{
+			"error": "Thumbnail not found",
+		})
+	}
+
+	// Serve the thumbnail file
+	return context.File(thumbnailPath)
+}
+
 // GetDocumentFileSystem will scan the document folder and get the complete tree to send to the frontend
 // @Summary Get document filesystem tree
 // @Description Retrieve the complete document folder structure as a tree
@@ -340,6 +364,14 @@ func convertDocumentsToFileTree(documents []database.Document) (fullFileTree *[]
 		currentFile.FullPath = document.Path
 		currentFile.FileURL = document.URL
 		currentFile.ParentID = "SearchResults"
+
+		// Check if thumbnail exists and add URL
+		thumbnailPath := getThumbnailPath(document.Path)
+		if _, err := os.Stat(thumbnailPath); err == nil {
+			// Thumbnail exists, create URL for it
+			currentFile.ThumbnailURL = "/api/document/" + document.ULID.String() + "/thumbnail"
+		}
+
 		fileTree = append(fileTree, currentFile)
 	}
 	childrenIDs := func() []string {
@@ -418,6 +450,13 @@ func fileTree(rootPath string, db database.Repository) (fileTree *fullFileSystem
 			currentFile.FileURL = document.URL
 			currentFile.ID = document.ULID.String()
 			currentFile.ULIDStr = document.ULID.String()
+
+			// Check if thumbnail exists and add URL
+			thumbnailPath := getThumbnailPath(path)
+			if _, err := os.Stat(thumbnailPath); err == nil {
+				// Thumbnail exists, create URL for it
+				currentFile.ThumbnailURL = "/api/document/" + document.ULID.String() + "/thumbnail"
+			}
 		}
 
 		fullFileTree.FileSystem = append(fullFileTree.FileSystem, currentFile)

@@ -13,6 +13,12 @@ get it load on gokrazy.  It is now being tamed and can host on gokrazy.
 
 godocs is a self-hosted document management system designed for home users to scan, organize, and search receipts, documents, and other files. The focus is on **simplicity, speed, and reliability** rather than enterprise-grade feature complexity.
 
+## Quick install
+
+If you have go installed: `go install github.com/drummonds/godocs`
+Then run godocs in the directory you want to use and it should start
+up with the right directories and using Sqlite as a database.
+
 ### Key Design Principles
 - **Easy Setup**: Works out-of-the-box with ephemeral database for testing
 - **Pure Go**: No external dependencies except PostgreSQL and optional Tesseract OCR

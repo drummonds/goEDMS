@@ -897,6 +897,9 @@ const docTemplate = `{
                 "size": {
                     "type": "integer"
                 },
+                "thumbnailURL": {
+                    "type": "string"
+                },
                 "ulid": {
                     "type": "string"
                 }

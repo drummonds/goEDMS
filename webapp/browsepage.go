@@ -9,17 +9,18 @@ import (
 
 // FileTreeNode represents a node in the file tree
 type FileTreeNode struct {
-	ID          string   `json:"id"`
-	ULID        string   `json:"ulid"`
-	Name        string   `json:"name"`
-	Size        int64    `json:"size"`
-	ModDate     string   `json:"modDate"`
-	Openable    bool     `json:"openable"`
-	ParentID    string   `json:"parentID"`
-	IsDir       bool     `json:"isDir"`
-	ChildrenIDs []string `json:"childrenIDs"`
-	FullPath    string   `json:"fullPath"`
-	FileURL     string   `json:"fileURL"`
+	ID           string   `json:"id"`
+	ULID         string   `json:"ulid"`
+	Name         string   `json:"name"`
+	Size         int64    `json:"size"`
+	ModDate      string   `json:"modDate"`
+	Openable     bool     `json:"openable"`
+	ParentID     string   `json:"parentID"`
+	IsDir        bool     `json:"isDir"`
+	ChildrenIDs  []string `json:"childrenIDs"`
+	FullPath     string   `json:"fullPath"`
+	FileURL      string   `json:"fileURL"`
+	ThumbnailURL string   `json:"thumbnailURL,omitempty"`
 }
 
 // FileSystem represents the API response
@@ -113,13 +114,27 @@ func (b *BrowsePage) renderNode(node FileTreeNode, depth int) app.UI {
 	isExpanded := b.expandedDirs[node.ID]
 	children := b.getChildren(node.ID)
 
-	iconText := "📄"
-	if node.IsDir {
-		if isExpanded {
-			iconText = "📂"
-		} else {
-			iconText = "📁"
+	// Determine icon display - use thumbnail if available, otherwise emoji
+	var iconUI app.UI
+	if !node.IsDir && node.ThumbnailURL != "" {
+		// Use thumbnail image
+		iconUI = app.Img().
+			Src(BuildAPIURL(node.ThumbnailURL)).
+			Class("tree-node-thumbnail").
+			Style("height", "64px").
+			Style("max-width", "256px").
+			Style("object-fit", "contain")
+	} else {
+		// Use emoji icon
+		iconText := "📄"
+		if node.IsDir {
+			if isExpanded {
+				iconText = "📂"
+			} else {
+				iconText = "📁"
+			}
 		}
+		iconUI = app.Text(iconText)
 	}
 
 	var nameUI app.UI
@@ -150,7 +165,7 @@ func (b *BrowsePage) renderNode(node FileTreeNode, depth int) app.UI {
 			app.Div().Class("tree-node-content").Body(
 				app.Span().
 					Class("tree-node-icon").
-					Text(iconText).
+					Body(iconUI).
 					OnClick(func(ctx app.Context, e app.Event) {
 						if node.IsDir {
 							b.toggleDir(ctx, node.ID)

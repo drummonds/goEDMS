@@ -191,6 +191,7 @@ console.log("godocs Config loaded:", window.godocs_config);
 	e.GET("/api/documents/latest", serverHandler.GetLatestDocuments)
 	e.GET("/api/documents/filesystem", serverHandler.GetDocumentFileSystem)
 	e.GET("/api/document/:id", serverHandler.GetDocument)
+	e.GET("/api/document/:id/thumbnail", serverHandler.GetDocumentThumbnail)
 	e.DELETE("/api/document/*", serverHandler.DeleteFile)
 	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
 	e.POST("/api/document/upload", serverHandler.UploadDocuments)

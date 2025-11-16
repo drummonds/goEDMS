@@ -174,12 +174,25 @@ func (s *SearchResultItem) Render() app.UI {
 		dateUI = app.P().Class("result-date").Text(fmt.Sprintf("Modified: %s", s.Node.ModDate))
 	}
 
+	// Determine icon display - use thumbnail if available, otherwise emoji
+	var iconUI app.UI
+	if s.Node.ThumbnailURL != "" {
+		// Use thumbnail image
+		iconUI = app.Img().
+			Src(BuildAPIURL(s.Node.ThumbnailURL)).
+			Class("result-thumbnail").
+			Style("height", "64px").
+			Style("max-width", "256px").
+			Style("object-fit", "contain")
+	} else {
+		// Use emoji icon
+		iconUI = app.Text("📄")
+	}
+
 	return app.Div().
 		Class("search-result-item").
 		Body(
-			app.Div().Class("result-icon").Body(
-				app.Text("📄"),
-			),
+			app.Div().Class("result-icon").Body(iconUI),
 			app.Div().Class("result-info").Body(
 				app.H4().Body(nameUI),
 				app.P().Class("result-path").Text(s.Node.FullPath),

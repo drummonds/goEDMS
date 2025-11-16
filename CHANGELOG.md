@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.19.0 2025-11-16
+
+- Adding creating thumbnails
+
 ## 0.18.0 2025-11-16
 
 - Adding ingres .txt files and store on clean if don't exist
