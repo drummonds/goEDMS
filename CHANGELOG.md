@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.18.0 2025-11-16
+
+- Adding ingres .txt files and store on clean if don't exist
+
 ## 0.16.0 2025-11-11
 
 - Adding make ingress directory if it doesn't exist
