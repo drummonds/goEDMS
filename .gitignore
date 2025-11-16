@@ -29,5 +29,6 @@ test_output.log
 .env
 demo
 test_godocs*
+testdocs
 
 node_modules
