@@ -31,6 +31,7 @@ type ServerConfig struct {
 	IngressDelete        bool
 	IngressMoveFolder    string
 	IngressPreserve      bool
+	UseSidecarTxt        bool
 	DocumentPath         string
 	NewDocumentFolder    string //absolute path to new document folder
 	NewDocumentFolderRel string //relative path to new document folder
@@ -127,6 +128,7 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	serverConfigLive.IngressInterval = getEnvInt("INGRESS_INTERVAL", 10)
 	serverConfigLive.IngressPreserve = getEnvBool("INGRESS_PRESERVE_STRUCTURE", true)
 	serverConfigLive.IngressDelete = getEnvBool("INGRESS_DELETE", true) // Changed default to true - delete source files after ingestion
+	serverConfigLive.UseSidecarTxt = getEnvBool("USE_SIDECAR_TXT", true) // Use sidecar .txt files for search text if present
 
 	// IngressMoveFolder is now deprecated - we delete files instead of moving them
 	// Kept for backwards compatibility but not created by default

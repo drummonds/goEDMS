@@ -214,6 +214,16 @@ func (serverHandler *ServerHandler) moveAndVerifyFile(sourcePath, destPath, expe
 
 // extractText extracts text from the document based on file type
 func (serverHandler *ServerHandler) extractText(filePath string) (string, error) {
+	// Check for sidecar .txt file first if enabled
+	if serverHandler.ServerConfig.UseSidecarTxt {
+		sidecarPath := getSidecarTxtPath(filePath)
+		if content, err := os.ReadFile(sidecarPath); err == nil {
+			Logger.Info("Using sidecar .txt file for text content", "document", filePath, "sidecar", sidecarPath)
+			return string(content), nil
+		}
+		// Sidecar file doesn't exist, proceed with normal extraction
+	}
+
 	switch filepath.Ext(filePath) {
 	case ".pdf":
 		// Try direct PDF text extraction first
@@ -265,6 +275,38 @@ func (serverHandler *ServerHandler) updateDocumentText(doc *database.Document, f
 		return fmt.Errorf("unable to update full text: %w", err)
 	}
 
+	// Save sidecar .txt file if enabled and we have text
+	if serverHandler.ServerConfig.UseSidecarTxt && fullText != "" {
+		if err := saveSidecarTxtFile(doc.Path, fullText); err != nil {
+			Logger.Warn("Failed to save sidecar .txt file", "document", doc.Path, "error", err)
+			// Don't fail the ingestion if sidecar save fails
+		}
+	}
+
 	// PostgreSQL full-text search trigger will automatically update the search index
+	return nil
+}
+
+// getSidecarTxtPath returns the path to the sidecar .txt file for a document
+func getSidecarTxtPath(docPath string) string {
+	ext := filepath.Ext(docPath)
+	return docPath[:len(docPath)-len(ext)] + ".txt"
+}
+
+// saveSidecarTxtFile saves the extracted text to a .txt file alongside the document
+func saveSidecarTxtFile(docPath, text string) error {
+	sidecarPath := getSidecarTxtPath(docPath)
+
+	// Create directory if needed
+	if err := os.MkdirAll(filepath.Dir(sidecarPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory for sidecar file: %w", err)
+	}
+
+	// Write text to file
+	if err := os.WriteFile(sidecarPath, []byte(text), 0644); err != nil {
+		return fmt.Errorf("failed to write sidecar file: %w", err)
+	}
+
+	Logger.Info("Saved sidecar .txt file", "document", docPath, "sidecar", sidecarPath, "textLength", len(text))
 	return nil
 }
