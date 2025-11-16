@@ -44,8 +44,9 @@ func main() {
 	injectGlobals(logger) //inject the logger into all of the packages
 
 	// Log version information
-	logger.Info("Starting godocs", "version", build.Version)
-	fmt.Printf("\n🚀  godocs version %s\n", build.Version)
+	version := build.GetVersion()
+	logger.Info("Starting godocs", "version", version)
+	fmt.Printf("\n🚀  godocs version %s\n", version)
 
 	// Show info banner if using ephemeral database
 	if serverConfig.DatabaseType == "ephemeral" {

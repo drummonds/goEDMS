@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.20.0 2025-11-16
+
+- using goreleaser release
+
 ## 0.19.0 2025-11-16
 
 - Adding creating thumbnails

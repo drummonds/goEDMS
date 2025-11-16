@@ -1,87 +1,67 @@
-# This is an example goreleaser.yaml file with some sane defaults.
-# Make sure to check the documentation at http://goreleaser.com
+# GoReleaser configuration for godocs
+# Test with: goreleaser release --snapshot --clean
+# Release with: goreleaser release (requires GITHUB_TOKEN)
+
+project_name: godocs
+
 before:
   hooks:
-    # you may remove this if you don't use vgo
-    - go mod tidy
-    # you may remove this if you don't need go generate
-    - go generate ./...
+    # Build WASM before release
+    - task build:wasm
+
 builds:
-  - env:
+  - id: godocs
+    main: ./main.go
+    binary: godocs
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
       - darwin
+      - windows
     goarch:
       - amd64
-      - arm
       - arm64
+    ldflags:
+      - -s -w
+      - -X 'github.com/drummonds/godocs/internal/build.Version={{.Version}}'
+
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
+  - id: godocs-archive
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
     format_overrides:
       - goos: windows
         format: zip
     files:
-      - LICENSE
       - README.md
-      - public/built/*
-nfpms:
-  - id: godocs
-    package_name: godocs
-    vendor: drummonds
-    maintainer: drummonds
-    homepage: https://github.com/drummonds/godocs
-    description: Simple EDMS server and WASM client
-    license: MIT
-    formats:
-      - deb
-      - rpm
-    dependencies:
-      - tesseract-ocr
-    bindir: /opt/godocs
-    empty_folders:
-      - /opt/godocs/
-      - /opt/godocs/public/
-      - /opt/godocs/public/built/
-    files:
-      "dist-specific-files/Linux-systemd/godocs.service": "/etc/systemd/system/godocs.service"
-      "public/built/**": "/opt/godocs/public/built"
-      "LICENSE": "/opt/godocs/LICENSE"
-      "README.md": "/opt/godocs/README.md"
-    scripts:
-      preinstall: "dist-specific-files/nfpms/pre-install.sh"
-      postinstall: "dist-specific-files/nfpms/post-install.sh"
-      postremove: "dist-specific-files/nfpms/post-remove.sh"
+      - LICENSE*
+      - CHANGELOG.md
+      - .env.example
+      - web/*
+      - public/**/*
+
 checksum:
-  name_template: "checksums.txt"
+  name_template: 'checksums.txt'
+
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  name_template: "{{ incpatch .Version }}-next"
+
 changelog:
   sort: asc
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+
 release:
-  draft: true
-  prerelease: true
-# dockers:
-#   -
-#     goos: linux
-#     goarch: amd64
-#     binaries:
-#     - godocs
-#     image_templates:
-#     - "drummonds/godocs:latest"
-#     - "drummonds/godocs:v{{ .Major }}.{{ .Minor }}"
-#     dockerfile: Dockerfile
-#     extra_files:
-#     - LICENSE
-#     - README.md
-#     - public/built/
+  github:
+    owner: drummonds
+    name: godocs
+  name_template: "v{{.Version}}"
