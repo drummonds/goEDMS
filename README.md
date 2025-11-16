@@ -5,7 +5,9 @@
 A lightweight Electronic Document Management System (EDMS) for home users, built entirely in Go. It has no
 user authentication.
 
-**Originally created by [deranjer/godocs](https://github.com/deranjer/godocs)** - This is a hard fork with significant modernization and new features.
+**Originally created by [deranjer/godocs](https://github.com/deranjer/goEDMS)** - This is a hard fork with significant modernization and new features.  I had to rename it as I posoined the cache and couldn't
+get it load on gokrazy.  It is now being tamed and can host on gokrazy.
+
 
 ## What is godocs?
 
@@ -40,8 +42,8 @@ godocs is a self-hosted document management system designed for home users to sc
 - [x] Multiple file format support (PDF, images, text)
 
 ### Planned Features
-- [ ] Deploy to gokrazy with remote db
-- [ ] Deploy to gokrazy with local db
+- [x] Deploy to gokrazy with remote db
+- [x] Deploy to gokrazy with local db
 - [ ] Backup system
 - [ ] Thumbnails
 - [ ] Working job system display
