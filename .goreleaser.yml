@@ -8,8 +8,8 @@ project_name: godocs
 
 before:
   hooks:
-    # Build WASM before release
-    - task build:wasm
+    # WASM is pre-built and committed to git (required for embed directive)
+    # Build WASM manually before creating a release: task build:wasm
 
 builds:
   - id: godocs
