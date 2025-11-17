@@ -351,3 +351,88 @@ func truncateString(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
+
+// TestShouldSkipFileForIngestion tests the file filtering logic
+func TestShouldSkipFileForIngestion(t *testing.T) {
+	tests := []struct {
+		name     string
+		filePath string
+		want     bool
+	}{
+		{
+			name:     "Regular PDF should not be skipped",
+			filePath: "/path/to/document.pdf",
+			want:     false,
+		},
+		{
+			name:     "Thumbnail file should be skipped",
+			filePath: "/path/to/document.tn_64.png",
+			want:     true,
+		},
+		{
+			name:     "Regular PNG should not be skipped",
+			filePath: "/path/to/image.png",
+			want:     false,
+		},
+		{
+			name:     "Regular text file should not be skipped",
+			filePath: "/path/to/notes.txt",
+			want:     false,
+		},
+		{
+			name:     "Thumbnail in nested directory should be skipped",
+			filePath: "/documents/folder/subfolder/report.tn_64.png",
+			want:     true,
+		},
+		{
+			name:     "Regular JPEG should not be skipped",
+			filePath: "/path/to/photo.jpg",
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldSkipFileForIngestion(tt.filePath)
+			if got != tt.want {
+				t.Errorf("shouldSkipFileForIngestion(%q) = %v, want %v", tt.filePath, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestShouldSkipSidecarTextFile tests that sidecar .txt files are skipped
+func TestShouldSkipSidecarTextFile(t *testing.T) {
+	// Create a temp directory for testing
+	tempDir := t.TempDir()
+
+	// Create a test PDF file
+	pdfPath := filepath.Join(tempDir, "document.pdf")
+	err := os.WriteFile(pdfPath, []byte("%PDF test"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test PDF: %v", err)
+	}
+
+	// Create a sidecar .txt file for the PDF
+	sidecarPath := filepath.Join(tempDir, "document.txt")
+	err = os.WriteFile(sidecarPath, []byte("test content"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create sidecar file: %v", err)
+	}
+
+	// The sidecar .txt file should be skipped since corresponding PDF exists
+	if !shouldSkipFileForIngestion(sidecarPath) {
+		t.Error("Sidecar .txt file should be skipped when corresponding PDF exists")
+	}
+
+	// A standalone .txt file (without corresponding document) should NOT be skipped
+	standaloneTxt := filepath.Join(tempDir, "standalone.txt")
+	err = os.WriteFile(standaloneTxt, []byte("standalone content"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create standalone .txt: %v", err)
+	}
+
+	if shouldSkipFileForIngestion(standaloneTxt) {
+		t.Error("Standalone .txt file should NOT be skipped")
+	}
+}

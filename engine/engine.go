@@ -20,6 +20,37 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
+// shouldSkipFileForIngestion checks if a file should be skipped during ingestion
+// Returns true for auxiliary files like thumbnails (.tn_64.png) and sidecar text files
+func shouldSkipFileForIngestion(filePath string) bool {
+	fileName := filepath.Base(filePath)
+
+	// Skip thumbnail files (e.g., document.tn_64.png)
+	if strings.HasSuffix(fileName, ".tn_64.png") {
+		return true
+	}
+
+	// Skip sidecar .txt files - these are handled separately during ingestion
+	// Only skip if the corresponding main document exists
+	if strings.HasSuffix(fileName, ".txt") {
+		// Check if this is a sidecar file by looking for a corresponding document
+		baseName := fileName[:len(fileName)-4] // Remove .txt extension
+		dir := filepath.Dir(filePath)
+
+		// Common document extensions that might have sidecar files
+		commonExts := []string{".pdf", ".jpg", ".jpeg", ".png", ".tiff"}
+		for _, ext := range commonExts {
+			possibleDoc := filepath.Join(dir, baseName+ext)
+			if _, err := os.Stat(possibleDoc); err == nil {
+				// Found corresponding document, this is a sidecar file
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (serverHandler *ServerHandler) ingressJobFunc(serverConfig config.ServerConfig, db database.Repository) {
 	// Add panic recovery to prevent entire application crash
 	defer func() {
@@ -56,6 +87,10 @@ func (serverHandler *ServerHandler) ingressJobFunc(serverConfig config.ServerCon
 			Logger.Info("Skipping ingress Folder", "filePath", filePath)
 			continue
 		}
+		if shouldSkipFileForIngestion(filePath) {
+			Logger.Debug("Skipping auxiliary file", "filePath", filePath)
+			continue
+		}
 		serverHandler.ingressDocument(filePath, "ingress")
 	}
 	deleteEmptyIngressFolders(serverHandler.ServerConfig.IngressPath) //after ingress clean empty folders
@@ -88,7 +123,7 @@ func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig conf
 	// Scan for files
 	var ingressFiles []string
 	err = filepath.Walk(serverConfig.IngressPath, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() && path != serverConfig.IngressPath {
+		if err == nil && !info.IsDir() && path != serverConfig.IngressPath && !shouldSkipFileForIngestion(path) {
 			ingressFiles = append(ingressFiles, path)
 		}
 		return nil
