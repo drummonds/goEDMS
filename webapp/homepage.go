@@ -224,11 +224,17 @@ func (d *DocumentCard) Render() app.UI {
 						Class("document-link").
 						Target("_blank").
 						Body(app.Text("View Document")),
-					app.A().
-						Href("/edit/"+d.Document.ULID).
+					app.Button().
 						Class("document-link document-link-edit").
+						OnClick(d.navigateToEdit).
 						Body(app.Text("Edit")),
 				),
 			),
 		)
+}
+
+// navigateToEdit handles navigation to the edit page
+func (d *DocumentCard) navigateToEdit(ctx app.Context, e app.Event) {
+	e.PreventDefault()
+	ctx.Navigate("/edit/" + d.Document.ULID)
 }

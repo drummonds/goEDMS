@@ -11,6 +11,11 @@ tasks:
     cmds:
       - task --list
 
+  install:
+    desc: Install the full application locally
+    cmds:
+      - go install github.com/drummonds/godocs
+
   # Development tasks
   dev:
     desc: Run the application locally (backend only)
