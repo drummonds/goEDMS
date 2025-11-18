@@ -513,11 +513,28 @@ func (serverHandler *ServerHandler) GetLatestDocuments(context echo.Context) err
 		})
 	}
 
+	// Add thumbnail URLs to documents
+	type DocumentWithThumbnail struct {
+		database.Document
+		ThumbnailURL string `json:"thumbnailURL,omitempty"`
+	}
+
+	documentsWithThumbnails := make([]DocumentWithThumbnail, len(documents))
+	for i, doc := range documents {
+		documentsWithThumbnails[i] = DocumentWithThumbnail{Document: doc}
+
+		// Check if thumbnail exists and add URL
+		thumbnailPath := getThumbnailPath(doc.Path)
+		if _, err := os.Stat(thumbnailPath); err == nil {
+			documentsWithThumbnails[i].ThumbnailURL = "/api/document/" + doc.ULID.String() + "/thumbnail"
+		}
+	}
+
 	// Calculate pagination metadata
 	totalPages := (totalCount + pageSize - 1) / pageSize // Ceiling division
 
 	return context.JSON(http.StatusOK, map[string]interface{}{
-		"documents":   documents,
+		"documents":   documentsWithThumbnails,
 		"page":        page,
 		"pageSize":    pageSize,
 		"totalCount":  totalCount,

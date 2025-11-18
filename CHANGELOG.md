@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.20.7 2025-11-18
+
+- Fixing display bugs for thumbnails
+
 ## 0.20.0 2025-11-16
 
 - using goreleaser release

@@ -19,6 +19,7 @@ type Document struct {
 	DocumentType string `json:"DocumentType"`
 	FullText     string `json:"FullText"`
 	URL          string `json:"URL"`
+	ThumbnailURL string `json:"thumbnailURL,omitempty"`
 }
 
 // PaginatedResponse represents the paginated API response
@@ -193,11 +194,24 @@ type DocumentCard struct {
 
 // Render renders the document card
 func (d *DocumentCard) Render() app.UI {
+	// Render thumbnail or fallback icon
+	var iconContent app.UI
+	if d.Document.ThumbnailURL != "" {
+		// Show thumbnail image if available
+		iconContent = app.Img().
+			Src(BuildAPIURL(d.Document.ThumbnailURL)).
+			Alt("Document thumbnail").
+			Class("document-thumbnail")
+	} else {
+		// Fallback to emoji icon
+		iconContent = app.Text("📄")
+	}
+
 	return app.Div().
 		Class("document-card").
 		Body(
 			app.Div().Class("document-icon").Body(
-				app.Text("📄"),
+				iconContent,
 			),
 			app.Div().Class("document-info").Body(
 				app.H3().Text(d.Document.Name),
