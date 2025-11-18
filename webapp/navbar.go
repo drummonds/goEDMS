@@ -43,32 +43,40 @@ func (n *NavBar) Render() app.UI {
 				),
 			),
 			app.Div().Class("navbar-menu").Body(
-				app.A().
-					Href("/").
+				app.Button().
 					Class("navbar-item").
+					OnClick(n.navigateTo("/")).
 					Body(app.Text("Home")),
-				app.A().
-					Href("/browse").
+				app.Button().
 					Class("navbar-item").
+					OnClick(n.navigateTo("/browse")).
 					Body(app.Text("Browse")),
-				app.A().
-					Href("/ingest").
+				app.Button().
 					Class("navbar-item").
+					OnClick(n.navigateTo("/ingest")).
 					Body(app.Text("Ingest")),
-				app.A().
-					Href("/clean").
+				app.Button().
 					Class("navbar-item").
+					OnClick(n.navigateTo("/clean")).
 					Body(app.Text("Clean")),
-				app.A().
-					Href("/search").
+				app.Button().
 					Class("navbar-item").
+					OnClick(n.navigateTo("/search")).
 					Body(app.Text("Search")),
-				app.A().
-					Href("/jobs").
+				app.Button().
 					Class("navbar-item").
+					OnClick(n.navigateTo("/jobs")).
 					Body(app.Text("Jobs")),
 			),
 		)
+}
+
+// navigateTo creates a navigation handler for the given path
+func (n *NavBar) navigateTo(path string) func(ctx app.Context, e app.Event) {
+	return func(ctx app.Context, e app.Event) {
+		e.PreventDefault()
+		ctx.Navigate(path)
+	}
 }
 
 // onMenuToggle handles the hamburger menu click

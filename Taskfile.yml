@@ -109,6 +109,26 @@ tasks:
       - rm -f public/built/wasm_exec.js
       - echo "Cleaned all generated files"
 
+  release:*:*:
+    desc: Final release process an install eg task release -- v0.22.1 "fix jobs"
+    vars:
+      TAG1: '{{index .MATCH 0}}-wasm'
+      TAG2: '{{index .MATCH 0}}'
+      BUILD1: '{{index .MATCH 1}}'
+      BUILD2: '{{index .MATCH 1}} + wasm'
+    cmds:
+      - git add .
+      - git commit -am "{{.BUILD1}}"
+      - git tag "{{.TAG1}}"
+      - git push origin '"{{.TAG1}}"'
+      - task: build:wasm
+      - git commit -am "{{.BUILD2}}"
+      - git tag "{{.TAG2}}"
+      - git push origin '"{{.TAG2}}"'
+      - git push
+      - goreleaser release --clean
+      - go install github.com/drummonds/godocs
+
   # Dependency management
   deps:install:
     desc: Install all dependencies (Go modules)
