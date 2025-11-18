@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.21.0 2025-11-18
+
+- Adding Tagging system
+
 ## 0.20.7 2025-11-18
 
 - Fixing display bugs for thumbnails

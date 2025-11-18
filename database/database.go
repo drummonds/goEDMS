@@ -68,6 +68,25 @@ type Repository interface {
 	GetRecentJobs(limit, offset int) ([]Job, error)
 	GetActiveJobs() ([]Job, error)
 	DeleteOldJobs(olderThan time.Duration) (int, error)
+	// Tag methods
+	CreateTag(tag *Tag) error
+	GetAllTags() ([]Tag, error)
+	GetTagByID(id int) (*Tag, error)
+	GetTagByName(name string) (*Tag, error)
+	UpdateTag(tag *Tag) error
+	DeleteTag(id int) error
+	GetTagsForDocument(documentID int) ([]Tag, error)
+	AddTagToDocument(documentID int, tagID int) error
+	RemoveTagFromDocument(documentID int, tagID int) error
+	// Dimension methods
+	GetAllDimensions() ([]Dimension, error)
+	GetDimensionByID(id int) (*Dimension, error)
+	GetDimensionByName(name string) (*Dimension, error)
+	GetDimensionValues(dimensionID int) ([]DimensionValue, error)
+	GetDimensionValueByValue(dimensionID int, value string) (*DimensionValue, error)
+	GetDocumentDimensions(documentID int) (map[string]DimensionValue, error)
+	SetDocumentDimension(documentID int, dimensionID int, dimensionValueID int) error
+	RemoveDocumentDimension(documentID int, dimensionID int) error
 }
 
 // FetchConfigFromDB pulls the server config from the database

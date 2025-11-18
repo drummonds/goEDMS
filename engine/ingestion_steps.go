@@ -316,6 +316,18 @@ func (serverHandler *ServerHandler) updateDocumentText(doc *database.Document, f
 		}
 	}
 
+	// Read and apply tags and dimensions from sidecar file if it exists
+	tagData, err := readTagsSidecar(doc.Path)
+	if err != nil {
+		Logger.Warn("Failed to read tags sidecar", "document", doc.Path, "error", err)
+		// Don't fail ingestion if tags can't be read
+	} else if tagData != nil {
+		if err := serverHandler.applyTagsAndDimensionsToDocument(doc, tagData, db); err != nil {
+			Logger.Warn("Failed to apply tags/dimensions to document", "document", doc.Path, "error", err)
+			// Don't fail ingestion if tags can't be applied
+		}
+	}
+
 	// PostgreSQL full-text search trigger will automatically update the search index
 	return nil
 }

@@ -217,6 +217,23 @@ console.log("godocs Config loaded:", window.godocs_config);
 	// Job tracking API routes
 	e.GET("/api/jobs", serverHandler.GetRecentJobs)
 	e.GET("/api/jobs/active", serverHandler.GetActiveJobs)
+
+	// Tag API routes
+	e.GET("/api/tags", serverHandler.GetAllTags)
+	e.POST("/api/tags", serverHandler.CreateTag)
+	e.PUT("/api/tags/:id", serverHandler.UpdateTag)
+	e.DELETE("/api/tags/:id", serverHandler.DeleteTag)
+
+	// Document tag API routes
+	e.GET("/api/documents/:ulid/tags", serverHandler.GetDocumentTags)
+	e.POST("/api/documents/:ulid/tags", serverHandler.AddDocumentTag)
+	e.DELETE("/api/documents/:ulid/tags/:tagId", serverHandler.RemoveDocumentTag)
+
+	// Dimension API routes
+	e.GET("/api/dimensions", serverHandler.GetAllDimensions)
+	e.GET("/api/documents/:ulid/dimensions", serverHandler.GetDocumentDimensions)
+	e.POST("/api/documents/:ulid/dimensions", serverHandler.SetDocumentDimension)
+	e.DELETE("/api/documents/:ulid/dimensions/:dimensionName", serverHandler.RemoveDocumentDimension)
 	e.GET("/api/jobs/:id", serverHandler.GetJob)
 
 	// Document view routes (serve actual files - not JSON, so not under /api/*)
