@@ -120,11 +120,11 @@ tasks:
       - git add .
       - git commit -am "{{.BUILD1}}"
       - git tag "{{.TAG1}}"
-      - git push origin '"{{.TAG1}}"'
+      - git push origin "{{.TAG1}}"
       - task: build:wasm
       - git commit -am "{{.BUILD2}}"
       - git tag "{{.TAG2}}"
-      - git push origin '"{{.TAG2}}"'
+      - git push origin "{{.TAG2}}"
       - git push
       - goreleaser release --clean
       - go install github.com/drummonds/godocs
