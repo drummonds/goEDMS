@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.22.0 2025-11-18
+## 0.22.3 2025-11-18
 
 - Adding Tag editing system
 
