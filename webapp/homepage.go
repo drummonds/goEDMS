@@ -218,11 +218,17 @@ func (d *DocumentCard) Render() app.UI {
 				app.P().
 					Class("document-date").
 					Text("Ingested: "+d.Document.IngressTime),
-				app.A().
-					Href(d.Document.URL).
-					Class("document-link").
-					Target("_blank").
-					Body(app.Text("View Document")),
+				app.Div().Class("document-actions").Body(
+					app.A().
+						Href(d.Document.URL).
+						Class("document-link").
+						Target("_blank").
+						Body(app.Text("View Document")),
+					app.A().
+						Href("/edit/"+d.Document.ULID).
+						Class("document-link document-link-edit").
+						Body(app.Text("Edit")),
+				),
 			),
 		)
 }

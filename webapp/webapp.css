@@ -270,6 +270,12 @@ h3 {
     margin-bottom: 1rem;
 }
 
+.document-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
 .document-link {
     display: inline-block;
     color: #3498db;
@@ -278,10 +284,21 @@ h3 {
     border: 1px solid #3498db;
     border-radius: 4px;
     transition: all 0.2s;
+    font-size: 0.9rem;
 }
 
 .document-link:hover {
     background-color: #3498db;
+    color: white;
+}
+
+.document-link-edit {
+    border-color: #9b59b6;
+    color: #9b59b6;
+}
+
+.document-link-edit:hover {
+    background-color: #9b59b6;
     color: white;
 }
 
@@ -892,5 +909,245 @@ h3 {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
+    }
+}
+
+/* ============================================================================
+   EDIT PAGE STYLES
+   ============================================================================ */
+
+.edit-page {
+    padding: 2rem;
+    max-width: 100%;
+    height: calc(100vh - 120px);
+}
+
+.edit-header {
+    margin-bottom: 1.5rem;
+}
+
+.edit-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.edit-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 2rem;
+    height: calc(100% - 80px);
+}
+
+.edit-sidebar {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    height: 100%;
+}
+
+.edit-section {
+    margin-bottom: 2rem;
+}
+
+.edit-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #34495e;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #ecf0f1;
+}
+
+/* Tag Styles */
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tag-item {
+    padding: 0.5rem 1rem;
+    border: 2px solid #bdc3c7;
+    border-radius: 20px;
+    background: white;
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.tag-item:hover {
+    border-color: #95a5a6;
+    background: #ecf0f1;
+    transform: translateY(-1px);
+}
+
+.tag-item-active {
+    background: #3498db;
+    border-color: #3498db;
+    color: white;
+}
+
+.tag-item-active:hover {
+    background: #2980b9;
+    border-color: #2980b9;
+}
+
+/* Dimension Styles */
+.dimension-group {
+    margin-bottom: 1.5rem;
+}
+
+.dimension-group:last-child {
+    margin-bottom: 0;
+}
+
+.dimension-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #34495e;
+    margin-bottom: 0.5rem;
+}
+
+.dimension-description {
+    font-size: 0.85rem;
+    color: #95a5a6;
+    margin-bottom: 0.75rem;
+}
+
+.dimension-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.dimension-value {
+    padding: 0.4rem 0.9rem;
+    border: 2px solid #bdc3c7;
+    border-radius: 16px;
+    background: white;
+    color: #7f8c8d;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.dimension-value:hover {
+    border-color: #95a5a6;
+    background: #ecf0f1;
+    transform: translateY(-1px);
+}
+
+.dimension-value-active {
+    background: #9b59b6;
+    border-color: #9b59b6;
+    color: white;
+}
+
+.dimension-value-active:hover {
+    background: #8e44ad;
+    border-color: #8e44ad;
+}
+
+/* Document Viewer Styles */
+.document-viewer-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.viewer-header {
+    padding: 1rem 1.5rem;
+    background: #34495e;
+    color: white;
+    font-weight: 600;
+    border-bottom: 2px solid #2c3e50;
+}
+
+.document-iframe {
+    flex: 1;
+    border: none;
+    width: 100%;
+    height: 100%;
+}
+
+/* Loading State */
+.loading-message {
+    text-align: center;
+    padding: 2rem;
+    color: #95a5a6;
+    font-size: 1.1rem;
+}
+
+/* Error State */
+.error-message {
+    background: #e74c3c;
+    color: white;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+/* Responsive Design for Edit Page */
+@media (max-width: 1024px) {
+    .edit-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        height: auto;
+    }
+
+    .edit-sidebar {
+        height: auto;
+        max-height: 500px;
+    }
+
+    .document-viewer-container {
+        height: 600px;
+    }
+}
+
+@media (max-width: 768px) {
+    .edit-page {
+        padding: 1rem;
+    }
+
+    .edit-title {
+        font-size: 1.5rem;
+    }
+
+    .edit-sidebar {
+        padding: 1rem;
+    }
+
+    .section-title {
+        font-size: 1rem;
+    }
+
+    .tag-item {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    .dimension-value {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .document-viewer-container {
+        height: 500px;
     }
 }

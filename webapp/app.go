@@ -30,7 +30,14 @@ func (a *App) Render() app.UI {
 
 // renderPage renders the current page based on the route
 func (a *App) renderPage() app.UI {
-	switch app.Window().URL().Path {
+	path := app.Window().URL().Path
+
+	// Handle edit pages with dynamic ULID
+	if len(path) > 6 && path[:6] == "/edit/" {
+		return &EditPage{}
+	}
+
+	switch path {
 	case "/":
 		return &HomePage{}
 	case "/browse":
