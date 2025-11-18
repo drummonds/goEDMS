@@ -118,6 +118,16 @@ func (e *EditPage) fetchDocumentTags(ctx app.Context) {
 			return nil
 		}
 		response := args[0]
+
+		// Check HTTP status
+		status := response.Get("status").Int()
+		if status != 200 {
+			ctx.Dispatch(func(ctx app.Context) {
+				e.error = fmt.Sprintf("Failed to load document tags: HTTP %d - Document ULID '%s' not found or invalid", status, e.ulid)
+			})
+			return nil
+		}
+
 		response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 			if len(args) == 0 {
 				return nil
@@ -180,6 +190,16 @@ func (e *EditPage) fetchDocumentDimensions(ctx app.Context) {
 			return nil
 		}
 		response := args[0]
+
+		// Check HTTP status
+		status := response.Get("status").Int()
+		if status != 200 {
+			ctx.Dispatch(func(ctx app.Context) {
+				e.error = fmt.Sprintf("Failed to load document dimensions: HTTP %d - Document ULID '%s' not found or invalid", status, e.ulid)
+			})
+			return nil
+		}
+
 		response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 			if len(args) == 0 {
 				return nil
@@ -301,13 +321,19 @@ func (e *EditPage) setDimension(dimensionName, value string) func(ctx app.Contex
 func (e *EditPage) Render() app.UI {
 	if e.loading {
 		return app.Div().Class("edit-page loading").Body(
-			app.Text("Loading..."),
+			app.H2().Text("Loading Document..."),
+			app.P().Text("ULID: " + e.ulid),
 		)
 	}
 
 	if e.error != "" {
 		return app.Div().Class("edit-page error").Body(
-			app.Text("Error: " + e.error),
+			app.H2().Text("Error Loading Document"),
+			app.Div().Class("error-message").Body(
+				app.Text(e.error),
+			),
+			app.P().Text("Attempted ULID: " + e.ulid),
+			app.A().Href("/").Text("← Back to Home"),
 		)
 	}
 
