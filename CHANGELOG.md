@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.22.13 2025-11-19
+
+- Trying to fix persistent 404 errors
+
 ## 0.22.12 2025-11-18
 
 - Adding Tag editing system

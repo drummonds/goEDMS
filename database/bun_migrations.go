@@ -5,18 +5,37 @@ import (
 	"fmt"
 
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
 // runMigrations runs all Bun migrations
 func runMigrations(ctx context.Context, db *bun.DB) error {
-	// Create a simple migrations tracking table
-	_, err := db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS bun_schema_migrations (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			version TEXT NOT NULL UNIQUE,
-			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
+	// Detect database dialect by type assertion
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
+
+	Logger.Info("Detected database dialect for migrations", "isPostgres", isPostgres)
+
+	// Create a simple migrations tracking table with dialect-specific syntax
+	var createMigrationsTableSQL string
+	if isPostgres {
+		createMigrationsTableSQL = `
+			CREATE TABLE IF NOT EXISTS bun_schema_migrations (
+				id SERIAL PRIMARY KEY,
+				version TEXT NOT NULL UNIQUE,
+				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`
+	} else {
+		createMigrationsTableSQL = `
+			CREATE TABLE IF NOT EXISTS bun_schema_migrations (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				version TEXT NOT NULL UNIQUE,
+				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`
+	}
+
+	_, err := db.ExecContext(ctx, createMigrationsTableSQL)
 	if err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
@@ -79,12 +98,15 @@ func runMigrations(ctx context.Context, db *bun.DB) error {
 func init001CreateDocumentsTable(ctx context.Context, db *bun.DB) error {
 	Logger.Info("Running migration 001: Create initial schema")
 
-	// Detect database dialect - check if it's PostgreSQL by checking dialect features
-	_, isPostgres := db.Dialect().(interface{ SupportsReturning() bool })
+	// Detect database dialect by type assertion
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
+
+	Logger.Info("Migration 001 dialect detection", "isPostgres", isPostgres)
 
 	// Create documents table
 	var createTableSQL string
 	if isPostgres {
+		Logger.Info("Using PostgreSQL syntax for documents table")
 		createTableSQL = `
 			CREATE TABLE IF NOT EXISTS documents (
 				id SERIAL PRIMARY KEY,
@@ -232,7 +254,7 @@ func init002AddFullTextSearch(ctx context.Context, db *bun.DB) error {
 	Logger.Info("Running migration 002: Add full-text search")
 
 	// Detect database dialect
-	_, isPostgres := db.Dialect().(interface{ SupportsReturning() bool })
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
 
 	if isPostgres {
 		// PostgreSQL: Add tsvector column and GIN index
@@ -328,8 +350,8 @@ func init002RollbackFullTextSearch(ctx context.Context, db *bun.DB) error {
 func init003AddWordCloud(ctx context.Context, db *bun.DB) error {
 	Logger.Info("Running migration 003: Add word cloud tables")
 
-	// Detect database dialect
-	_, isPostgres := db.Dialect().(interface{ SupportsReturning() bool })
+	// Detect database dialect by type assertion
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
 
 	// Create word_frequencies table
 	_, err := db.ExecContext(ctx, `
@@ -456,7 +478,7 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 	Logger.Info("Running migration 005: Add tagging system")
 
 	// Detect database dialect
-	_, isPostgres := db.Dialect().(interface{ SupportsReturning() bool })
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
 
 	// Create tags table
 	var tagsTableSQL string
@@ -667,21 +689,31 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 		{"other", "Other", "Other person-related documents", "#9e9e9e", 99},
 	}
 
+	// Get person dimension ID first
+	var personDimID int
+	if err := db.NewSelect().
+		Table("dimensions").
+		Column("id").
+		Where("name = ?", "person").
+		Scan(ctx, &personDimID); err != nil {
+		return fmt.Errorf("failed to get person dimension ID: %w", err)
+	}
+
 	for _, v := range personValues {
 		var insertSQL string
 		if isPostgres {
 			insertSQL = `
 				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, $1, $2, $3, $4, $5 FROM dimensions WHERE name = 'person'
+				VALUES (?, ?, ?, ?, ?, ?)
 				ON CONFLICT (dimension_id, value) DO NOTHING
 			`
 		} else {
 			insertSQL = `
 				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, ?, ?, ?, ?, ? FROM dimensions WHERE name = 'person'
+				VALUES (?, ?, ?, ?, ?, ?)
 			`
 		}
-		if _, err := db.ExecContext(ctx, insertSQL, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
+		if _, err := db.ExecContext(ctx, insertSQL, personDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert person value %s: %w", v.value, err)
 		}
 	}
@@ -705,21 +737,31 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 		{"other", "Other", "Other locations", "#9e9e9e", 99},
 	}
 
+	// Get location dimension ID first
+	var locationDimID int
+	if err := db.NewSelect().
+		Table("dimensions").
+		Column("id").
+		Where("name = ?", "location").
+		Scan(ctx, &locationDimID); err != nil {
+		return fmt.Errorf("failed to get location dimension ID: %w", err)
+	}
+
 	for _, v := range locationValues {
 		var insertSQL string
 		if isPostgres {
 			insertSQL = `
 				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, $1, $2, $3, $4, $5 FROM dimensions WHERE name = 'location'
+				VALUES (?, ?, ?, ?, ?, ?)
 				ON CONFLICT (dimension_id, value) DO NOTHING
 			`
 		} else {
 			insertSQL = `
 				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, ?, ?, ?, ?, ? FROM dimensions WHERE name = 'location'
+				VALUES (?, ?, ?, ?, ?, ?)
 			`
 		}
-		if _, err := db.ExecContext(ctx, insertSQL, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
+		if _, err := db.ExecContext(ctx, insertSQL, locationDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert location value %s: %w", v.value, err)
 		}
 	}
@@ -738,21 +780,31 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 		{"critical", "Critical", "Critical - must keep and protect", "#f44336", 4},
 	}
 
+	// Get importance dimension ID first
+	var importanceDimID int
+	if err := db.NewSelect().
+		Table("dimensions").
+		Column("id").
+		Where("name = ?", "importance").
+		Scan(ctx, &importanceDimID); err != nil {
+		return fmt.Errorf("failed to get importance dimension ID: %w", err)
+	}
+
 	for _, v := range importanceValues {
 		var insertSQL string
 		if isPostgres {
 			insertSQL = `
 				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, $1, $2, $3, $4, $5 FROM dimensions WHERE name = 'importance'
+				VALUES (?, ?, ?, ?, ?, ?)
 				ON CONFLICT (dimension_id, value) DO NOTHING
 			`
 		} else {
 			insertSQL = `
 				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, ?, ?, ?, ?, ? FROM dimensions WHERE name = 'importance'
+				VALUES (?, ?, ?, ?, ?, ?)
 			`
 		}
-		if _, err := db.ExecContext(ctx, insertSQL, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
+		if _, err := db.ExecContext(ctx, insertSQL, importanceDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert importance value %s: %w", v.value, err)
 		}
 	}
@@ -773,21 +825,31 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 		{"keep_permanent", "Permanent", "Keep permanently (birth certificates, etc.)", "#4caf50", 6},
 	}
 
+	// Get retention dimension ID first
+	var retentionDimID int
+	if err := db.NewSelect().
+		Table("dimensions").
+		Column("id").
+		Where("name = ?", "retention").
+		Scan(ctx, &retentionDimID); err != nil {
+		return fmt.Errorf("failed to get retention dimension ID: %w", err)
+	}
+
 	for _, v := range retentionValues {
 		var insertSQL string
 		if isPostgres {
 			insertSQL = `
 				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, $1, $2, $3, $4, $5 FROM dimensions WHERE name = 'retention'
+				VALUES (?, ?, ?, ?, ?, ?)
 				ON CONFLICT (dimension_id, value) DO NOTHING
 			`
 		} else {
 			insertSQL = `
 				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				SELECT id, ?, ?, ?, ?, ? FROM dimensions WHERE name = 'retention'
+				VALUES (?, ?, ?, ?, ?, ?)
 			`
 		}
-		if _, err := db.ExecContext(ctx, insertSQL, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
+		if _, err := db.ExecContext(ctx, insertSQL, retentionDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert retention value %s: %w", v.value, err)
 		}
 	}
