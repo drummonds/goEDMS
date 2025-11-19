@@ -702,16 +702,9 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 	for _, v := range personValues {
 		var insertSQL string
 		if isPostgres {
-			insertSQL = `
-				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-				ON CONFLICT (dimension_id, value) DO NOTHING
-			`
+			insertSQL = "INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (dimension_id, value) DO NOTHING"
 		} else {
-			insertSQL = `
-				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-			`
+			insertSQL = "INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?)"
 		}
 		if _, err := db.ExecContext(ctx, insertSQL, personDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert person value %s: %w", v.value, err)
@@ -750,16 +743,9 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 	for _, v := range locationValues {
 		var insertSQL string
 		if isPostgres {
-			insertSQL = `
-				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-				ON CONFLICT (dimension_id, value) DO NOTHING
-			`
+			insertSQL = "INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (dimension_id, value) DO NOTHING"
 		} else {
-			insertSQL = `
-				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-			`
+			insertSQL = "INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?)"
 		}
 		if _, err := db.ExecContext(ctx, insertSQL, locationDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert location value %s: %w", v.value, err)
@@ -793,16 +779,9 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 	for _, v := range importanceValues {
 		var insertSQL string
 		if isPostgres {
-			insertSQL = `
-				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-				ON CONFLICT (dimension_id, value) DO NOTHING
-			`
+			insertSQL = "INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (dimension_id, value) DO NOTHING"
 		} else {
-			insertSQL = `
-				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-			`
+			insertSQL = "INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?)"
 		}
 		if _, err := db.ExecContext(ctx, insertSQL, importanceDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert importance value %s: %w", v.value, err)
@@ -838,16 +817,9 @@ func init005AddTaggingSystem(ctx context.Context, db *bun.DB) error {
 	for _, v := range retentionValues {
 		var insertSQL string
 		if isPostgres {
-			insertSQL = `
-				INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-				ON CONFLICT (dimension_id, value) DO NOTHING
-			`
+			insertSQL = "INSERT INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (dimension_id, value) DO NOTHING"
 		} else {
-			insertSQL = `
-				INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?)
-			`
+			insertSQL = "INSERT OR IGNORE INTO dimension_values (dimension_id, value, display_name, description, color, sort_order) VALUES (?, ?, ?, ?, ?, ?)"
 		}
 		if _, err := db.ExecContext(ctx, insertSQL, retentionDimID, v.value, v.displayName, v.description, v.color, v.sortOrder); err != nil {
 			return fmt.Errorf("failed to insert retention value %s: %w", v.value, err)
