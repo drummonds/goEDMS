@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.23.0 2025-11-20
+
+- Refactoring logs so frontend is logged on backend
+
 ## 0.22.13 2025-11-19
 
 - Trying to fix persistent 404 errors

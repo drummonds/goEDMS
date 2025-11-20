@@ -209,6 +209,7 @@ console.log("godocs Config loaded:", window.godocs_config);
 	e.POST("/api/ingest", serverHandler.RunIngestNow)
 	e.POST("/api/clean", serverHandler.CleanDatabase)
 	e.GET("/api/about", serverHandler.GetAboutInfo)
+	e.POST("/api/log", serverHandler.LogFromFrontend)
 
 	// Word cloud API routes
 	e.GET("/api/wordcloud", serverHandler.GetWordCloud)

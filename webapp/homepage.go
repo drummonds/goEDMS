@@ -77,6 +77,12 @@ func (h *HomePage) fetchDocuments(ctx app.Context, page int) {
 				ctx.Dispatch(func(ctx app.Context) {
 					if err := json.Unmarshal([]byte(jsonStr), &resp); err != nil {
 						h.error = fmt.Sprintf("Failed to parse response: %v", err)
+						LogError(ctx, "Failed to parse documents response", map[string]interface{}{
+							"component": "HomePage",
+							"action":    "fetchDocuments",
+							"page":      h.currentPage,
+							"error":     err.Error(),
+						})
 					} else {
 						h.documents = resp.Documents
 						h.currentPage = resp.Page
@@ -96,6 +102,11 @@ func (h *HomePage) fetchDocuments(ctx app.Context, page int) {
 			ctx.Dispatch(func(ctx app.Context) {
 				h.error = "Network error"
 				h.loading = false
+				LogError(ctx, "Network error loading documents", map[string]interface{}{
+					"component": "HomePage",
+					"action":    "fetchDocuments",
+					"page":      h.currentPage,
+				})
 			})
 			return nil
 		}))

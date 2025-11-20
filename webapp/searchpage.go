@@ -128,6 +128,12 @@ func (s *SearchPage) performSearch(ctx app.Context) {
 				ctx.Dispatch(func(ctx app.Context) {
 					if err := json.Unmarshal([]byte(jsonStr), &fs); err != nil {
 						s.error = fmt.Sprintf("Failed to parse response: %v", err)
+						LogError(ctx, "Failed to parse search results", map[string]interface{}{
+							"component":  "SearchPage",
+							"action":     "performSearch",
+							"searchTerm": s.searchTerm,
+							"error":      err.Error(),
+						})
 					} else {
 						s.searchResult = fs
 						s.searched = true
@@ -143,6 +149,11 @@ func (s *SearchPage) performSearch(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				s.error = "Network error"
 				s.loading = false
+				LogError(ctx, "Network error during search", map[string]interface{}{
+					"component":  "SearchPage",
+					"action":     "performSearch",
+					"searchTerm": s.searchTerm,
+				})
 			})
 			return nil
 		}))

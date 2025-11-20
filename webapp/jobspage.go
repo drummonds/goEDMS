@@ -319,12 +319,22 @@ func (j *JobsPage) loadJobs(ctx app.Context) {
 								j.jobs = jobs
 							} else {
 								j.error = "Failed to parse jobs: " + err.Error()
+								LogError(ctx, "Failed to parse jobs response", map[string]interface{}{
+									"component": "JobsPage",
+									"action":    "fetchJobs",
+									"error":     err.Error(),
+								})
 							}
 						} else {
 							j.jobs = []Job{}
 						}
 					} else {
 						j.error = fmt.Sprintf("Failed to load jobs (status: %d)", status)
+						LogError(ctx, "Failed to load jobs", map[string]interface{}{
+							"component": "JobsPage",
+							"action":    "fetchJobs",
+							"status":    status,
+						})
 					}
 				})
 
@@ -336,6 +346,10 @@ func (j *JobsPage) loadJobs(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				j.loading = false
 				j.error = "Network error: Could not connect to server"
+				LogError(ctx, "Network error loading jobs", map[string]interface{}{
+					"component": "JobsPage",
+					"action":    "fetchJobs",
+				})
 			})
 			return nil
 		}))

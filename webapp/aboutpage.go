@@ -19,6 +19,7 @@ type AboutInfo struct {
 	IsEphemeral   bool   `json:"isEphemeral"`
 	IngressPath   string `json:"ingressPath"`
 	DocumentPath  string `json:"documentPath"`
+	LogLevel      string `json:"logLevel"`
 }
 
 // AboutPage displays information about the application
@@ -57,6 +58,11 @@ func (a *AboutPage) fetchAboutInfo(ctx app.Context) {
 				ctx.Dispatch(func(ctx app.Context) {
 					if err := json.Unmarshal([]byte(jsonStr), &a.aboutInfo); err != nil {
 						a.error = fmt.Sprintf("Failed to parse response: %v", err)
+						LogError(ctx, "Failed to parse about info", map[string]interface{}{
+							"component": "AboutPage",
+							"action":    "fetchAboutInfo",
+							"error":     err.Error(),
+						})
 					}
 					a.loading = false
 				})
@@ -69,6 +75,10 @@ func (a *AboutPage) fetchAboutInfo(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				a.error = "Network error"
 				a.loading = false
+				LogError(ctx, "Network error loading about info", map[string]interface{}{
+					"component": "AboutPage",
+					"action":    "fetchAboutInfo",
+				})
 			})
 			return nil
 		}))

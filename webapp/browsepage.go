@@ -69,6 +69,11 @@ func (b *BrowsePage) fetchFileSystem(ctx app.Context) {
 				ctx.Dispatch(func(ctx app.Context) {
 					if err := json.Unmarshal([]byte(jsonStr), &fs); err != nil {
 						b.error = fmt.Sprintf("Failed to parse response: %v", err)
+						LogError(ctx, "Failed to parse filesystem response", map[string]interface{}{
+							"component": "BrowsePage",
+							"action":    "fetchFileSystem",
+							"error":     err.Error(),
+						})
 					} else {
 						b.fileSystem = fs
 						// Expand root directory by default
@@ -87,6 +92,10 @@ func (b *BrowsePage) fetchFileSystem(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				b.error = "Network error"
 				b.loading = false
+				LogError(ctx, "Network error loading filesystem", map[string]interface{}{
+					"component": "BrowsePage",
+					"action":    "fetchFileSystem",
+				})
 			})
 			return nil
 		}))

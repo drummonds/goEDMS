@@ -247,8 +247,14 @@ func (w *WordCloudPage) loadWordCloud(ctx app.Context) {
 
 			if !response.Get("ok").Bool() {
 				ctx.Dispatch(func(ctx app.Context) {
-					w.error = fmt.Sprintf("HTTP error: %d", response.Get("status").Int())
+					status := response.Get("status").Int()
+					w.error = fmt.Sprintf("HTTP error: %d", status)
 					w.loading = false
+					LogError(ctx, "HTTP error fetching wordcloud", map[string]interface{}{
+						"component": "WordCloud",
+						"action":    "fetchWords",
+						"status":    status,
+					})
 				})
 				return nil
 			}
@@ -265,6 +271,11 @@ func (w *WordCloudPage) loadWordCloud(ctx app.Context) {
 				ctx.Dispatch(func(ctx app.Context) {
 					if err := json.Unmarshal([]byte(jsonStr), &wcResponse); err != nil {
 						w.error = fmt.Sprintf("Failed to parse response: %v", err)
+						LogError(ctx, "Failed to parse wordcloud response", map[string]interface{}{
+							"component": "WordCloud",
+							"action":    "fetchWords",
+							"error":     err.Error(),
+						})
 					} else {
 						w.words = wcResponse.Words
 						w.metadata = wcResponse.Metadata
@@ -285,6 +296,10 @@ func (w *WordCloudPage) loadWordCloud(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				w.error = "Network error: Failed to fetch word cloud"
 				w.loading = false
+				LogError(ctx, "Network error fetching wordcloud", map[string]interface{}{
+					"component": "WordCloud",
+					"action":    "fetchWords",
+				})
 			})
 			return nil
 		}))

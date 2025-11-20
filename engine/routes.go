@@ -701,6 +701,12 @@ func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
 	dbPort := serverHandler.ServerConfig.DatabasePort
 	dbName := serverHandler.ServerConfig.DatabaseDbname
 
+	// Get log level from environment variable
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "debug" // default
+	}
+
 	aboutInfo := map[string]interface{}{
 		"version":       build.Version,
 		"ocrConfigured": ocrConfigured,
@@ -711,6 +717,7 @@ func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
 		"databaseName":  dbName,
 		"ingressPath":   serverHandler.ServerConfig.IngressPath,
 		"documentPath":  serverHandler.ServerConfig.DocumentPath,
+		"logLevel":      logLevel,
 	}
 
 	return c.JSON(http.StatusOK, aboutInfo)
@@ -903,4 +910,57 @@ func (serverHandler *ServerHandler) moveOrphanToIngress(docPath string) error {
 	}
 
 	return nil
+}
+
+// LogEntry represents a log entry from the frontend
+type LogEntry struct {
+	Level   string                 `json:"level"`
+	Message string                 `json:"message"`
+	Attrs   map[string]interface{} `json:"attrs"`
+}
+
+// LogFromFrontend receives and logs messages from the frontend using slog
+// @Summary Log from frontend
+// @Description Accept log entries from the frontend and log them using slog with proper structure
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param logEntry body LogEntry true "Log entry from frontend"
+// @Success 200 {object} map[string]string "Log entry recorded"
+// @Failure 400 {object} map[string]string "Invalid log format"
+// @Router /api/log [post]
+func (serverHandler *ServerHandler) LogFromFrontend(c echo.Context) error {
+	var logEntry LogEntry
+
+	if err := c.Bind(&logEntry); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid log format",
+		})
+	}
+
+	// Convert map to slog.Attr slice for structured logging
+	attrs := make([]any, 0, len(logEntry.Attrs)*2+2)
+	attrs = append(attrs, "source", "frontend")
+
+	for key, value := range logEntry.Attrs {
+		attrs = append(attrs, key, value)
+	}
+
+	// Log with appropriate slog level
+	switch logEntry.Level {
+	case "error":
+		Logger.Error(logEntry.Message, attrs...)
+	case "warn":
+		Logger.Warn(logEntry.Message, attrs...)
+	case "info":
+		Logger.Info(logEntry.Message, attrs...)
+	case "debug":
+		Logger.Debug(logEntry.Message, attrs...)
+	default:
+		Logger.Info(logEntry.Message, attrs...)
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"status": "logged",
+	})
 }

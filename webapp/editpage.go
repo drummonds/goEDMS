@@ -98,6 +98,11 @@ func (e *EditPage) fetchAllTags(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				if err := json.Unmarshal([]byte(jsonStr), &tags); err != nil {
 					e.error = fmt.Sprintf("Failed to parse tags: %v", err)
+					LogError(ctx, "Failed to parse all tags", map[string]interface{}{
+						"component": "EditPage",
+						"action":    "fetchAllTags",
+						"error":     err.Error(),
+					})
 				} else {
 					e.allTags = tags
 				}
@@ -124,6 +129,12 @@ func (e *EditPage) fetchDocumentTags(ctx app.Context) {
 		if status != 200 {
 			ctx.Dispatch(func(ctx app.Context) {
 				e.error = fmt.Sprintf("Failed to load document tags: HTTP %d - Document ULID '%s' not found or invalid", status, e.ulid)
+				LogError(ctx, "Failed to load document tags", map[string]interface{}{
+					"component": "EditPage",
+					"action":    "fetchDocumentTags",
+					"ulid":      e.ulid,
+					"status":    status,
+				})
 			})
 			return nil
 		}
@@ -139,6 +150,12 @@ func (e *EditPage) fetchDocumentTags(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				if err := json.Unmarshal([]byte(jsonStr), &tags); err != nil {
 					e.error = fmt.Sprintf("Failed to parse document tags: %v", err)
+					LogError(ctx, "Failed to parse document tags", map[string]interface{}{
+						"component": "EditPage",
+						"action":    "fetchDocumentTags",
+						"ulid":      e.ulid,
+						"error":     err.Error(),
+					})
 				} else {
 					e.documentTags = tags
 				}
@@ -170,6 +187,11 @@ func (e *EditPage) fetchAllDimensions(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				if err := json.Unmarshal([]byte(jsonStr), &dimensions); err != nil {
 					e.error = fmt.Sprintf("Failed to parse dimensions: %v", err)
+					LogError(ctx, "Failed to parse all dimensions", map[string]interface{}{
+						"component": "EditPage",
+						"action":    "fetchAllDimensions",
+						"error":     err.Error(),
+					})
 				} else {
 					e.allDimensions = dimensions
 				}
@@ -196,6 +218,12 @@ func (e *EditPage) fetchDocumentDimensions(ctx app.Context) {
 		if status != 200 {
 			ctx.Dispatch(func(ctx app.Context) {
 				e.error = fmt.Sprintf("Failed to load document dimensions: HTTP %d - Document ULID '%s' not found or invalid", status, e.ulid)
+				LogError(ctx, "Failed to load document dimensions", map[string]interface{}{
+					"component": "EditPage",
+					"action":    "fetchDocumentDimensions",
+					"ulid":      e.ulid,
+					"status":    status,
+				})
 			})
 			return nil
 		}
@@ -211,6 +239,12 @@ func (e *EditPage) fetchDocumentDimensions(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				if err := json.Unmarshal([]byte(jsonStr), &dims); err != nil {
 					e.error = fmt.Sprintf("Failed to parse document dimensions: %v", err)
+					LogError(ctx, "Failed to parse document dimensions", map[string]interface{}{
+						"component": "EditPage",
+						"action":    "fetchDocumentDimensions",
+						"ulid":      e.ulid,
+						"error":     err.Error(),
+					})
 				} else {
 					e.documentDimensions = dims
 				}

@@ -150,6 +150,11 @@ func (c *CleanPage) runClean(ctx app.Context) {
 						}
 					} else {
 						c.error = fmt.Sprintf("Cleanup failed with status: %d", status)
+						LogError(ctx, "Cleanup job failed", map[string]interface{}{
+							"component": "CleanPage",
+							"action":    "runCleanup",
+							"status":    status,
+						})
 					}
 				})
 
@@ -161,6 +166,10 @@ func (c *CleanPage) runClean(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				c.running = false
 				c.error = "Network error: Could not connect to server"
+				LogError(ctx, "Network error during cleanup", map[string]interface{}{
+					"component": "CleanPage",
+					"action":    "runCleanup",
+				})
 			})
 			return nil
 		}))

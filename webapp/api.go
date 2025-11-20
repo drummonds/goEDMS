@@ -58,3 +58,77 @@ type Job struct {
 	StartedAt   string `json:"startedAt,omitempty"`
 	CompletedAt string `json:"completedAt,omitempty"`
 }
+
+// LogLevel represents log severity levels matching slog
+type LogLevel string
+
+const (
+	LogLevelDebug LogLevel = "debug"
+	LogLevelInfo  LogLevel = "info"
+	LogLevelWarn  LogLevel = "warn"
+	LogLevelError LogLevel = "error"
+)
+
+// Log sends a structured log message to the backend using slog-compatible format
+// This function encapsulates the slog interface for frontend logging
+func Log(ctx app.Context, level LogLevel, message string, attrs map[string]interface{}) {
+	// Always log to browser console for development
+	if app.IsClient {
+		consoleMethod := "log"
+		switch level {
+		case LogLevelError:
+			consoleMethod = "error"
+		case LogLevelWarn:
+			consoleMethod = "warn"
+		case LogLevelInfo:
+			consoleMethod = "info"
+		case LogLevelDebug:
+			consoleMethod = "debug"
+		}
+		app.Window().Get("console").Call(consoleMethod, "["+string(level)+"]", message, attrs)
+	}
+
+	// Send to backend for persistent logging (async, non-blocking)
+	ctx.Async(func() {
+		payload := map[string]interface{}{
+			"level":   string(level),
+			"message": message,
+			"attrs":   attrs,
+		}
+
+		// Convert to JSON string
+		jsonStr := app.Window().Get("JSON").Call("stringify", payload).String()
+
+		// Send to backend
+		fetchOptions := map[string]interface{}{
+			"method": "POST",
+			"headers": map[string]interface{}{
+				"Content-Type": "application/json",
+			},
+			"body": jsonStr,
+		}
+
+		app.Window().Call("fetch", BuildAPIURL("/api/log"), fetchOptions)
+		// Note: We don't handle the response - this is fire-and-forget logging
+	})
+}
+
+// LogError logs an error message with structured attributes
+func LogError(ctx app.Context, message string, attrs map[string]interface{}) {
+	Log(ctx, LogLevelError, message, attrs)
+}
+
+// LogWarn logs a warning message with structured attributes
+func LogWarn(ctx app.Context, message string, attrs map[string]interface{}) {
+	Log(ctx, LogLevelWarn, message, attrs)
+}
+
+// LogInfo logs an info message with structured attributes
+func LogInfo(ctx app.Context, message string, attrs map[string]interface{}) {
+	Log(ctx, LogLevelInfo, message, attrs)
+}
+
+// LogDebug logs a debug message with structured attributes
+func LogDebug(ctx app.Context, message string, attrs map[string]interface{}) {
+	Log(ctx, LogLevelDebug, message, attrs)
+}

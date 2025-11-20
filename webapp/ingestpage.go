@@ -98,6 +98,12 @@ func (i *IngestPage) runIngest(ctx app.Context) {
 						i.result = "Ingestion completed successfully! " + text
 					} else {
 						i.error = "Ingestion failed: " + text
+						LogError(ctx, "Ingestion job failed", map[string]interface{}{
+							"component": "IngestPage",
+							"action":    "runIngest",
+							"status":    status,
+							"message":   text,
+						})
 					}
 				})
 
@@ -109,6 +115,10 @@ func (i *IngestPage) runIngest(ctx app.Context) {
 			ctx.Dispatch(func(ctx app.Context) {
 				i.running = false
 				i.error = "Network error: Could not connect to server"
+				LogError(ctx, "Network error during ingestion", map[string]interface{}{
+					"component": "IngestPage",
+					"action":    "runIngest",
+				})
 			})
 			return nil
 		}))
