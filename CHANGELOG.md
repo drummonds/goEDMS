@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.23.3 2025-11-20
+## 0.23.4 2025-11-20
 
 - Refactoring logs so frontend is logged on backend
 
