@@ -187,11 +187,42 @@ func main() {
 		}
 		return c.Blob(http.StatusOK, "text/yaml", data)
 	})
-	// Swagger UI redirect to external viewer
+	// Swagger UI served locally (uses CDN for JS/CSS assets but renders locally)
 	e.GET("/api/docs", func(c echo.Context) error {
-		// Use Swagger UI petstore viewer with our spec
-		swaggerURL := "https://petstore.swagger.io/?url=" + c.Scheme() + "://" + c.Request().Host + "/api/docs/swagger.json"
-		return c.Redirect(http.StatusTemporaryRedirect, swaggerURL)
+		html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>godocs API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+    <style>
+        html { box-sizing: border-box; overflow-y: scroll; }
+        *, *:before, *:after { box-sizing: inherit; }
+        body { margin: 0; background: #fafafa; }
+        .topbar { display: none; }
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+        window.onload = function() {
+            SwaggerUIBundle({
+                url: "/api/docs/swagger.json",
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout"
+            });
+        };
+    </script>
+</body>
+</html>`
+		return c.HTML(http.StatusOK, html)
 	})
 
 	// Inject backend API URL into the page

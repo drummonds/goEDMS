@@ -2,7 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.24.0 2025-11-20
+## 0.24.0 2025-11-21
+
+- Using rendered API locally rather then externally
+
+## 0.24.0 2025-11-21
 
 - Adding backend API docs to About page (to test logging)
 
