@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -124,6 +125,30 @@ func main() {
 	serverHandler.StartupChecks() //Run all the sanity checks
 	Logger.Info("Startup checks complete")
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
+
+	// Request logging middleware - logs at debug level
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			res := c.Response()
+
+			start := time.Now()
+			err := next(c)
+			latency := time.Since(start)
+
+			// Log request summary at debug level
+			Logger.Debug("HTTP request",
+				"method", req.Method,
+				"path", req.URL.Path,
+				"status", res.Status,
+				"latency", latency.String(),
+				"ip", c.RealIP(),
+				"user_agent", req.UserAgent(),
+			)
+
+			return err
+		}
+	})
 
 	Logger.Info("Setting up go-app WASM UI")
 	appHandler := webapp.Handler()

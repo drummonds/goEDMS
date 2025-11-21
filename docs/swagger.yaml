@@ -1,5 +1,49 @@
-basePath: /api
 definitions:
+  database.DimensionValue:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      dimension_id:
+        type: integer
+      display_name:
+        type: string
+      id:
+        type: integer
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+      value:
+        type: string
+    type: object
+  database.DimensionWithValues:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      dimension_type:
+        description: '''single'' or ''multiple'''
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      is_required:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+      values:
+        items:
+          $ref: '#/definitions/database.DimensionValue'
+        type: array
+    type: object
   database.Document:
     properties:
       documentType:
@@ -93,6 +137,31 @@ definitions:
     - JobTypeCleanup
     - JobTypeWordCloud
     - JobTypeSearchReindex
+  database.Tag:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  engine.LogEntry:
+    properties:
+      attrs:
+        additionalProperties: true
+        type: object
+      level:
+        type: string
+      message:
+        type: string
+    type: object
   engine.fileTreeStruct:
     properties:
       childrenIDs:
@@ -131,19 +200,8 @@ definitions:
           $ref: '#/definitions/engine.fileTreeStruct'
         type: array
     type: object
-host: localhost:8000
 info:
-  contact:
-    name: API Support
-    url: https://github.com/drummonds/godocs
-  description: |-
-    Electronic Document Management System API - Backend service for document storage, search, and management
-    Supports document ingestion, full-text search, word cloud generation, and file system browsing
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-  title: godocs Backend API
-  version: "1.0"
+  contact: {}
 paths:
   /about:
     get:
@@ -162,6 +220,410 @@ paths:
       summary: Get application information
       tags:
       - Admin
+  /api/dimensions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all dimension types and their possible values
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/database.DimensionWithValues'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all dimensions
+      tags:
+      - Dimensions
+  /api/documents/{ulid}/dimensions:
+    get:
+      consumes:
+      - application/json
+      description: Get all dimension values assigned to a document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: ulid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/database.DimensionValue'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get document dimensions
+      tags:
+      - Dimensions
+    post:
+      consumes:
+      - application/json
+      description: Set or update a dimension value for a document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: ulid
+        required: true
+        type: string
+      - description: Dimension assignment
+        in: body
+        name: dimension
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Set document dimension
+      tags:
+      - Dimensions
+  /api/documents/{ulid}/dimensions/{dimensionName}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a dimension value assignment from a document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: ulid
+        required: true
+        type: string
+      - description: Dimension name
+        in: path
+        name: dimensionName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Remove document dimension
+      tags:
+      - Dimensions
+  /api/documents/{ulid}/tags:
+    get:
+      consumes:
+      - application/json
+      description: Get all tags associated with a document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: ulid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/database.Tag'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get document tags
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      description: Associate a tag with a document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: ulid
+        required: true
+        type: string
+      - description: Tag ID
+        in: body
+        name: tagId
+        required: true
+        schema:
+          type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Add tag to document
+      tags:
+      - Tags
+  /api/documents/{ulid}/tags/{tagId}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a tag association from a document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: ulid
+        required: true
+        type: string
+      - description: Tag ID
+        in: path
+        name: tagId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Remove tag from document
+      tags:
+      - Tags
+  /api/log:
+    post:
+      consumes:
+      - application/json
+      description: Accept log entries from the frontend and log them using slog with
+        proper structure
+      parameters:
+      - description: Log entry from frontend
+        in: body
+        name: logEntry
+        required: true
+        schema:
+          $ref: '#/definitions/engine.LogEntry'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Log entry recorded
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid log format
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Log from frontend
+      tags:
+      - Admin
+  /api/tags:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all tags in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/database.Tag'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all tags
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      description: Create a new tag
+      parameters:
+      - description: Tag object
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/database.Tag'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/database.Tag'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new tag
+      tags:
+      - Tags
+  /api/tags/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a tag and remove it from all documents
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a tag
+      tags:
+      - Tags
+    put:
+      consumes:
+      - application/json
+      description: Update tag properties
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Tag object
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/database.Tag'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/database.Tag'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update a tag
+      tags:
+      - Tags
   /clean:
     post:
       consumes:
@@ -627,20 +1089,4 @@ paths:
       summary: Recalculate word cloud
       tags:
       - WordCloud
-schemes:
-- http
-- https
 swagger: "2.0"
-tags:
-- description: Document management operations
-  name: Documents
-- description: Full-text search and indexing operations
-  name: Search
-- description: Folder management operations
-  name: Folders
-- description: Administrative operations (ingestion, cleanup)
-  name: Admin
-- description: Word frequency analysis and word cloud generation
-  name: WordCloud
-- description: Service health check
-  name: Health
