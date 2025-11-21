@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.24.0 2025-11-20
+
+- Adding backend API docs to About page (to test logging)
+
 ## 0.23.5 2025-11-20
 
 - Refactoring logs so frontend is logged on backend

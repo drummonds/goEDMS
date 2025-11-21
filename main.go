@@ -28,6 +28,9 @@ var webappFS embed.FS
 //go:embed public/built/favicon.ico public/built/404.html
 var publicFS embed.FS
 
+//go:embed docs/swagger.json docs/swagger.yaml docs/openapi.yaml
+var docsFS embed.FS
+
 // Logger is global since we will need it everywhere
 var Logger *slog.Logger
 
@@ -167,6 +170,28 @@ func main() {
 			return c.String(http.StatusNotFound, "favicon.ico not found")
 		}
 		return c.Blob(http.StatusOK, "image/x-icon", data)
+	})
+
+	// Serve OpenAPI/Swagger documentation
+	e.GET("/api/docs/swagger.json", func(c echo.Context) error {
+		data, err := docsFS.ReadFile("docs/swagger.json")
+		if err != nil {
+			return c.String(http.StatusNotFound, "swagger.json not found")
+		}
+		return c.Blob(http.StatusOK, "application/json", data)
+	})
+	e.GET("/api/docs/openapi.yaml", func(c echo.Context) error {
+		data, err := docsFS.ReadFile("docs/openapi.yaml")
+		if err != nil {
+			return c.String(http.StatusNotFound, "openapi.yaml not found")
+		}
+		return c.Blob(http.StatusOK, "text/yaml", data)
+	})
+	// Swagger UI redirect to external viewer
+	e.GET("/api/docs", func(c echo.Context) error {
+		// Use Swagger UI petstore viewer with our spec
+		swaggerURL := "https://petstore.swagger.io/?url=" + c.Scheme() + "://" + c.Request().Host + "/api/docs/swagger.json"
+		return c.Redirect(http.StatusTemporaryRedirect, swaggerURL)
 	})
 
 	// Inject backend API URL into the page

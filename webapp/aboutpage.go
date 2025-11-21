@@ -166,6 +166,24 @@ func (a *AboutPage) Render() app.UI {
 				),
 			),
 			app.Div().Class("about-section").Body(
+				app.H3().Text("API Documentation"),
+				app.Div().Class("config-details").Body(
+					app.P().Body(
+						app.Strong().Text("Log Level: "),
+						app.Text(a.aboutInfo.LogLevel),
+					),
+					app.P().Body(
+						app.A().Href("/api/docs").Target("_blank").Text("View API Documentation (Swagger UI)"),
+					),
+					app.P().Body(
+						app.A().Href("/api/docs/swagger.json").Target("_blank").Text("Download OpenAPI Spec (JSON)"),
+					),
+					app.P().Body(
+						app.A().Href("/api/docs/openapi.yaml").Target("_blank").Text("Download OpenAPI Spec (YAML)"),
+					),
+				),
+			),
+			app.Div().Class("about-section").Body(
 				app.H3().Text("About godocs"),
 				app.P().Text("godocs is a document management system built with Go and WebAssembly."),
 				app.P().Text("It provides features for document ingestion, OCR processing, full-text search, and document organization."),
