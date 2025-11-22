@@ -1700,7 +1700,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8000",
-	BasePath:         "/api",
+	BasePath:         "/",
 	Schemes:          []string{"http", "https"},
 	Title:            "godocs Backend API",
 	Description:      "Electronic Document Management System API - Backend service for document storage, search, and management\nSupports document ingestion, full-text search, word cloud generation, and file system browsing",

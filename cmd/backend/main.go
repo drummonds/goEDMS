@@ -40,7 +40,7 @@ func injectGlobals(logger *slog.Logger) {
 // @license.url https://opensource.org/licenses/MIT
 
 // @host localhost:8000
-// @BasePath /api
+// @BasePath /
 // @schemes http https
 
 // @tag.name Documents
