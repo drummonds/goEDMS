@@ -77,6 +77,53 @@
                 }
             }
         },
+        "/api/document/{id}/thumbnail": {
+            "get": {
+                "description": "Get a thumbnail image for a document by its ID",
+                "produces": [
+                    "image/jpeg"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Get document thumbnail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document ULID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Thumbnail image",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Thumbnail not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/documents/{ulid}/dimensions": {
             "get": {
                 "description": "Get all dimension values assigned to a document",

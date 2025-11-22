@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.27.0 2025-11-22
+
+- Extending test coverage
+
 ## 0.26.2 2025-11-22
 
 - embedding swagger rendering of api swagger.json

@@ -63,6 +63,14 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 	e.GET("/api/wordcloud", serverHandler.GetWordCloud)
 	e.POST("/api/wordcloud/recalculate", serverHandler.RecalculateWordCloud)
 
+	// Job tracking routes
+	e.GET("/api/jobs", serverHandler.GetRecentJobs)
+	e.GET("/api/jobs/active", serverHandler.GetActiveJobs)
+	e.GET("/api/jobs/:id", serverHandler.GetJob)
+
+	// Frontend logging route
+	e.POST("/api/log", serverHandler.LogFromFrontend)
+
 	cleanup := func() {
 		testDB.Close()
 	}

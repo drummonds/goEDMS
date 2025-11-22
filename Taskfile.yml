@@ -48,6 +48,11 @@ tasks:
     cmds:
       - go test -race -v ./...
 
+  test:api:
+    desc: Run API endpoint tests
+    cmds:
+      - go test -v -run "TestTagsAPI|TestDocumentTagsAPI|TestDimensionsAPI|TestJobsAPI|TestFrontendLoggingAPI" ./...
+
   # Build tasks
   build:
     desc: Build the application

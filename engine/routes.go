@@ -305,6 +305,15 @@ func (serverHandler *ServerHandler) GetDocument(context echo.Context) error {
 }
 
 // GetDocumentThumbnail serves the thumbnail image for a document
+// @Summary Get document thumbnail
+// @Description Get a thumbnail image for a document by its ID
+// @Tags Documents
+// @Produce image/jpeg
+// @Param id path string true "Document ULID"
+// @Success 200 {file} binary "Thumbnail image"
+// @Failure 404 {object} map[string]string "Thumbnail not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/document/{id}/thumbnail [get]
 func (serverHandler *ServerHandler) GetDocumentThumbnail(context echo.Context) error {
 	ulidStr := context.Param("id")
 	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
