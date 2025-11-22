@@ -177,8 +177,9 @@ func ManualLog(ctx app.Context) {
 	// Send to backend for persistent logging (async, non-blocking)
 	ctx.Async(func() {
 		payload := map[string]interface{}{
-			"level":   "debug",
+			"level":   "error",
 			"message": "This is test manual log message",
+			"attrs":   map[string]interface{}{"manuallog": "this is manuallogtest"},
 		}
 
 		// Convert to JSON string

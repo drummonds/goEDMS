@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.27.9 2025-11-22
+## 0.27.11 2025-11-22
 
 - Manual test logging from Front End
 
