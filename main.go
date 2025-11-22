@@ -134,7 +134,14 @@ func main() {
 	Logger.Info("Schedules initialized, about to run startup checks")
 	serverHandler.StartupChecks() //Run all the sanity checks
 	Logger.Info("Startup checks complete")
-	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))
+
+	// CORS configuration - allow frontend from port 8001
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"http://localhost:8001", "http://127.0.0.1:8001", "*"},
+		AllowMethods:     []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodPatch},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+		AllowCredentials: true,
+	}))
 
 	// Request logging middleware - logs at debug level
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -371,60 +378,111 @@ console.log("godocs Config loaded:", window.godocs_config);
 	// The WASM app handles its own client-side routing and 404s via NotFoundPage component
 	e.Any("/*", echo.WrapHandler(appHandler))
 
+	// Create frontend server on port 8001
+	frontendServer := createFrontendServer(Logger)
+
 	if serverConfig.ListenAddrIP == "" {
-		Logger.Info("No Ip Addr set, binding on ALL addresses")
+		Logger.Info("No IP Addr set, binding on ALL addresses")
 	}
 
-	Logger.Info("Starting HTTP server")
+	fmt.Println("\n" + strings.Repeat("=", 50))
+	fmt.Println("🚀  Starting godocs Dual-Port Architecture")
+	fmt.Println(strings.Repeat("=", 50))
+	fmt.Printf("• Backend  (API + Static): http://localhost:%s\n", serverConfig.ListenAddrPort)
+	fmt.Println("• Frontend (HTML Shell):   http://localhost:8001")
+	fmt.Println(strings.Repeat("=", 50))
+	fmt.Println("")
+	fmt.Println("✨  Access the app at http://localhost:8001")
+	fmt.Println("   (Clear separation: frontend routes on 8001)")
+	fmt.Println(strings.Repeat("=", 50) + "\n")
 
-	// Try to start server with automatic port increment if port is in use
-	maxRetries := 5
-	startPort := serverConfig.ListenAddrPort
-	var startErr error
+	// Start backend server on port 8000 in a goroutine
+	backendAddr := fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)
+	Logger.Info("Starting backend server", "address", backendAddr)
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		addr := fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)
-		Logger.Info("Attempting to start server", "address", addr, "attempt", attempt+1)
-
-		startErr = e.Start(addr)
-
-		// Check if error is "address already in use"
-		if startErr != nil && isAddressInUse(startErr) {
-			Logger.Warn("Port already in use, trying next port",
-				"port", serverConfig.ListenAddrPort,
-				"attempt", attempt+1,
-				"max_attempts", maxRetries)
-
-			// Increment port for next attempt
-			portNum := 0
-			fmt.Sscanf(serverConfig.ListenAddrPort, "%d", &portNum)
-			portNum++
-			serverConfig.ListenAddrPort = fmt.Sprintf("%d", portNum)
-
-			if attempt == maxRetries-1 {
-				Logger.Error("Failed to find available port after maximum retries",
-					"start_port", startPort,
-					"end_port", serverConfig.ListenAddrPort,
-					"max_retries", maxRetries)
-				Logger.Error("Please reboot your computer to free up ports or manually stop conflicting processes")
-				os.Exit(1)
-			}
-		} else if startErr != nil {
-			// Some other error occurred
-			Logger.Error("Failed to start server", "error", startErr)
+	go func() {
+		if err := e.Start(backendAddr); err != nil && err != http.ErrServerClosed {
+			Logger.Error("Backend server failed", "error", err)
 			os.Exit(1)
-		} else {
-			// Server started successfully
-			break
 		}
-	}
+	}()
 
-	// If we got here and startErr is nil, server started successfully
-	if startErr == nil && serverConfig.ListenAddrPort != startPort {
-		Logger.Warn("Server started on alternative port due to conflicts",
-			"requested_port", startPort,
-			"actual_port", serverConfig.ListenAddrPort)
+	// Give backend a moment to start
+	time.Sleep(500 * time.Millisecond)
+
+	// Start frontend server on port 8001 in main goroutine
+	frontendAddr := fmt.Sprintf("%s:8001", serverConfig.ListenAddrIP)
+	Logger.Info("Starting frontend server", "address", frontendAddr)
+
+	if err := frontendServer.Start(frontendAddr); err != nil && err != http.ErrServerClosed {
+		Logger.Error("Frontend server failed", "error", err)
+		os.Exit(1)
 	}
+}
+
+// createFrontendServer creates a minimal frontend server that serves HTML shell
+func createFrontendServer(logger *slog.Logger) *echo.Echo {
+	e := echo.New()
+	e.HideBanner = true
+
+	// CORS - allow requests from anywhere
+	e.Use(middleware.CORS())
+
+	// Request logging
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			start := time.Now()
+			err := next(c)
+			latency := time.Since(start)
+
+			logger.Debug("Frontend request",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"status", c.Response().Status,
+				"latency", latency.String(),
+			)
+			return err
+		}
+	})
+
+	// HTML template that loads all resources from backend server on port 8000
+	htmlTemplate := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>godocs</title>
+    <meta name="description" content="Electronic Document Management System">
+    <link rel="icon" href="http://localhost:8000/favicon.ico">
+    <link rel="stylesheet" href="http://localhost:8000/webapp/webapp.css">
+    <link rel="stylesheet" href="http://localhost:8000/webapp/wordcloud.css">
+    <script src="http://localhost:8000/wasm_exec.js"></script>
+    <script src="http://localhost:8000/config.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        // Load and run the WASM application from backend
+        const go = new Go();
+        WebAssembly.instantiateStreaming(
+            fetch("http://localhost:8000/web/app.wasm"),
+            go.importObject
+        ).then((result) => {
+            go.run(result.instance);
+        }).catch((err) => {
+            console.error("Failed to load WASM:", err);
+        });
+    </script>
+</body>
+</html>`
+
+	// Serve the HTML shell for ALL routes
+	// This allows any frontend route (/browse, /search, etc.) to work
+	e.Any("/*", func(c echo.Context) error {
+		return c.HTML(http.StatusOK, htmlTemplate)
+	})
+
+	return e
 }
 
 // isAddressInUse checks if the error is due to address already in use

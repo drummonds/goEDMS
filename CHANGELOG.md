@@ -2,6 +2,18 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.28.0 2025-11-22
+
+- **Major architectural change**: Single godocs startup now serves both ports simultaneously
+- Backend (port 8000): Serves API endpoints + static files (WASM, CSS) + direct access
+- Frontend (port 8001): Serves minimal HTML shell that loads resources from backend
+- **Recommended usage**: Access app via http://localhost:8001 for clear frontend/backend separation
+- WASM app makes direct API calls to backend (no proxy)
+- Added improved CORS configuration for cross-origin requests
+- Created separate server binaries (cmd/backend, cmd/frontend) for advanced use cases
+- Created start-separated.sh script for running servers separately if needed
+- Clear delineation between frontend routes and backend API endpoints
+
 ## 0.27.12 2025-11-22
 
 - Manual test logging from Front End
