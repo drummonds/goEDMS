@@ -54,6 +54,8 @@ func (a *App) renderPage() app.UI {
 		return &JobsPage{}
 	case "/about":
 		return &AboutPage{}
+	case "/manuallog":
+		return &ManualLogPage{}
 	default:
 		return &NotFoundPage{}
 	}

@@ -229,3 +229,11 @@ func (a *AboutPage) getConnectionType() string {
 	}
 	return "External (Persistent)"
 }
+
+// AboutPage displays information about the application
+type ManualLogPage struct {
+	app.Compo
+	aboutInfo AboutInfo
+	loading   bool
+	error     string
+}

@@ -170,3 +170,63 @@ func LogInfo(ctx app.Context, message string, attrs map[string]interface{}) {
 func LogDebug(ctx app.Context, message string, attrs map[string]interface{}) {
 	Log(ctx, LogLevelDebug, message, attrs)
 }
+
+// Log sends a structured log message to the backend using slog-compatible format
+// This function encapsulates the slog interface for frontend logging
+func ManualLog(ctx app.Context) {
+	// Send to backend for persistent logging (async, non-blocking)
+	ctx.Async(func() {
+		payload := map[string]interface{}{
+			"level":   "debug",
+			"message": "This is test manual log message",
+		}
+
+		// Convert to JSON string
+		jsonStr := app.Window().Get("JSON").Call("stringify", payload).String()
+
+		// Send to backend
+		fetchOptions := map[string]interface{}{
+			"method": "POST",
+			"headers": map[string]interface{}{
+				"Content-Type": "application/json",
+			},
+			"body": jsonStr,
+		}
+
+		apiURL := BuildAPIURL("/api/log")
+
+		// // Log attempt to send to backend (for debugging)
+		// app.Window().Get("console").Call("debug",
+		// 	"[Frontend Log] Attempting to send log to backend:",
+		// 	string(level), message, "URL:", apiURL)
+
+		// Send with error handling for debugging
+		promise := app.Window().Call("fetch", apiURL, fetchOptions)
+
+		// Add error handler
+		promise.Call("catch", app.FuncOf(func(this app.Value, args []app.Value) any {
+			// Log fetch errors to console for debugging
+			if len(args) > 0 {
+				app.Window().Get("console").Call("error",
+					"[Frontend Log] Failed to send log to backend:",
+					args[0].String(),
+					"URL:", apiURL)
+			}
+			return nil
+		}))
+
+		// Add success handler to verify delivery
+		promise.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) > 0 {
+				response := args[0]
+				status := response.Get("status").Int()
+				if status != 200 {
+					app.Window().Get("console").Call("warn",
+						"[Frontend Log] Backend log endpoint returned non-200 status:",
+						status, "URL:", apiURL)
+				}
+			}
+			return nil
+		}))
+	})
+}
