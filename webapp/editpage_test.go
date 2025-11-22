@@ -7,10 +7,10 @@ import (
 // TestEditPageRouting verifies that the edit page route is correctly configured
 func TestEditPageRouting(t *testing.T) {
 	testCases := []struct {
-		path           string
-		shouldMatch    bool
-		expectedULID   string
-		description    string
+		path         string
+		shouldMatch  bool
+		expectedULID string
+		description  string
 	}{
 		{
 			path:         "/edit/01234567890ABCDEFGHIJKLMN",

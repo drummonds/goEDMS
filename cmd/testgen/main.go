@@ -488,7 +488,7 @@ func drawPlusIndicator(img *image.RGBA, startX, size int) {
 		lineWidth = 2
 	}
 
-	for y := size/4; y < 3*size/4; y++ {
+	for y := size / 4; y < 3*size/4; y++ {
 		for dx := -lineWidth / 2; dx <= lineWidth/2; dx++ {
 			img.Set(centerX+dx, y, plusColor)
 		}

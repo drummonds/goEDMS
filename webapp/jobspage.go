@@ -166,7 +166,7 @@ func (j *JobsPage) renderJob(job *Job) app.UI {
 
 			app.Div().Class("job-footer").Body(
 				app.Div().Class("job-id").Body(
-					app.Text("ID: " + job.ID),
+					app.Text("ID: "+job.ID),
 				),
 				app.If(job.CompletedAt != "",
 					func() app.UI {

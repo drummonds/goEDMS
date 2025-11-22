@@ -67,28 +67,28 @@ func FromDocument(doc *Document) *BunDocument {
 type BunServerConfig struct {
 	bun.BaseModel `bun:"table:server_config,alias:sc"`
 
-	ID                  int       `bun:"id,pk"`
-	ListenAddrIP        string    `bun:"listen_addr_ip,default:''"`
-	ListenAddrPort      string    `bun:"listen_addr_port,notnull,default:'8000'"`
-	IngressPath         string    `bun:"ingress_path,notnull,default:''"`
-	IngressDelete       bool      `bun:"ingress_delete,notnull,default:false"`
-	IngressMoveFolder   string    `bun:"ingress_move_folder,notnull,default:''"`
-	IngressPreserve     bool      `bun:"ingress_preserve,notnull,default:true"`
-	DocumentPath        string    `bun:"document_path,notnull,default:''"`
-	NewDocumentFolder   string    `bun:"new_document_folder,default:''"`
-	NewDocumentFolderRel string   `bun:"new_document_folder_rel,default:''"`
-	WebUIPass           bool      `bun:"web_ui_pass,notnull,default:false"`
-	ClientUsername      string    `bun:"client_username,default:''"`
-	ClientPassword      string    `bun:"client_password,default:''"`
-	PushBulletToken     string    `bun:"pushbullet_token,default:''"`
-	TesseractPath       string    `bun:"tesseract_path,default:''"`
-	UseReverseProxy     bool      `bun:"use_reverse_proxy,notnull,default:false"`
-	BaseURL             string    `bun:"base_url,default:''"`
-	IngressInterval     int       `bun:"ingress_interval,notnull,default:10"`
-	NewDocumentNumber   int       `bun:"new_document_number,notnull,default:5"`
-	ServerAPIURL        string    `bun:"server_api_url,default:''"`
-	CreatedAt           time.Time `bun:"created_at,notnull,default:current_timestamp"`
-	UpdatedAt           time.Time `bun:"updated_at,notnull,default:current_timestamp"`
+	ID                   int       `bun:"id,pk"`
+	ListenAddrIP         string    `bun:"listen_addr_ip,default:''"`
+	ListenAddrPort       string    `bun:"listen_addr_port,notnull,default:'8000'"`
+	IngressPath          string    `bun:"ingress_path,notnull,default:''"`
+	IngressDelete        bool      `bun:"ingress_delete,notnull,default:false"`
+	IngressMoveFolder    string    `bun:"ingress_move_folder,notnull,default:''"`
+	IngressPreserve      bool      `bun:"ingress_preserve,notnull,default:true"`
+	DocumentPath         string    `bun:"document_path,notnull,default:''"`
+	NewDocumentFolder    string    `bun:"new_document_folder,default:''"`
+	NewDocumentFolderRel string    `bun:"new_document_folder_rel,default:''"`
+	WebUIPass            bool      `bun:"web_ui_pass,notnull,default:false"`
+	ClientUsername       string    `bun:"client_username,default:''"`
+	ClientPassword       string    `bun:"client_password,default:''"`
+	PushBulletToken      string    `bun:"pushbullet_token,default:''"`
+	TesseractPath        string    `bun:"tesseract_path,default:''"`
+	UseReverseProxy      bool      `bun:"use_reverse_proxy,notnull,default:false"`
+	BaseURL              string    `bun:"base_url,default:''"`
+	IngressInterval      int       `bun:"ingress_interval,notnull,default:10"`
+	NewDocumentNumber    int       `bun:"new_document_number,notnull,default:5"`
+	ServerAPIURL         string    `bun:"server_api_url,default:''"`
+	CreatedAt            time.Time `bun:"created_at,notnull,default:current_timestamp"`
+	UpdatedAt            time.Time `bun:"updated_at,notnull,default:current_timestamp"`
 }
 
 // BunJob represents the jobs table for Bun ORM
@@ -175,13 +175,13 @@ func (bwf *BunWordFrequency) ToWordFrequency() *WordFrequency {
 type BunWordCloudMetadata struct {
 	bun.BaseModel `bun:"table:word_cloud_metadata,alias:wcm"`
 
-	ID                   int        `bun:"id,pk"`
-	LastFullCalculation  *time.Time `bun:"last_full_calculation,nullzero"`
-	TotalDocsProcessed   int        `bun:"total_documents_processed,default:0"`
-	TotalWordsIndexed    int        `bun:"total_words_indexed,default:0"`
-	Version              int        `bun:"version,default:1"`
-	CreatedAt            time.Time  `bun:"created_at,notnull,default:current_timestamp"`
-	UpdatedAt            time.Time  `bun:"updated_at,notnull,default:current_timestamp"`
+	ID                  int        `bun:"id,pk"`
+	LastFullCalculation *time.Time `bun:"last_full_calculation,nullzero"`
+	TotalDocsProcessed  int        `bun:"total_documents_processed,default:0"`
+	TotalWordsIndexed   int        `bun:"total_words_indexed,default:0"`
+	Version             int        `bun:"version,default:1"`
+	CreatedAt           time.Time  `bun:"created_at,notnull,default:current_timestamp"`
+	UpdatedAt           time.Time  `bun:"updated_at,notnull,default:current_timestamp"`
 }
 
 // ToWordCloudMetadata converts BunWordCloudMetadata to WordCloudMetadata

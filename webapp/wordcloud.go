@@ -176,8 +176,8 @@ func (w *WordCloudPage) renderWordCloud() app.UI {
 // calculateFontSize scales font size based on frequency
 // Maps frequency to a range between minSize and maxSize
 func (w *WordCloudPage) calculateFontSize(freq, minFreq, maxFreq int) float64 {
-	minSize := 12.0  // Minimum font size in pixels
-	maxSize := 64.0  // Maximum font size in pixels
+	minSize := 12.0 // Minimum font size in pixels
+	maxSize := 64.0 // Maximum font size in pixels
 
 	if maxFreq == minFreq {
 		return (minSize + maxSize) / 2

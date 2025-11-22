@@ -166,7 +166,7 @@ func (h *HomePage) renderPagination() app.UI {
 		app.Button().
 			Class("pagination-btn").
 			Disabled(!h.hasPrevious || h.loading).
-			OnClick(h.onPageChange(h.currentPage - 1)).
+			OnClick(h.onPageChange(h.currentPage-1)).
 			Body(app.Text("← Previous")),
 
 		// Page info
@@ -178,7 +178,7 @@ func (h *HomePage) renderPagination() app.UI {
 		app.Button().
 			Class("pagination-btn").
 			Disabled(!h.hasNext || h.loading).
-			OnClick(h.onPageChange(h.currentPage + 1)).
+			OnClick(h.onPageChange(h.currentPage+1)).
 			Body(app.Text("Next →")),
 
 		// Jump to first/last

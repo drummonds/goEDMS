@@ -47,7 +47,7 @@ func (i *IngestPage) renderStatus() app.UI {
 
 	if i.error != "" {
 		return app.Div().Class("error").Body(
-			app.Text("Error: "+i.error),
+			app.Text("Error: " + i.error),
 		)
 	}
 
@@ -65,7 +65,6 @@ func (i *IngestPage) onIngestClick(ctx app.Context, e app.Event) {
 	i.running = true
 	i.result = ""
 	i.error = ""
-	
 
 	i.runIngest(ctx)
 }

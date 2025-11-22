@@ -32,6 +32,9 @@ var publicFS embed.FS
 //go:embed docs/swagger.json docs/swagger.yaml docs/openapi.yaml
 var docsFS embed.FS
 
+//go:embed static/swagger-ui/*
+var swaggerUIFS embed.FS
+
 // Logger is global since we will need it everywhere
 var Logger *slog.Logger
 
@@ -212,7 +215,31 @@ func main() {
 		}
 		return c.Blob(http.StatusOK, "text/yaml", data)
 	})
-	// Swagger UI served locally (uses CDN for JS/CSS assets but renders locally)
+
+	// Serve embedded Swagger UI assets
+	e.GET("/api/docs/swagger-ui.css", func(c echo.Context) error {
+		data, err := swaggerUIFS.ReadFile("static/swagger-ui/swagger-ui.css")
+		if err != nil {
+			return c.String(http.StatusNotFound, "swagger-ui.css not found")
+		}
+		return c.Blob(http.StatusOK, "text/css", data)
+	})
+	e.GET("/api/docs/swagger-ui-bundle.js", func(c echo.Context) error {
+		data, err := swaggerUIFS.ReadFile("static/swagger-ui/swagger-ui-bundle.js")
+		if err != nil {
+			return c.String(http.StatusNotFound, "swagger-ui-bundle.js not found")
+		}
+		return c.Blob(http.StatusOK, "application/javascript", data)
+	})
+	e.GET("/api/docs/swagger-ui-standalone-preset.js", func(c echo.Context) error {
+		data, err := swaggerUIFS.ReadFile("static/swagger-ui/swagger-ui-standalone-preset.js")
+		if err != nil {
+			return c.String(http.StatusNotFound, "swagger-ui-standalone-preset.js not found")
+		}
+		return c.Blob(http.StatusOK, "application/javascript", data)
+	})
+
+	// Swagger UI HTML page (fully self-contained, no CDN dependencies)
 	e.GET("/api/docs", func(c echo.Context) error {
 		html := `<!DOCTYPE html>
 <html lang="en">
@@ -220,7 +247,7 @@ func main() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>godocs API Documentation</title>
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+    <link rel="stylesheet" type="text/css" href="/api/docs/swagger-ui.css">
     <style>
         html { box-sizing: border-box; overflow-y: scroll; }
         *, *:before, *:after { box-sizing: inherit; }
@@ -230,7 +257,8 @@ func main() {
 </head>
 <body>
     <div id="swagger-ui"></div>
-    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script src="/api/docs/swagger-ui-bundle.js"></script>
+    <script src="/api/docs/swagger-ui-standalone-preset.js"></script>
     <script>
         window.onload = function() {
             SwaggerUIBundle({
@@ -239,7 +267,7 @@ func main() {
                 deepLinking: true,
                 presets: [
                     SwaggerUIBundle.presets.apis,
-                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                    SwaggerUIStandalonePreset
                 ],
                 layout: "BaseLayout"
             });

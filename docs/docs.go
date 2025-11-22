@@ -9,7 +9,14 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "contact": {
+            "name": "API Support",
+            "url": "https://github.com/drummonds/godocs"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -1613,17 +1620,43 @@ const docTemplate = `{
                 }
             }
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "Document management operations",
+            "name": "Documents"
+        },
+        {
+            "description": "Full-text search and indexing operations",
+            "name": "Search"
+        },
+        {
+            "description": "Folder management operations",
+            "name": "Folders"
+        },
+        {
+            "description": "Administrative operations (ingestion, cleanup)",
+            "name": "Admin"
+        },
+        {
+            "description": "Word frequency analysis and word cloud generation",
+            "name": "WordCloud"
+        },
+        {
+            "description": "Service health check",
+            "name": "Health"
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
-	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Version:          "1.0",
+	Host:             "localhost:8000",
+	BasePath:         "/api",
+	Schemes:          []string{"http", "https"},
+	Title:            "godocs Backend API",
+	Description:      "Electronic Document Management System API - Backend service for document storage, search, and management\nSupports document ingestion, full-text search, word cloud generation, and file system browsing",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

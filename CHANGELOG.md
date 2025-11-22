@@ -2,6 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.26.0 2025-11-22
+
+- embedding swagger rendering of api swagger.json
+- rebulding release so cleans, builds and tests first
+
 ## 0.25.2 2025-11-22
 
 - Using rendered API docs locally rather then externally

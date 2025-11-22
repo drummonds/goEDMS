@@ -21,10 +21,10 @@ const (
 type JobType string
 
 const (
-	JobTypeIngestion      JobType = "ingestion"
-	JobTypeCleanup        JobType = "cleanup"
-	JobTypeWordCloud      JobType = "wordcloud"
-	JobTypeSearchReindex  JobType = "search_reindex"
+	JobTypeIngestion     JobType = "ingestion"
+	JobTypeCleanup       JobType = "cleanup"
+	JobTypeWordCloud     JobType = "wordcloud"
+	JobTypeSearchReindex JobType = "search_reindex"
 )
 
 // Job represents a background job or operation
@@ -32,11 +32,11 @@ type Job struct {
 	ID          ulid.ULID  `json:"id"`
 	Type        JobType    `json:"type"`
 	Status      JobStatus  `json:"status"`
-	Progress    int        `json:"progress"`        // 0-100
-	CurrentStep string     `json:"currentStep"`     // Human-readable current step
-	TotalSteps  int        `json:"totalSteps"`      // Total number of steps
-	Message     string     `json:"message"`         // Status message
-	Error       string     `json:"error,omitempty"` // Error message if failed
+	Progress    int        `json:"progress"`         // 0-100
+	CurrentStep string     `json:"currentStep"`      // Human-readable current step
+	TotalSteps  int        `json:"totalSteps"`       // Total number of steps
+	Message     string     `json:"message"`          // Status message
+	Error       string     `json:"error,omitempty"`  // Error message if failed
 	Result      string     `json:"result,omitempty"` // JSON result data
 	CreatedAt   time.Time  `json:"createdAt"`
 	UpdatedAt   time.Time  `json:"updatedAt"`

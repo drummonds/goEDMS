@@ -4,6 +4,7 @@ vars:
   BINARY_NAME: godocs
   BUILD_DIR: ./build
   FRONTEND_DIR: ./public
+  SWAGGER_UI_VERSION: "5.11.0"
 
 tasks:
   default:
@@ -50,7 +51,7 @@ tasks:
   # Build tasks
   build:
     desc: Build the application
-    deps: [build:wasm, openapi]
+    deps: [swagger:download, build:wasm, openapi]
     vars:
       VERSION:
         sh: git describe --tags --always 2>/dev/null || echo "dev"
@@ -102,11 +103,12 @@ tasks:
       - echo "Cleaned build artifacts"
 
   clean:all:
-    desc: Clean all generated files including WASM
+    desc: Clean all generated files including WASM and Swagger UI
     cmds:
       - task: clean
       - rm -rf web/
       - rm -f public/built/wasm_exec.js
+      - rm -rf static/swagger-ui/
       - echo "Cleaned all generated files"
 
   release:*:*:
@@ -117,6 +119,9 @@ tasks:
       BUILD1: '{{index .MATCH 1}}'
       BUILD2: '{{index .MATCH 1}} + wasm'
     cmds:
+      - task: clean:all
+      - task: build
+      - task: check
       - git add .
       - git commit -am "{{.BUILD1}}"
       - git tag "{{.TAG1}}"
@@ -172,6 +177,35 @@ tasks:
       - swag init -g cmd/backend/main.go -o ./docs --parseDependency --parseInternal
       - cp docs/swagger.yaml docs/openapi.yaml
       - echo "OpenAPI spec generated at docs/openapi.yaml and docs/swagger.yaml"
+
+  swagger:download:
+    desc: Download Swagger UI static assets for embedding (defaults to {{.SWAGGER_UI_VERSION}})
+    vars:
+      SWAGGER_VERSION:
+        sh: echo "${SWAGGER_VERSION:-{{.SWAGGER_UI_VERSION}}}"
+    status:
+      - test -f static/swagger-ui/swagger-ui.css
+      - test -f static/swagger-ui/swagger-ui-bundle.js
+      - test -f static/swagger-ui/swagger-ui-standalone-preset.js
+    cmds:
+      - echo "Downloading Swagger UI version {{.SWAGGER_VERSION}}..."
+      - mkdir -p static/swagger-ui
+      - curl -sL "https://unpkg.com/swagger-ui-dist@{{.SWAGGER_VERSION}}/swagger-ui.css" -o static/swagger-ui/swagger-ui.css
+      - curl -sL "https://unpkg.com/swagger-ui-dist@{{.SWAGGER_VERSION}}/swagger-ui-bundle.js" -o static/swagger-ui/swagger-ui-bundle.js
+      - curl -sL "https://unpkg.com/swagger-ui-dist@{{.SWAGGER_VERSION}}/swagger-ui-standalone-preset.js" -o static/swagger-ui/swagger-ui-standalone-preset.js
+      - echo "{{.SWAGGER_VERSION}}" > static/swagger-ui/VERSION
+      - echo "Swagger UI {{.SWAGGER_VERSION}} downloaded to static/swagger-ui/"
+      - ls -lh static/swagger-ui/
+
+  swagger:update:*:
+    desc: Update Swagger UI to a specific version (e.g., task swagger:update:5.10.0)
+    vars:
+      VERSION: '{{index .MATCH 0}}'
+    cmds:
+      - echo "Updating Swagger UI to version {{.VERSION}}..."
+      - SWAGGER_VERSION={{.VERSION}} task swagger:download
+      - echo "Swagger UI updated to {{.VERSION}}"
+      - echo "Don't forget to rebuild and commit the updated files!"
 
   # Docker tasks
   docker:build:

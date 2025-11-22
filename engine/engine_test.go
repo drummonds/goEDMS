@@ -97,10 +97,10 @@ func TestOCRProcessingAndDatabaseStorage(t *testing.T) {
 	serverConfig.IngressPath = testIngressDir
 	serverConfig.IngressMoveFolder = testDoneDir
 	serverConfig.DocumentPath = testDocumentsDir
-	serverConfig.NewDocumentFolder = testDocumentsDir  // Use temp directory for new documents
-	serverConfig.NewDocumentFolderRel = ""  // Store documents directly in DocumentPath
-	serverConfig.IngressDelete = true  // Delete test files instead of moving them
-	serverConfig.IngressPreserve = false  // Don't preserve folder structure for test
+	serverConfig.NewDocumentFolder = testDocumentsDir // Use temp directory for new documents
+	serverConfig.NewDocumentFolderRel = ""            // Store documents directly in DocumentPath
+	serverConfig.IngressDelete = true                 // Delete test files instead of moving them
+	serverConfig.IngressPreserve = false              // Don't preserve folder structure for test
 
 	// Save config to database
 	err = testDB.SaveConfig(&serverConfig)

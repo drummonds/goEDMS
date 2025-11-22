@@ -1,3 +1,4 @@
+basePath: /api
 definitions:
   database.DimensionValue:
     properties:
@@ -200,8 +201,19 @@ definitions:
           $ref: '#/definitions/engine.fileTreeStruct'
         type: array
     type: object
+host: localhost:8000
 info:
-  contact: {}
+  contact:
+    name: API Support
+    url: https://github.com/drummonds/godocs
+  description: |-
+    Electronic Document Management System API - Backend service for document storage, search, and management
+    Supports document ingestion, full-text search, word cloud generation, and file system browsing
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: godocs Backend API
+  version: "1.0"
 paths:
   /about:
     get:
@@ -1089,4 +1101,20 @@ paths:
       summary: Recalculate word cloud
       tags:
       - WordCloud
+schemes:
+- http
+- https
 swagger: "2.0"
+tags:
+- description: Document management operations
+  name: Documents
+- description: Full-text search and indexing operations
+  name: Search
+- description: Folder management operations
+  name: Folders
+- description: Administrative operations (ingestion, cleanup)
+  name: Admin
+- description: Word frequency analysis and word cloud generation
+  name: WordCloud
+- description: Service health check
+  name: Health

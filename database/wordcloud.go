@@ -17,10 +17,10 @@ type WordFrequency struct {
 
 // WordCloudMetadata tracks word cloud calculation status
 type WordCloudMetadata struct {
-	LastCalculation      time.Time `json:"lastCalculation"`
-	TotalDocsProcessed   int       `json:"totalDocsProcessed"`
-	TotalWordsIndexed    int       `json:"totalWordsIndexed"`
-	Version              int       `json:"version"`
+	LastCalculation    time.Time `json:"lastCalculation"`
+	TotalDocsProcessed int       `json:"totalDocsProcessed"`
+	TotalWordsIndexed  int       `json:"totalWordsIndexed"`
+	Version            int       `json:"version"`
 }
 
 // Stop words to filter out (common English words that don't add value)

@@ -77,6 +77,6 @@ type DimensionWithValues struct {
 // DocumentWithTagsAndDimensions extends Document with its tags and dimensions
 type DocumentWithTagsAndDimensions struct {
 	Document
-	Tags       []Tag                       `json:"tags"`
-	Dimensions map[string]DimensionValue   `json:"dimensions"` // dimension_name -> value
+	Tags       []Tag                     `json:"tags"`
+	Dimensions map[string]DimensionValue `json:"dimensions"` // dimension_name -> value
 }

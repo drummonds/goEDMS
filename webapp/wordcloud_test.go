@@ -379,7 +379,7 @@ func TestRenderWordCloudWithData(t *testing.T) {
 
 	// Test font size calculation for each word
 	minFreq := page.words[len(page.words)-1].Frequency // 10
-	maxFreq := page.words[0].Frequency                  // 100
+	maxFreq := page.words[0].Frequency                 // 100
 
 	for i, word := range page.words {
 		fontSize := page.calculateFontSize(word.Frequency, minFreq, maxFreq)

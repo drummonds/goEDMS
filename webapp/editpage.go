@@ -34,15 +34,15 @@ type Dimension struct {
 // EditPage allows editing document tags and dimensions
 type EditPage struct {
 	app.Compo
-	ulid              string
-	document          Document
-	allTags           []Tag
-	documentTags      []Tag
-	allDimensions     []Dimension
+	ulid               string
+	document           Document
+	allTags            []Tag
+	documentTags       []Tag
+	allDimensions      []Dimension
 	documentDimensions map[string]DimensionValue
-	loading           bool
-	error             string
-	newTagName        string
+	loading            bool
+	error              string
+	newTagName         string
 }
 
 // OnNav is called when navigating to this page
@@ -356,7 +356,7 @@ func (e *EditPage) Render() app.UI {
 	if e.loading {
 		return app.Div().Class("edit-page loading").Body(
 			app.H2().Text("Loading Document..."),
-			app.P().Text("ULID: " + e.ulid),
+			app.P().Text("ULID: "+e.ulid),
 		)
 	}
 
@@ -366,13 +366,13 @@ func (e *EditPage) Render() app.UI {
 			app.Div().Class("error-message").Body(
 				app.Text(e.error),
 			),
-			app.P().Text("Attempted ULID: " + e.ulid),
+			app.P().Text("Attempted ULID: "+e.ulid),
 			app.A().Href("/").Text("← Back to Home"),
 		)
 	}
 
 	return app.Div().Class("edit-page").Body(
-		app.H2().Text("Edit Document: " + e.ulid),
+		app.H2().Text("Edit Document: "+e.ulid),
 
 		app.Div().Class("edit-layout").Body(
 			// Left sidebar - Tags and Dimensions

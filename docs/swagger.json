@@ -1,8 +1,24 @@
 {
+    "schemes": [
+        "http",
+        "https"
+    ],
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "Electronic Document Management System API - Backend service for document storage, search, and management\nSupports document ingestion, full-text search, word cloud generation, and file system browsing",
+        "title": "godocs Backend API",
+        "contact": {
+            "name": "API Support",
+            "url": "https://github.com/drummonds/godocs"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
     },
+    "host": "localhost:8000",
+    "basePath": "/api",
     "paths": {
         "/about": {
             "get": {
@@ -1602,5 +1618,31 @@
                 }
             }
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "Document management operations",
+            "name": "Documents"
+        },
+        {
+            "description": "Full-text search and indexing operations",
+            "name": "Search"
+        },
+        {
+            "description": "Folder management operations",
+            "name": "Folders"
+        },
+        {
+            "description": "Administrative operations (ingestion, cleanup)",
+            "name": "Admin"
+        },
+        {
+            "description": "Word frequency analysis and word cloud generation",
+            "name": "WordCloud"
+        },
+        {
+            "description": "Service health check",
+            "name": "Health"
+        }
+    ]
 }
