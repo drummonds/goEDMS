@@ -133,7 +133,7 @@ tasks:
       - git commit -am "{{.BUILD1}}"
       - git tag "{{.TAG1}}"
       - git push origin "{{.TAG1}}"
-      - task: build:wasm_vesion:"{{.TAG2}}"
+      - task: build:wasm_version:{{.TAG2}}
       - git commit -am "{{.BUILD2}}"
       - git tag "{{.TAG2}}"
       - git push origin "{{.TAG2}}"
