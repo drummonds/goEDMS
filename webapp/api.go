@@ -88,6 +88,11 @@ func Log(ctx app.Context, level LogLevel, message string, attrs map[string]inter
 		app.Window().Get("console").Call(consoleMethod, "["+string(level)+"]", message, attrs)
 	}
 
+	// Only send to backend if we're on the client side
+	if !app.IsClient {
+		return
+	}
+
 	// Send to backend for persistent logging (async, non-blocking)
 	ctx.Async(func() {
 		payload := map[string]interface{}{
@@ -109,6 +114,11 @@ func Log(ctx app.Context, level LogLevel, message string, attrs map[string]inter
 		}
 
 		apiURL := BuildAPIURL("/api/log")
+
+		// Log attempt to send to backend (for debugging)
+		app.Window().Get("console").Call("debug",
+			"[Frontend Log] Attempting to send log to backend:",
+			string(level), message, "URL:", apiURL)
 
 		// Send with error handling for debugging
 		promise := app.Window().Call("fetch", apiURL, fetchOptions)

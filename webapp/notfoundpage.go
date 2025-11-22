@@ -11,11 +11,23 @@ type NotFoundPage struct {
 
 // OnNav is called when this page is navigated to
 func (p *NotFoundPage) OnNav(ctx app.Context) {
-	// Log 404 error to backend
+	path := ctx.Page().URL().Path
+	url := ctx.Page().URL().String()
+
+	// Log to console immediately (always works)
+	if app.IsClient {
+		app.Window().Get("console").Call("warn",
+			"[404 Page Not Found]",
+			"path:", path,
+			"url:", url)
+	}
+
+	// Try to log 404 error to backend
+	// This may fail if ServiceWorker intercepts it
 	LogWarn(ctx, "404 Page Not Found", map[string]interface{}{
 		"component": "NotFoundPage",
-		"path":      ctx.Page().URL().Path,
-		"url":       ctx.Page().URL().String(),
+		"path":      path,
+		"url":       url,
 		"referrer":  ctx.Page().URL().Query().Get("referrer"),
 	})
 }
