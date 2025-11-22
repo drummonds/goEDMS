@@ -72,10 +72,17 @@ tasks:
       - "echo 'Backend build complete! Version: {{.VERSION}}'"
 
   build:wasm:
-    desc: Build the WebAssembly application
+    desc: Build the WebAssembly application default version
     vars:
       VERSION:
         sh: git describe --tags --always 2>/dev/null || echo "dev"
+    cmds:
+      - task: build:wasm_version:"{{.VERSION}}"
+
+  build:wasm_version:*:
+    desc: Build the WebAssembly application showing version eg build:wasm_version:v0.26.0
+    vars:
+      VERSION: '{{index .MATCH 0}}'
       BUILD_DATE:
         sh: date -u +"%Y-%m-%d"
     cmds:
@@ -126,7 +133,7 @@ tasks:
       - git commit -am "{{.BUILD1}}"
       - git tag "{{.TAG1}}"
       - git push origin "{{.TAG1}}"
-      - task: build:wasm
+      - task: build:wasm_vesion:"{{.TAG2}}"
       - git commit -am "{{.BUILD2}}"
       - git tag "{{.TAG2}}"
       - git push origin "{{.TAG2}}"
