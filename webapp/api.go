@@ -108,8 +108,36 @@ func Log(ctx app.Context, level LogLevel, message string, attrs map[string]inter
 			"body": jsonStr,
 		}
 
-		app.Window().Call("fetch", BuildAPIURL("/api/log"), fetchOptions)
-		// Note: We don't handle the response - this is fire-and-forget logging
+		apiURL := BuildAPIURL("/api/log")
+
+		// Send with error handling for debugging
+		promise := app.Window().Call("fetch", apiURL, fetchOptions)
+
+		// Add error handler
+		promise.Call("catch", app.FuncOf(func(this app.Value, args []app.Value) any {
+			// Log fetch errors to console for debugging
+			if len(args) > 0 {
+				app.Window().Get("console").Call("error",
+					"[Frontend Log] Failed to send log to backend:",
+					args[0].String(),
+					"URL:", apiURL)
+			}
+			return nil
+		}))
+
+		// Add success handler to verify delivery
+		promise.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) > 0 {
+				response := args[0]
+				status := response.Get("status").Int()
+				if status != 200 {
+					app.Window().Get("console").Call("warn",
+						"[Frontend Log] Backend log endpoint returned non-200 status:",
+						status, "URL:", apiURL)
+				}
+			}
+			return nil
+		}))
 	})
 }
 

@@ -942,10 +942,17 @@ func (serverHandler *ServerHandler) LogFromFrontend(c echo.Context) error {
 	var logEntry LogEntry
 
 	if err := c.Bind(&logEntry); err != nil {
+		Logger.Warn("Failed to parse frontend log entry", "error", err, "body", c.Request().Body)
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid log format",
 		})
 	}
+
+	// Log that we received a frontend log (for debugging)
+	Logger.Debug("Received log from frontend",
+		"level", logEntry.Level,
+		"message", logEntry.Message,
+		"attrs_count", len(logEntry.Attrs))
 
 	// Convert map to slog.Attr slice for structured logging
 	attrs := make([]any, 0, len(logEntry.Attrs)*2+2)
@@ -955,18 +962,20 @@ func (serverHandler *ServerHandler) LogFromFrontend(c echo.Context) error {
 		attrs = append(attrs, key, value)
 	}
 
-	// Log with appropriate slog level
+	// Log with appropriate slog level with [FRONTEND] prefix
+	prefixedMessage := "[FRONTEND] " + logEntry.Message
+
 	switch logEntry.Level {
 	case "error":
-		Logger.Error(logEntry.Message, attrs...)
+		Logger.Error(prefixedMessage, attrs...)
 	case "warn":
-		Logger.Warn(logEntry.Message, attrs...)
+		Logger.Warn(prefixedMessage, attrs...)
 	case "info":
-		Logger.Info(logEntry.Message, attrs...)
+		Logger.Info(prefixedMessage, attrs...)
 	case "debug":
-		Logger.Debug(logEntry.Message, attrs...)
+		Logger.Debug(prefixedMessage, attrs...)
 	default:
-		Logger.Info(logEntry.Message, attrs...)
+		Logger.Info(prefixedMessage, attrs...)
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{
