@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -104,6 +105,13 @@ func main() {
 		}
 
 		if code == http.StatusNotFound {
+			// Log 404 errors at warning level
+			Logger.Warn("API endpoint not found",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"ip", c.RealIP(),
+				"user_agent", c.Request().UserAgent())
+
 			// Return JSON for API endpoints
 			c.JSON(http.StatusNotFound, map[string]string{
 				"error":   "Not Found",
@@ -130,10 +138,40 @@ func main() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
-	// Request logging
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
-	}))
+	// Request logging middleware - logs 404s at warning level, others at debug level
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			res := c.Response()
+
+			start := time.Now()
+			err := next(c)
+			latency := time.Since(start)
+
+			// Log API 404 errors at warning level, others at debug level
+			if res.Status == http.StatusNotFound {
+				Logger.Warn("API endpoint not found",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"status", res.Status,
+					"latency", latency.String(),
+					"ip", c.RealIP(),
+					"user_agent", req.UserAgent(),
+				)
+			} else {
+				Logger.Debug("HTTP request",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"status", res.Status,
+					"latency", latency.String(),
+					"ip", c.RealIP(),
+					"user_agent", req.UserAgent(),
+				)
+			}
+
+			return err
+		}
+	})
 
 	Logger.Info("Setting up API routes...")
 

@@ -89,6 +89,13 @@ func main() {
 		if code == http.StatusNotFound {
 			// Check if this is an API request
 			if strings.HasPrefix(c.Request().URL.Path, "/api/") {
+				// Log 404 errors at warning level
+				Logger.Warn("API endpoint not found",
+					"method", c.Request().Method,
+					"path", c.Request().URL.Path,
+					"ip", c.RealIP(),
+					"user_agent", c.Request().UserAgent())
+
 				// Return JSON for API endpoints
 				c.JSON(http.StatusNotFound, map[string]string{
 					"error":   "Not Found",
@@ -139,15 +146,26 @@ func main() {
 			err := next(c)
 			latency := time.Since(start)
 
-			// Log request summary at debug level
-			Logger.Debug("HTTP request",
-				"method", req.Method,
-				"path", req.URL.Path,
-				"status", res.Status,
-				"latency", latency.String(),
-				"ip", c.RealIP(),
-				"user_agent", req.UserAgent(),
-			)
+			// Log API 404 errors at warning level, others at debug level
+			if res.Status == http.StatusNotFound && strings.HasPrefix(req.URL.Path, "/api/") {
+				Logger.Warn("API endpoint not found",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"status", res.Status,
+					"latency", latency.String(),
+					"ip", c.RealIP(),
+					"user_agent", req.UserAgent(),
+				)
+			} else {
+				Logger.Debug("HTTP request",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"status", res.Status,
+					"latency", latency.String(),
+					"ip", c.RealIP(),
+					"user_agent", req.UserAgent(),
+				)
+			}
 
 			return err
 		}

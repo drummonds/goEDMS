@@ -2,12 +2,13 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.27.3 2025-11-22
+## 0.27.4 2025-11-22
 
 - Extending test coverage
 - fixing forntend 404 errors not being logged
 - fixing thumbnails not being displayed
 - fixing edit routes
+- replacing echo with slog log
 
 ## 0.26.2 2025-11-22
 
