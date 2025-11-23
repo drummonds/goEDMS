@@ -304,6 +304,30 @@ func (serverHandler *ServerHandler) GetDocument(context echo.Context) error {
 
 }
 
+// ViewDocument serves the actual document file by ULID
+// @Summary View/download a document file
+// @Description Serve the actual document file for viewing or download
+// @Tags Documents
+// @Produce application/pdf,image/png,image/jpeg,application/octet-stream
+// @Param ulid path string true "Document ULID"
+// @Success 200 {file} binary "Document file"
+// @Failure 404 {object} map[string]interface{} "Document not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /document/view/{ulid} [get]
+func (serverHandler *ServerHandler) ViewDocument(context echo.Context) error {
+	ulidStr := context.Param("ulid")
+	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
+	if err != nil {
+		Logger.Error("ViewDocument call failed", "error", err, "ulid", ulidStr)
+		return context.JSON(httpStatus, map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+
+	// Serve the file from the document path
+	return context.File(document.Path)
+}
+
 // GetDocumentThumbnail serves the thumbnail image for a document
 // @Summary Get document thumbnail
 // @Description Get a thumbnail image for a document by its ID

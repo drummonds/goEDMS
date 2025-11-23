@@ -258,6 +258,9 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
 	e.POST("/api/document/upload", serverHandler.UploadDocuments)
 
+	// Document view route (serves actual files)
+	e.GET("/document/view/:ulid", serverHandler.ViewDocument)
+
 	// Folder API routes
 	e.GET("/api/folder/:folder", serverHandler.GetFolder)
 	e.POST("/api/folder/*", serverHandler.CreateFolder)
@@ -298,8 +301,8 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	e.DELETE("/api/documents/:ulid/dimensions/:dimensionName", serverHandler.RemoveDocumentDimension)
 	e.GET("/api/jobs/:id", serverHandler.GetJob)
 
-	// Document view routes (serve actual files - not JSON, so not under /api/*)
-	serverHandler.AddDocumentViewRoutes() //Add all existing documents to direct view links
+	// Document view routes are now handled dynamically by /document/view/:ulid route above
+	// (Old approach: serverHandler.AddDocumentViewRoutes() registered individual routes at startup)
 
 	// Serve a simple index page that redirects to the frontend on port 8001
 	// Backend should not serve the full app - that's the frontend's job

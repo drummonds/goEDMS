@@ -879,6 +879,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/document/view/{ulid}": {
+            "get": {
+                "description": "Serve the actual document file for viewing or download",
+                "produces": [
+                    "application/pdf",
+                    "image/png",
+                    "image/jpeg",
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "View/download a document file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document ULID",
+                        "name": "ulid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Document file",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Document not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/document/{id}": {
             "get": {
                 "description": "Retrieve document details by ULID",

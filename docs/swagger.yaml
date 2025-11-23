@@ -830,6 +830,38 @@ paths:
       summary: Upload a document
       tags:
       - Documents
+  /document/view/{ulid}:
+    get:
+      description: Serve the actual document file for viewing or download
+      parameters:
+      - description: Document ULID
+        in: path
+        name: ulid
+        required: true
+        type: string
+      produces:
+      - application/pdf
+      - image/png
+      - image/jpeg
+      - application/octet-stream
+      responses:
+        "200":
+          description: Document file
+          schema:
+            type: file
+        "404":
+          description: Document not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: View/download a document file
+      tags:
+      - Documents
   /documents/filesystem:
     get:
       consumes:
