@@ -148,7 +148,7 @@ func (b *BrowsePage) renderNode(node FileTreeNode, depth int) app.UI {
 
 	var nameUI app.UI
 	if !node.IsDir && node.FileURL != "" {
-		nameUI = app.A().Href(node.FileURL).Target("_blank").Text(node.Name)
+		nameUI = app.A().Href(BuildAPIURL(node.FileURL)).Target("_blank").Text(node.Name)
 	} else {
 		nameUI = app.Text(node.Name)
 	}

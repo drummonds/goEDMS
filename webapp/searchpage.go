@@ -170,7 +170,7 @@ type SearchResultItem struct {
 func (s *SearchResultItem) Render() app.UI {
 	var nameUI app.UI
 	if s.Node.FileURL != "" {
-		nameUI = app.A().Href(s.Node.FileURL).Target("_blank").Text(s.Node.Name)
+		nameUI = app.A().Href(BuildAPIURL(s.Node.FileURL)).Target("_blank").Text(s.Node.Name)
 	} else {
 		nameUI = app.Text(s.Node.Name)
 	}

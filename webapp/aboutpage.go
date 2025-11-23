@@ -173,13 +173,13 @@ func (a *AboutPage) Render() app.UI {
 						app.Text(a.aboutInfo.LogLevel),
 					),
 					app.P().Body(
-						app.A().Href("/api/docs").Target("_blank").Text("View API Documentation (Swagger UI)"),
+						app.A().Href(BuildAPIURL("/api/docs")).Target("_blank").Text("View API Documentation (Swagger UI)"),
 					),
 					app.P().Body(
-						app.A().Href("/api/docs/swagger.json").Target("_blank").Text("Download OpenAPI Spec (JSON)"),
+						app.A().Href(BuildAPIURL("/api/docs/swagger.json")).Target("_blank").Text("Download OpenAPI Spec (JSON)"),
 					),
 					app.P().Body(
-						app.A().Href("/api/docs/openapi.yaml").Target("_blank").Text("Download OpenAPI Spec (YAML)"),
+						app.A().Href(BuildAPIURL("/api/docs/openapi.yaml")).Target("_blank").Text("Download OpenAPI Spec (YAML)"),
 					),
 				),
 			),

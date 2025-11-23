@@ -18,8 +18,8 @@ func Handler() http.Handler {
 	app.Route("/jobs", func() app.Composer { return &App{} })
 	app.Route("/about", func() app.Composer { return &App{} })
 	app.Route("/manuallog", func() app.Composer { return &App{} })
-	app.Route("/edit/", func() app.Composer { return &EditPage{} })
-	app.RouteWithRegexp("^/edit/.+$", func() app.Composer { return &EditPage{} })
+	app.Route("/edit/", func() app.Composer { return &App{} })
+	app.RouteWithRegexp("^/edit/.+$", func() app.Composer { return &App{} })
 	app.RunWhenOnBrowser()
 
 	// Create and return the handler

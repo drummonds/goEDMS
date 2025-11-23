@@ -17,6 +17,7 @@ import (
 	database "github.com/drummonds/godocs/database"
 	engine "github.com/drummonds/godocs/engine"
 	"github.com/drummonds/godocs/internal/build"
+	"github.com/drummonds/godocs/internal/docs"
 )
 
 //go:embed web/app.wasm web/wasm_exec.js
@@ -128,6 +129,7 @@ func main() {
 	}
 
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig} //injecting the database into the handler for routes
+	docsHandler := docs.DocsHandler{DocsFS: docsFS, SwaggerUIFS: swaggerUIFS}          //handler for API documentation
 	Logger.Info("About to initialize schedules")
 	serverHandler.InitializeSchedules(db) //initialize all the cron jobs
 	Logger.Info("Schedules initialized, about to run startup checks")
@@ -219,82 +221,12 @@ func main() {
 	})
 
 	// Serve OpenAPI/Swagger documentation
-	e.GET("/api/docs/swagger.json", func(c echo.Context) error {
-		data, err := docsFS.ReadFile("docs/swagger.json")
-		if err != nil {
-			return c.String(http.StatusNotFound, "swagger.json not found")
-		}
-		return c.Blob(http.StatusOK, "application/json", data)
-	})
-	e.GET("/api/docs/openapi.yaml", func(c echo.Context) error {
-		data, err := docsFS.ReadFile("docs/openapi.yaml")
-		if err != nil {
-			return c.String(http.StatusNotFound, "openapi.yaml not found")
-		}
-		return c.Blob(http.StatusOK, "text/yaml", data)
-	})
-
-	// Serve embedded Swagger UI assets
-	e.GET("/api/docs/swagger-ui.css", func(c echo.Context) error {
-		data, err := swaggerUIFS.ReadFile("static/swagger-ui/swagger-ui.css")
-		if err != nil {
-			return c.String(http.StatusNotFound, "swagger-ui.css not found")
-		}
-		return c.Blob(http.StatusOK, "text/css", data)
-	})
-	e.GET("/api/docs/swagger-ui-bundle.js", func(c echo.Context) error {
-		data, err := swaggerUIFS.ReadFile("static/swagger-ui/swagger-ui-bundle.js")
-		if err != nil {
-			return c.String(http.StatusNotFound, "swagger-ui-bundle.js not found")
-		}
-		return c.Blob(http.StatusOK, "application/javascript", data)
-	})
-	e.GET("/api/docs/swagger-ui-standalone-preset.js", func(c echo.Context) error {
-		data, err := swaggerUIFS.ReadFile("static/swagger-ui/swagger-ui-standalone-preset.js")
-		if err != nil {
-			return c.String(http.StatusNotFound, "swagger-ui-standalone-preset.js not found")
-		}
-		return c.Blob(http.StatusOK, "application/javascript", data)
-	})
-
-	// Swagger UI HTML page (fully self-contained, no CDN dependencies)
-	e.GET("/api/docs", func(c echo.Context) error {
-		html := `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>godocs API Documentation</title>
-    <link rel="stylesheet" type="text/css" href="/api/docs/swagger-ui.css">
-    <style>
-        html { box-sizing: border-box; overflow-y: scroll; }
-        *, *:before, *:after { box-sizing: inherit; }
-        body { margin: 0; background: #fafafa; }
-        .topbar { display: none; }
-    </style>
-</head>
-<body>
-    <div id="swagger-ui"></div>
-    <script src="/api/docs/swagger-ui-bundle.js"></script>
-    <script src="/api/docs/swagger-ui-standalone-preset.js"></script>
-    <script>
-        window.onload = function() {
-            SwaggerUIBundle({
-                url: "/api/docs/swagger.json",
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIStandalonePreset
-                ],
-                layout: "BaseLayout"
-            });
-        };
-    </script>
-</body>
-</html>`
-		return c.HTML(http.StatusOK, html)
-	})
+	e.GET("/api/docs/swagger.json", docsHandler.GetSwaggerJSON)
+	e.GET("/api/docs/openapi.yaml", docsHandler.GetOpenAPIYAML)
+	e.GET("/api/docs/swagger-ui.css", docsHandler.GetSwaggerUICSS)
+	e.GET("/api/docs/swagger-ui-bundle.js", docsHandler.GetSwaggerUIBundle)
+	e.GET("/api/docs/swagger-ui-standalone-preset.js", docsHandler.GetSwaggerUIPreset)
+	e.GET("/api/docs", docsHandler.GetSwaggerUI)
 
 	// Inject backend API URL into the page
 	e.GET("/config.js", func(c echo.Context) error {

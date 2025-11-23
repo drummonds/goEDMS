@@ -2,9 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.28.4 2025-11-23
+## 0.28.5 2025-11-23
 
 - Fix bugs on routing to backend api
+- Change routes where URLS are to the backend from the front end eg swagger docs
+
 
 ## 0.28.0 2025-11-22
 
