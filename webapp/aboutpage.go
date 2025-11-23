@@ -238,6 +238,16 @@ type ManualLogPage struct {
 	error     string
 }
 
+// OnMount is called when the ManualLogPage component is mounted
+func (m *ManualLogPage) OnMount(ctx app.Context) {
+	// Log an error message to the backend
+	LogError(ctx, "ManualLogPage accessed - this is a test 404 error", map[string]interface{}{
+		"component": "ManualLogPage",
+		"action":    "OnMount",
+		"page":      "/manuallog",
+	})
+}
+
 // Render renders ManualLog page just to say we were here
 func (a *ManualLogPage) Render() app.UI {
 	return app.Div().Class("about-page").Body(
