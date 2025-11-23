@@ -237,3 +237,11 @@ type ManualLogPage struct {
 	loading   bool
 	error     string
 }
+
+// Render renders ManualLog page just to say we were here
+func (a *ManualLogPage) Render() app.UI {
+	return app.Div().Class("about-page").Body(
+		app.H2().Text("ManualLogPage"),
+		app.P().Text("This is just to say got here and is a demo front end page"),
+	)
+}
