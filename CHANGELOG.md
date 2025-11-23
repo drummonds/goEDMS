@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.28.1 2025-11-23
+
+- Fix bugs on routing to backend api
+
 ## 0.28.0 2025-11-22
 
 - **Major architectural change**: Single godocs startup now serves both ports simultaneously

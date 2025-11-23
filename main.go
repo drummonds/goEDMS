@@ -17,7 +17,6 @@ import (
 	database "github.com/drummonds/godocs/database"
 	engine "github.com/drummonds/godocs/engine"
 	"github.com/drummonds/godocs/internal/build"
-	"github.com/drummonds/godocs/webapp"
 )
 
 //go:embed web/app.wasm web/wasm_exec.js
@@ -135,9 +134,9 @@ func main() {
 	serverHandler.StartupChecks() //Run all the sanity checks
 	Logger.Info("Startup checks complete")
 
-	// CORS configuration - allow frontend from port 8001
+	// CORS configuration - allow frontend from port 8001 and localhost variations
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:8001", "http://127.0.0.1:8001", "*"},
+		AllowOrigins:     []string{"http://localhost:8001", "http://127.0.0.1:8001", "http://localhost:8000", "http://127.0.0.1:8000"},
 		AllowMethods:     []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodPatch},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 		AllowCredentials: true,
@@ -178,10 +177,9 @@ func main() {
 		}
 	})
 
-	Logger.Info("Setting up go-app WASM UI")
-	appHandler := webapp.Handler()
+	Logger.Info("Setting up static file serving for frontend")
 
-	// Serve wasm_exec.js from embedded filesystem (go-app expects it here)
+	// Serve wasm_exec.js from embedded filesystem (needed by frontend on port 8001)
 	e.GET("/wasm_exec.js", func(c echo.Context) error {
 		data, err := webFS.ReadFile("web/wasm_exec.js")
 		if err != nil {
@@ -189,11 +187,6 @@ func main() {
 		}
 		return c.Blob(http.StatusOK, "application/javascript", data)
 	})
-
-	// Register go-app specific resources
-	e.GET("/app.js", echo.WrapHandler(appHandler))
-	e.GET("/app.css", echo.WrapHandler(appHandler))
-	e.GET("/manifest.webmanifest", echo.WrapHandler(appHandler))
 
 	// Serve static assets from embedded filesystem
 	webSubFS, _ := fs.Sub(webFS, "web")
@@ -305,14 +298,16 @@ func main() {
 
 	// Inject backend API URL into the page
 	e.GET("/config.js", func(c echo.Context) error {
+		// Use the backend port (8000) as the API URL
+		apiURL := fmt.Sprintf("http://localhost:%s", serverConfig.ListenAddrPort)
 		configJS := fmt.Sprintf(`
 // godocs Frontend Configuration
-window.godocs_config = {
+window.godocsConfig = {
     apiURL: "%s",
     newDocumentCount: %d
 };
-console.log("godocs Config loaded:", window.godocs_config);
-`, serverConfig.ServerAPIURL, serverConfig.NewDocumentNumber)
+console.log("godocs Config loaded:", window.godocsConfig);
+`, apiURL, serverConfig.NewDocumentNumber)
 		c.Response().Header().Set("Content-Type", "application/javascript")
 		return c.String(http.StatusOK, configJS)
 	})
@@ -374,9 +369,68 @@ console.log("godocs Config loaded:", window.godocs_config);
 	// Document view routes (serve actual files - not JSON, so not under /api/*)
 	serverHandler.AddDocumentViewRoutes() //Add all existing documents to direct view links
 
-	// Serve go-app handler for all other routes (must be last)
-	// The WASM app handles its own client-side routing and 404s via NotFoundPage component
-	e.Any("/*", echo.WrapHandler(appHandler))
+	// Serve a simple index page that redirects to the frontend on port 8001
+	// Backend should not serve the full app - that's the frontend's job
+	e.GET("/", func(c echo.Context) error {
+		indexHTML := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>godocs Backend</title>
+    <meta http-equiv="refresh" content="0; url=http://localhost:8001/">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        p { font-size: 1.2rem; margin-bottom: 2rem; }
+        a {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        a:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 godocs Backend</h1>
+        <p>This is the backend API server on port 8000</p>
+        <p>Redirecting to frontend...</p>
+        <a href="http://localhost:8001/">Go to godocs Frontend →</a>
+    </div>
+</body>
+</html>`
+		return c.HTML(http.StatusOK, indexHTML)
+	})
+
+	// For any other non-API routes, redirect to frontend
+	e.Any("/*", func(c echo.Context) error {
+		// Don't redirect API calls or document views
+		if strings.HasPrefix(c.Request().URL.Path, "/api/") ||
+			strings.HasPrefix(c.Request().URL.Path, "/document/view/") {
+			return echo.NewHTTPError(http.StatusNotFound, "Not found")
+		}
+		// Redirect to frontend
+		return c.Redirect(http.StatusTemporaryRedirect, "http://localhost:8001"+c.Request().URL.Path)
+	})
 
 	// Create frontend server on port 8001
 	frontendServer := createFrontendServer(Logger)
