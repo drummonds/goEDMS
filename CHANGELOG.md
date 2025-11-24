@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.29.1 2025-11-24
+## 0.29.2 2025-11-24
 
 - fixing view document routes
 

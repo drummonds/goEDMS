@@ -741,7 +741,7 @@ func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
 	}
 
 	aboutInfo := map[string]interface{}{
-		"version":       build.Version,
+		"version":       build.GetVersion(),
 		"ocrConfigured": ocrConfigured,
 		"ocrPath":       serverHandler.ServerConfig.TesseractPath,
 		"databaseType":  dbType,

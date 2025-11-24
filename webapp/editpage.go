@@ -45,8 +45,8 @@ type EditPage struct {
 	newTagName         string
 }
 
-// OnNav is called when navigating to this page
-func (e *EditPage) OnNav(ctx app.Context) {
+// OnMount is called when the component is mounted
+func (e *EditPage) OnMount(ctx app.Context) {
 	e.ulid = ctx.Page().URL().Path[len("/edit/"):]
 	e.loading = true
 	e.loadData(ctx)
