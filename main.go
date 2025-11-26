@@ -368,7 +368,7 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	})
 
 	// Create frontend server on port 8001
-	frontendServer := createFrontendServer(Logger)
+	frontendServer := createFrontendServer(Logger, serverConfig)
 
 	if serverConfig.ListenAddrIP == "" {
 		Logger.Info("No IP Addr set, binding on ALL addresses")
@@ -410,7 +410,7 @@ console.log("godocs Config loaded:", window.godocsConfig);
 }
 
 // createFrontendServer creates a minimal frontend server that serves HTML shell
-func createFrontendServer(logger *slog.Logger) *echo.Echo {
+func createFrontendServer(logger *slog.Logger, serverConfig config.ServerConfig) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 
@@ -434,36 +434,8 @@ func createFrontendServer(logger *slog.Logger) *echo.Echo {
 		}
 	})
 
-	// HTML template that loads all resources from backend server on port 8000
-	htmlTemplate := `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>godocs</title>
-    <meta name="description" content="Electronic Document Management System">
-    <link rel="icon" href="http://localhost:8000/favicon.ico">
-    <link rel="stylesheet" href="http://localhost:8000/webapp/webapp.css">
-    <link rel="stylesheet" href="http://localhost:8000/webapp/wordcloud.css">
-    <script src="http://localhost:8000/wasm_exec.js"></script>
-    <script src="http://localhost:8000/config.js"></script>
-</head>
-<body>
-    <div id="app"></div>
-    <script>
-        // Load and run the WASM application from backend
-        const go = new Go();
-        WebAssembly.instantiateStreaming(
-            fetch("http://localhost:8000/web/app.wasm"),
-            go.importObject
-        ).then((result) => {
-            go.run(result.instance);
-        }).catch((err) => {
-            console.error("Failed to load WASM:", err);
-        });
-    </script>
-</body>
-</html>`
+	// Get HTML template from separate file
+	htmlTemplate := GetFrontendHTMLTemplate(serverConfig)
 
 	// Serve the HTML shell for ALL routes
 	// This allows any frontend route (/browse, /search, etc.) to work

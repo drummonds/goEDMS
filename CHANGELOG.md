@@ -2,7 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.29.2 2025-11-24
+## 0.29.5 2025-11-25
+
+- Making backend url dynamic
+
+## 0.29.3 2025-11-24
 
 - fixing view document routes
 

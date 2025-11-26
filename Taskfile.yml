@@ -21,14 +21,14 @@ tasks:
   dev:
     desc: Run the application locally (backend only)
     cmds:
-      - go run main.go
+      - go run .
 
   dev:full:
     desc: Run the full application (rebuild WASM and start backend)
     deps: [build:wasm]
     cmds:
       - echo "Starting backend with WASM frontend..."
-      - go run main.go
+      - go run .
 
   # Test tasks
   test:
@@ -63,7 +63,7 @@ tasks:
     cmds:
       - "echo 'Building backend...'"
       - mkdir -p {{.BUILD_DIR}}
-      - "go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} -ldflags=\"-X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}'\" main.go"
+      - "go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} -ldflags=\"-X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}'\" ."
       - "echo 'Build complete! Binary at {{.BUILD_DIR}}/{{.BINARY_NAME}} (version {{.VERSION}})'"
 
   build:backend:
@@ -73,7 +73,7 @@ tasks:
         sh: git describe --tags --always 2>/dev/null || echo "dev"
     cmds:
       - mkdir -p {{.BUILD_DIR}}
-      - "go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} -ldflags=\"-X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}'\" main.go"
+      - "go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} -ldflags=\"-X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}'\" ."
       - "echo 'Backend build complete! Version: {{.VERSION}}'"
 
   build:wasm:
@@ -121,27 +121,23 @@ tasks:
       - rm -rf web/
       - rm -f public/built/wasm_exec.js
       - rm -rf static/swagger-ui/
+      - go clean -cache
       - echo "Cleaned all generated files"
 
   release:*:*:
     desc: Final release process an install eg task release:v0.22.1:"fix jobs"
     vars:
-      TAG1: '{{index .MATCH 0}}-wasm'
-      TAG2: '{{index .MATCH 0}}'
-      BUILD1: '{{index .MATCH 1}}'
-      BUILD2: '{{index .MATCH 1}} + wasm'
+      TAG: '{{index .MATCH 0}}'
+      BUILD: '{{index .MATCH 1}}'
     cmds:
       - task: clean:all
       - task: build
       - task: check
       - git add .
-      - git commit -am "{{.BUILD1}}"
-      - git tag "{{.TAG1}}"
-      - git push origin "{{.TAG1}}"
-      - task: build:wasm_version:{{.TAG2}}
-      - git commit -am "{{.BUILD2}}"
+      - task: build:wasm_version:{{.TAG}}
+      - git commit -am "{{.BUILD}}"
       - git tag "{{.TAG2}}"
-      - git push origin "{{.TAG2}}"
+      - git push origin "{{.TAG}}"
       - git push
       - goreleaser release --clean
       - go install github.com/drummonds/godocs

@@ -5,15 +5,29 @@ import (
 )
 
 // GetAPIBaseURL returns the configured API base URL
-// It reads from window.godocsConfig.apiURL if available,
-// otherwise falls back to empty string (relative URLs)
+// Priority: 1) window.godocsBackendURL (detected from wasm_exec.js source)
+//  2. window.godocsConfig.apiURL (from config.js)
+//  3. Fallback to port 8000 on same host
 func GetAPIBaseURL() string {
 	// Check if config is available in browser
 	if !app.IsClient {
 		return "" // Server-side rendering - use relative URLs
 	}
 
-	// Try to get API URL from global config
+	// Priority 1: Try to get backend URL detected from wasm_exec.js source
+	backendURL := app.Window().Get("godocsBackendURL")
+	if backendURL.Truthy() {
+		url := backendURL.String()
+		if url != "" && url != "null" {
+			// Ensure no trailing slash
+			if len(url) > 0 && url[len(url)-1] == '/' {
+				return url[:len(url)-1]
+			}
+			return url
+		}
+	}
+
+	// Priority 2: Try to get API URL from config.js
 	config := app.Window().Get("godocsConfig")
 	if config.Truthy() {
 		apiURL := config.Get("apiURL")
@@ -27,8 +41,28 @@ func GetAPIBaseURL() string {
 		}
 	}
 
-	// Fallback to relative URLs (same origin)
-	return ""
+	// Priority 3: Construct backend URL from current location
+	// Use current origin if available (works for single-port setups and tests)
+	// In dual-port architecture, the frontend template sets godocsBackendURL
+	location := app.Window().Get("location")
+	if location.Truthy() {
+		// Use the current origin (same protocol, hostname, and port)
+		origin := location.Get("origin")
+		if origin.Truthy() {
+			return origin.String()
+		}
+		// Fallback: construct from parts
+		protocol := location.Get("protocol").String()
+		hostname := location.Get("hostname").String()
+		port := location.Get("port").String()
+		if port != "" {
+			return protocol + "//" + hostname + ":" + port
+		}
+		return protocol + "//" + hostname
+	}
+
+	// Last resort fallback
+	return "http://localhost:8000"
 }
 
 // BuildAPIURL constructs a full API URL from a path
