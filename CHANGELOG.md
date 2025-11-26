@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.29.5 2025-11-25
+## 0.29.6 2025-11-25
 
 - Making backend url dynamic
 
