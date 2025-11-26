@@ -136,7 +136,7 @@ tasks:
       - git add .
       - task: build:wasm_version:{{.TAG}}
       - git commit -am "{{.BUILD}}"
-      - git tag "{{.TAG2}}"
+      - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"
       - git push
       - goreleaser release --clean
