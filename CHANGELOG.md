@@ -4,8 +4,8 @@ All notable changes to godocs will be documented in this file.
 
 ## 0.31.1 2025-12-02
 
-- Creating CSS classes for about page
 - Fixing front end port
+- fixing again!
 
 ## 0.30.2 2025-12-02
 

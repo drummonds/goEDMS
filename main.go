@@ -136,9 +136,14 @@ func main() {
 	serverHandler.StartupChecks() //Run all the sanity checks
 	Logger.Info("Startup checks complete")
 
-	// CORS configuration - allow frontend from port 8001 and localhost variations
+	// CORS configuration - allow frontend and backend ports
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:8001", "http://127.0.0.1:8001", "http://localhost:8000", "http://127.0.0.1:8000"},
+		AllowOrigins: []string{
+			fmt.Sprintf("http://localhost:%s", serverConfig.FrontendPort),
+			fmt.Sprintf("http://127.0.0.1:%s", serverConfig.FrontendPort),
+			fmt.Sprintf("http://localhost:%s", serverConfig.ListenAddrPort),
+			fmt.Sprintf("http://127.0.0.1:%s", serverConfig.ListenAddrPort),
+		},
 		AllowMethods:     []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodPatch},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 		AllowCredentials: true,
@@ -181,7 +186,7 @@ func main() {
 
 	Logger.Info("Setting up static file serving for frontend")
 
-	// Serve wasm_exec.js from embedded filesystem (needed by frontend on port 8001)
+	// Serve wasm_exec.js from embedded filesystem (needed by frontend server)
 	e.GET("/wasm_exec.js", func(c echo.Context) error {
 		data, err := webFS.ReadFile("web/wasm_exec.js")
 		if err != nil {
@@ -302,18 +307,18 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	e.GET("/api/jobs/:id", serverHandler.GetJob)
 
 	// Document view routes are now handled dynamically by /document/view/:ulid route above
-	// (Old approach: serverHandler.AddDocumentViewRoutes() registered individual routes at startup)
 
-	// Serve a simple index page that redirects to the frontend on port 8001
+	// Serve a simple index page that redirects to the frontend
 	// Backend should not serve the full app - that's the frontend's job
+	frontendURL := fmt.Sprintf("http://localhost:%s/", serverConfig.FrontendPort)
 	e.GET("/", func(c echo.Context) error {
-		indexHTML := `<!DOCTYPE html>
+		indexHTML := fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>godocs Backend</title>
-    <meta http-equiv="refresh" content="0; url=http://localhost:8001/">
+    <meta http-equiv="refresh" content="0; url=%s">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -322,7 +327,7 @@ console.log("godocs Config loaded:", window.godocsConfig);
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
             color: white;
         }
         .container {
@@ -347,12 +352,12 @@ console.log("godocs Config loaded:", window.godocsConfig);
 <body>
     <div class="container">
         <h1>🔧 godocs Backend</h1>
-        <p>This is the backend API server on port 8000</p>
+        <p>This is the backend API server on port %s</p>
         <p>Redirecting to frontend...</p>
-        <a href="http://localhost:8001/">Go to godocs Frontend →</a>
+        <a href="%s">Go to godocs Frontend →</a>
     </div>
 </body>
-</html>`
+</html>`, frontendURL, serverConfig.ListenAddrPort, frontendURL)
 		return c.HTML(http.StatusOK, indexHTML)
 	})
 
@@ -364,10 +369,10 @@ console.log("godocs Config loaded:", window.godocsConfig);
 			return echo.NewHTTPError(http.StatusNotFound, "Not found")
 		}
 		// Redirect to frontend
-		return c.Redirect(http.StatusTemporaryRedirect, "http://localhost:8001"+c.Request().URL.Path)
+		return c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("http://localhost:%s%s", serverConfig.FrontendPort, c.Request().URL.Path))
 	})
 
-	// Create frontend server on port 8001
+	// Create frontend server
 	frontendServer := createFrontendServer(Logger, serverConfig)
 
 	if serverConfig.ListenAddrIP == "" {
@@ -378,11 +383,11 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	fmt.Println("🚀  Starting godocs Dual-Port Architecture")
 	fmt.Println(strings.Repeat("=", 50))
 	fmt.Printf("• Backend  (API + Static): http://localhost:%s\n", serverConfig.ListenAddrPort)
-	fmt.Println("• Frontend (HTML Shell):   http://localhost:8001")
+	fmt.Printf("• Frontend (HTML Shell):   http://localhost:%s\n", serverConfig.FrontendPort)
 	fmt.Println(strings.Repeat("=", 50))
 	fmt.Println("")
-	fmt.Println("✨  Access the app at http://localhost:8001")
-	fmt.Println("   (Clear separation: frontend routes on 8001)")
+	fmt.Printf("✨  Access the app at http://localhost:%s\n", serverConfig.FrontendPort)
+	fmt.Printf("   (Clear separation: frontend routes on %s)\n", serverConfig.FrontendPort)
 	fmt.Println(strings.Repeat("=", 50) + "\n")
 
 	// Start backend server on port 8000 in a goroutine
