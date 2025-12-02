@@ -399,8 +399,8 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	// Give backend a moment to start
 	time.Sleep(500 * time.Millisecond)
 
-	// Start frontend server on port 8001 in main goroutine
-	frontendAddr := fmt.Sprintf("%s:8001", serverConfig.ListenAddrIP)
+	// Start frontend server on configured port in main goroutine
+	frontendAddr := fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.FrontendPort)
 	Logger.Info("Starting frontend server", "address", frontendAddr)
 
 	if err := frontendServer.Start(frontendAddr); err != nil && err != http.ErrServerClosed {
