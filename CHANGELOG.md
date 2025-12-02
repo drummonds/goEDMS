@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.30.0 2025-12-02
+## 0.30.1 2025-12-02
 
 - Creating CSS classes for about page
 

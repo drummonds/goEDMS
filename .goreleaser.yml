@@ -13,7 +13,7 @@ before:
 
 builds:
   - id: godocs
-    main: ./main.go
+    main: .
     binary: godocs
     env:
       - CGO_ENABLED=0
