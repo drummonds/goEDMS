@@ -114,73 +114,37 @@ func (a *AboutPage) Render() app.UI {
 			),
 			app.Div().Class("about-section").Body(
 				app.H3().Text("Database Configuration"),
-				app.Div().Class("config-details").Body(
-					app.P().Body(
-						app.Strong().Text("Database Type: "),
-						app.Text(a.getDatabaseDisplay()),
-					),
-					app.P().Body(
-						app.Strong().Text("Host: "),
-						app.Text(a.aboutInfo.DatabaseHost),
-					),
-					app.P().Body(
-						app.Strong().Text("Port: "),
-						app.Text(a.aboutInfo.DatabasePort),
-					),
-					app.P().Body(
-						app.Strong().Text("Database Name: "),
-						app.Text(a.aboutInfo.DatabaseName),
-					),
-					app.P().Body(
-						app.Strong().Text("Connection Type: "),
-						app.Text(a.getConnectionType()),
-					),
+				app.Div().Class("info-grid").Body(
+					a.renderInfoItem("Database Type", a.getDatabaseDisplay()),
+					a.renderInfoItem("Host", a.aboutInfo.DatabaseHost),
+					a.renderInfoItem("Port", a.aboutInfo.DatabasePort),
+					a.renderInfoItem("Database Name", a.aboutInfo.DatabaseName),
+					a.renderInfoItem("Connection Type", a.getConnectionType()),
 				),
 			),
 			app.Div().Class("about-section").Body(
 				app.H3().Text("OCR Configuration"),
-				app.Div().Class("config-details").Body(
-					app.P().Body(
-						app.Strong().Text("OCR Status: "),
-						app.Text(a.getOCRStatus()),
-					),
+				app.Div().Class("info-grid").Body(
+					a.renderInfoItem("OCR Status", a.getOCRStatus()),
 					app.If(a.aboutInfo.OCRConfigured, func() app.UI {
-						return app.P().Body(
-							app.Strong().Text("Tesseract Path: "),
-							app.Text(a.aboutInfo.OCRPath),
-						)
+						return a.renderInfoItem("Tesseract Path", a.aboutInfo.OCRPath)
 					}),
 				),
 			),
 			app.Div().Class("about-section").Body(
 				app.H3().Text("Document Storage"),
-				app.Div().Class("config-details").Body(
-					app.P().Body(
-						app.Strong().Text("Document Storage Path: "),
-						app.Text(a.aboutInfo.DocumentPath),
-					),
-					app.P().Body(
-						app.Strong().Text("Ingestion Folder: "),
-						app.Text(a.aboutInfo.IngressPath),
-					),
+				app.Div().Class("info-grid").Body(
+					a.renderInfoItem("Storage Path", a.aboutInfo.DocumentPath),
+					a.renderInfoItem("Ingestion Folder", a.aboutInfo.IngressPath),
 				),
 			),
 			app.Div().Class("about-section").Body(
-				app.H3().Text("API Documentation"),
-				app.Div().Class("config-details").Body(
-					app.P().Body(
-						app.Strong().Text("Log Level: "),
-						app.Text(a.aboutInfo.LogLevel),
-					),
-					app.P().Body(
-						app.A().Href(BuildAPIURL("/api/docs")).Target("_blank").Text("View API Documentation (Swagger UI)"),
-					),
-					app.P().Body(
-						app.A().Href(BuildAPIURL("/api/docs/swagger.json")).Target("_blank").Text("Download OpenAPI Spec (JSON)"),
-					),
-					app.P().Body(
-						app.A().Href(BuildAPIURL("/api/docs/openapi.yaml")).Target("_blank").Text("Download OpenAPI Spec (YAML)"),
-					),
+				app.H3().Text("API & Logging"),
+				app.Div().Class("info-grid").Body(
+					a.renderInfoItem("Log Level", a.aboutInfo.LogLevel),
+					a.renderLinkItem("API Docs", "Swagger UI", BuildAPIURL("/api/docs")),
+					a.renderLinkItem("OpenAPI JSON", "Download", BuildAPIURL("/api/docs/swagger.json")),
+					a.renderLinkItem("OpenAPI YAML", "Download", BuildAPIURL("/api/docs/openapi.yaml")),
 				),
 			),
 			app.Div().Class("about-section").Body(
@@ -198,10 +162,16 @@ func (a *AboutPage) renderInfoItem(label, value string) app.UI {
 		app.Div().Class("info-label").Body(app.Text(label)),
 		app.Div().Class("info-value").Body(app.Text(value)),
 	)
-	// 	app.P().Body(
-	// 	app.Strong().Text("Host: "),
-	// 	app.Text(a.aboutInfo.DatabaseHost),
-	// ),
+}
+
+// renderLinkItem creates an info item with a link
+func (a *AboutPage) renderLinkItem(label, linkText, url string) app.UI {
+	return app.Div().Class("info-item").Body(
+		app.Div().Class("info-label").Body(app.Text(label)),
+		app.Div().Class("info-value").Body(
+			app.A().Href(url).Target("_blank").Text(linkText),
+		),
+	)
 }
 
 // getDatabaseDisplay returns a user-friendly database display name
