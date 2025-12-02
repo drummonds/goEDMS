@@ -52,6 +52,11 @@ type FrontEndConfig struct {
 	ServerAPIURL      string
 }
 
+// LoadEnvFile loads environment variables from a file (silently ignores if not found)
+func LoadEnvFile(filename string) error {
+	return godotenv.Load(filename)
+}
+
 // getEnv gets an environment variable with a default value
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
