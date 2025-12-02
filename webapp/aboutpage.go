@@ -198,6 +198,10 @@ func (a *AboutPage) renderInfoItem(label, value string) app.UI {
 		app.Div().Class("info-label").Body(app.Text(label)),
 		app.Div().Class("info-value").Body(app.Text(value)),
 	)
+	// 	app.P().Body(
+	// 	app.Strong().Text("Host: "),
+	// 	app.Text(a.aboutInfo.DatabaseHost),
+	// ),
 }
 
 // getDatabaseDisplay returns a user-friendly database display name

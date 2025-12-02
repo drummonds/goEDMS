@@ -193,6 +193,75 @@ h3 {
     font-size: 1.4rem;
 }
 
+/* About Page - Info Grid */
+.about-page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.about-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.about-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border-left: 4px solid #3498db;
+}
+
+.about-section h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.info-item {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.info-label {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.info-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.config-details {
+    line-height: 1.8;
+}
+
+.config-details p {
+    margin: 0.5rem 0;
+}
+
+.config-details a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.config-details a:hover {
+    text-decoration: underline;
+}
+
 /* Loading and Error States */
 .loading,
 .error,

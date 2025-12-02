@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.30.0 2025-12-02
+
+- Creating CSS classes for about page
+
 ## 0.29.6 2025-11-25
 
 - Making backend url dynamic
