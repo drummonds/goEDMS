@@ -340,7 +340,31 @@ func createFrontendServer(logger *slog.Logger, serverConfig config.ServerConfig)
 	// Get HTML template from separate file
 	htmlTemplate := GetFrontendHTMLTemplate(serverConfig)
 
-	// Serve the HTML shell for ALL routes
+	// Build backend URL for redirects
+	backendHost := serverConfig.ListenAddrIP
+	if backendHost == "" {
+		backendHost = "localhost"
+	}
+	backendURL := fmt.Sprintf("http://%s:%s", backendHost, serverConfig.ListenAddrPort)
+
+	// Redirect backend-only routes directly to backend
+	// /document/view/:ulid serves document files - must go to backend
+	e.Any("/document/view/*", func(c echo.Context) error {
+		logger.Info("Redirecting document view to backend",
+			"path", c.Request().URL.Path,
+			"backend", backendURL)
+		return c.Redirect(http.StatusTemporaryRedirect, backendURL+c.Request().URL.Path)
+	})
+
+	// Redirect API calls to backend (in case browser accesses frontend URL for API)
+	e.Any("/api/*", func(c echo.Context) error {
+		logger.Info("Redirecting API call to backend",
+			"path", c.Request().URL.Path,
+			"backend", backendURL)
+		return c.Redirect(http.StatusTemporaryRedirect, backendURL+c.Request().URL.Path)
+	})
+
+	// Serve the HTML shell for frontend routes
 	// This allows any frontend route (/browse, /search, etc.) to work
 	e.Any("/*", func(c echo.Context) error {
 		return c.HTML(http.StatusOK, htmlTemplate)
