@@ -35,6 +35,11 @@ var AppRoutes = []RouteConfig{
 func RegisterRoutes() {
 	for _, route := range AppRoutes {
 		app.Route(route.Path, func() app.Composer { return &App{} })
+		// For routes with custom match functions (like /edit/), also register regex
+		if route.MatchFunc != nil {
+			// Register a regex pattern that matches the path prefix followed by any content
+			app.RouteWithRegexp("^"+route.Path+".+$", func() app.Composer { return &App{} })
+		}
 	}
 }
 
