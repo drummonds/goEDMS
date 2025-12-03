@@ -102,7 +102,24 @@ func main() {
 		Format: "method=${method}, uri=${uri}, status=${status}\n",
 	}))
 
-	// Serve the HTML shell for ALL routes
+	// Redirect backend-only routes to the backend server
+	// /document/view/:ulid is for serving document files
+	// /api/* is for API calls (though browsers usually call backend directly)
+	e.Any("/document/view/*", func(c echo.Context) error {
+		Logger.Info("Redirecting document view to backend",
+			"path", c.Request().URL.Path,
+			"backend", backendURL)
+		return c.Redirect(http.StatusTemporaryRedirect, backendURL+c.Request().URL.Path)
+	})
+
+	e.Any("/api/*", func(c echo.Context) error {
+		Logger.Info("Redirecting API call to backend",
+			"path", c.Request().URL.Path,
+			"backend", backendURL)
+		return c.Redirect(http.StatusTemporaryRedirect, backendURL+c.Request().URL.Path)
+	})
+
+	// Serve the HTML shell for frontend routes
 	// This allows any frontend route (/browse, /search, etc.) to work
 	e.Any("/*", func(c echo.Context) error {
 		return c.HTML(http.StatusOK, htmlTemplate)
