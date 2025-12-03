@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.31.7 2025-12-03
+## 0.31.8 2025-12-03
 
 - fixing view
 - fixing edit

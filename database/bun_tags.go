@@ -98,12 +98,16 @@ func (b *BunDB) DeleteTag(id int) error {
 func (b *BunDB) GetTagsForDocument(documentID int) ([]Tag, error) {
 	ctx := context.Background()
 	var tags []Tag
-	err := b.db.NewSelect().
-		Model(&tags).
-		Join("INNER JOIN document_tags dt ON dt.tag_id = tags.id").
-		Where("dt.document_id = ?", documentID).
-		Order("tags.name ASC").
-		Scan(ctx)
+
+	// Use raw query to avoid any ORM alias issues
+	err := b.db.NewRaw(`
+		SELECT t.id, t.name, t.color, t.description, t.created_at, t.updated_at
+		FROM tags t
+		INNER JOIN document_tags dt ON dt.tag_id = t.id
+		WHERE dt.document_id = ?
+		ORDER BY t.name ASC
+	`, documentID).Scan(ctx, &tags)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags for document: %w", err)
 	}
