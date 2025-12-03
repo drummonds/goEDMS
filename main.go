@@ -79,54 +79,7 @@ func main() {
 	Logger.Info("Echo created")
 
 	// Custom 404 handler
-	e.HTTPErrorHandler = func(err error, c echo.Context) {
-		code := http.StatusInternalServerError
-		if he, ok := err.(*echo.HTTPError); ok {
-			code = he.Code
-		}
-
-		// For 404 errors, serve custom HTML page
-		if code == http.StatusNotFound {
-			// Check if this is an API request
-			if strings.HasPrefix(c.Request().URL.Path, "/api/") {
-				// Log 404 errors at warning level
-				Logger.Warn("API endpoint not found",
-					"method", c.Request().Method,
-					"path", c.Request().URL.Path,
-					"ip", c.RealIP(),
-					"user_agent", c.Request().UserAgent())
-
-				// Return JSON for API endpoints
-				c.JSON(http.StatusNotFound, map[string]string{
-					"error":   "Not Found",
-					"message": "The requested API endpoint does not exist",
-					"path":    c.Request().URL.Path,
-				})
-				return
-			}
-
-			// For non-API requests, serve custom 404 HTML from embedded filesystem
-			if data, err := publicFS.ReadFile("public/built/404.html"); err == nil {
-				c.HTMLBlob(http.StatusNotFound, data)
-				return
-			}
-
-			// Fallback: serve inline HTML if embedded file doesn't exist
-			c.HTML(http.StatusNotFound, `<!DOCTYPE html>
-<html>
-<head><title>404 - Not Found</title></head>
-<body style="font-family: sans-serif; text-align: center; padding: 50px;">
-	<h1>404 - Page Not Found</h1>
-	<p>The page you're looking for doesn't exist.</p>
-	<a href="/" style="color: #3498db; text-decoration: none; font-size: 18px;">← Go to Home Page</a>
-</body>
-</html>`)
-			return
-		}
-
-		// For other errors, use default handler
-		e.DefaultHTTPErrorHandler(err, c)
-	}
+	e.HTTPErrorHandler = createHTTPErrorHandler(e, publicFS, Logger)
 
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig} //injecting the database into the handler for routes
 	docsHandler := docs.DocsHandler{DocsFS: docsFS, SwaggerUIFS: swaggerUIFS}          //handler for API documentation
@@ -139,6 +92,7 @@ func main() {
 	// CORS configuration - allow frontend and backend ports
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{
+			fmt.Sprintf("http://%s:%s", serverConfig.FrontendAddr, serverConfig.FrontendPort),
 			fmt.Sprintf("http://localhost:%s", serverConfig.FrontendPort),
 			fmt.Sprintf("http://127.0.0.1:%s", serverConfig.FrontendPort),
 			fmt.Sprintf("http://localhost:%s", serverConfig.ListenAddrPort),
@@ -309,84 +263,28 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	// Document view routes are now handled dynamically by /document/view/:ulid route above
 
 	// Serve a simple index page that redirects to the frontend
-	// Backend should not serve the full app - that's the frontend's job
-	frontendURL := fmt.Sprintf("http://localhost:%s/", serverConfig.FrontendPort)
-	e.GET("/", func(c echo.Context) error {
-		indexHTML := fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>godocs Backend</title>
-    <meta http-equiv="refresh" content="0; url=%s">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
-            color: white;
-        }
-        .container {
-            text-align: center;
-            padding: 2rem;
-        }
-        h1 { font-size: 2.5rem; margin-bottom: 1rem; }
-        p { font-size: 1.2rem; margin-bottom: 2rem; }
-        a {
-            display: inline-block;
-            padding: 1rem 2rem;
-            background: white;
-            color: #667eea;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-        a:hover { transform: scale(1.05); }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🔧 godocs Backend</h1>
-        <p>This is the backend API server on port %s</p>
-        <p>Redirecting to frontend...</p>
-        <a href="%s">Go to godocs Frontend →</a>
-    </div>
-</body>
-</html>`, frontendURL, serverConfig.ListenAddrPort, frontendURL)
-		return c.HTML(http.StatusOK, indexHTML)
-	})
+	e.GET("/", createIndexHandler(serverConfig))
 
 	// For any other non-API routes, redirect to frontend
-	e.Any("/*", func(c echo.Context) error {
-		// Don't redirect API calls or document views
-		if strings.HasPrefix(c.Request().URL.Path, "/api/") ||
-			strings.HasPrefix(c.Request().URL.Path, "/document/view/") {
-			return echo.NewHTTPError(http.StatusNotFound, "Not found")
-		}
-		// Redirect to frontend
-		return c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("http://localhost:%s%s", serverConfig.FrontendPort, c.Request().URL.Path))
-	})
+	e.Any("/*", createCatchAllHandler(serverConfig))
 
 	// Create frontend server
 	frontendServer := createFrontendServer(Logger, serverConfig)
 
-	if serverConfig.ListenAddrIP == "" {
-		Logger.Info("No IP Addr set, binding on ALL addresses")
+	// Determine display addresses for console output
+	backendDisplayAddr := serverConfig.ListenAddrIP
+	if backendDisplayAddr == "" {
+		backendDisplayAddr = "localhost"
 	}
 
 	fmt.Println("\n" + strings.Repeat("=", 50))
 	fmt.Println("🚀  Starting godocs Dual-Port Architecture")
 	fmt.Println(strings.Repeat("=", 50))
-	fmt.Printf("• Backend  (API + Static): http://localhost:%s\n", serverConfig.ListenAddrPort)
-	fmt.Printf("• Frontend (HTML Shell):   http://localhost:%s\n", serverConfig.FrontendPort)
+	fmt.Printf("• Backend  (API + Static): http://%s:%s\n", backendDisplayAddr, serverConfig.ListenAddrPort)
+	fmt.Printf("• Frontend (HTML Shell):   http://%s:%s\n", serverConfig.FrontendAddr, serverConfig.FrontendPort)
 	fmt.Println(strings.Repeat("=", 50))
 	fmt.Println("")
-	fmt.Printf("✨  Access the app at http://localhost:%s\n", serverConfig.FrontendPort)
+	fmt.Printf("✨  Access the app at http://%s:%s\n", serverConfig.FrontendAddr, serverConfig.FrontendPort)
 	fmt.Printf("   (Clear separation: frontend routes on %s)\n", serverConfig.FrontendPort)
 	fmt.Println(strings.Repeat("=", 50) + "\n")
 

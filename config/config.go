@@ -51,6 +51,7 @@ type FrontEndConfig struct {
 	NewDocumentNumber int
 	ServerAPIURL      string
 	FrontendPort      string
+	FrontendAddr      string
 }
 
 // LoadEnvFile loads environment variables from a file (silently ignores if not found)
@@ -206,6 +207,7 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	frontEndConfigLive.NewDocumentNumber = getEnvInt("NEW_DOCUMENT_COUNT", 5)
 	frontEndConfigLive.ServerAPIURL = getEnv("SERVER_API_URL", "")
 	frontEndConfigLive.FrontendPort = getEnv("FRONTEND_PORT", "8001")
+	frontEndConfigLive.FrontendAddr = getEnv("FRONTEND_ADDR", "localhost")
 	serverConfigLive.FrontEndConfig = frontEndConfigLive
 
 	// Notifications

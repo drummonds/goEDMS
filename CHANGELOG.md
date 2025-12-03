@@ -2,10 +2,12 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.31.1 2025-12-02
+## 0.31.3 2025-12-02
 
 - Fixing front end port
-- fixing again!
+- fixing port again!
+- making URL address dynamic
+- tidying main.go by creating handlers.go
 
 ## 0.30.2 2025-12-02
 
