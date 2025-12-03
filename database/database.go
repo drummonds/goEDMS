@@ -87,6 +87,8 @@ type Repository interface {
 	GetDocumentDimensions(documentID int) (map[string]DimensionValue, error)
 	SetDocumentDimension(documentID int, dimensionID int, dimensionValueID int) error
 	RemoveDocumentDimension(documentID int, dimensionID int) error
+	// Schema version
+	GetSchemaVersion() (string, error)
 }
 
 // FetchConfigFromDB pulls the server config from the database

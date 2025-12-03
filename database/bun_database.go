@@ -885,3 +885,29 @@ func (b *BunDB) UpdateWordFrequencies(docID string) error {
 
 	return nil
 }
+
+// GetSchemaVersion returns the latest applied migration version
+func (b *BunDB) GetSchemaVersion() (string, error) {
+	ctx := context.Background()
+
+	type SchemaVersion struct {
+		Version string `bun:"version"`
+	}
+
+	var version SchemaVersion
+	err := b.db.NewSelect().
+		TableExpr("bun_schema_migrations").
+		Column("version").
+		Order("version DESC").
+		Limit(1).
+		Scan(ctx, &version)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "none", nil
+		}
+		return "", fmt.Errorf("failed to get schema version: %w", err)
+	}
+
+	return version.Version, nil
+}

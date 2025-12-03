@@ -2,10 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.31.6 2025-12-03
+## 0.31.7 2025-12-03
 
 - fixing view
 - fixing edit
+- looking at DB migations
 
 ## 0.31.3 2025-12-02
 

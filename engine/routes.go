@@ -740,6 +740,12 @@ func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
 		logLevel = "debug" // default
 	}
 
+	// Get schema version
+	schemaVersion := "unknown"
+	if version, err := serverHandler.DB.GetSchemaVersion(); err == nil {
+		schemaVersion = version
+	}
+
 	aboutInfo := map[string]interface{}{
 		"version":       build.GetVersion(),
 		"ocrConfigured": ocrConfigured,
@@ -751,6 +757,7 @@ func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
 		"ingressPath":   serverHandler.ServerConfig.IngressPath,
 		"documentPath":  serverHandler.ServerConfig.DocumentPath,
 		"logLevel":      logLevel,
+		"schemaVersion": schemaVersion,
 	}
 
 	return c.JSON(http.StatusOK, aboutInfo)

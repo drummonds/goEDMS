@@ -20,6 +20,7 @@ type AboutInfo struct {
 	IngressPath   string `json:"ingressPath"`
 	DocumentPath  string `json:"documentPath"`
 	LogLevel      string `json:"logLevel"`
+	SchemaVersion string `json:"schemaVersion"`
 }
 
 // AboutPage displays information about the application
@@ -120,6 +121,7 @@ func (a *AboutPage) Render() app.UI {
 					a.renderInfoItem("Port", a.aboutInfo.DatabasePort),
 					a.renderInfoItem("Database Name", a.aboutInfo.DatabaseName),
 					a.renderInfoItem("Connection Type", a.getConnectionType()),
+					a.renderInfoItem("Schema Version", a.aboutInfo.SchemaVersion),
 				),
 			),
 			app.Div().Class("about-section").Body(

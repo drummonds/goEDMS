@@ -537,3 +537,22 @@ func (p *PostgresDB) ReindexSearchDocuments() (int, error) {
 
 	return int(rowsAffected), nil
 }
+
+// GetSchemaVersion returns the latest applied migration version
+func (p *PostgresDB) GetSchemaVersion() (string, error) {
+	var version string
+	err := p.db.QueryRow(`
+		SELECT version FROM schema_migrations
+		ORDER BY version DESC
+		LIMIT 1
+	`).Scan(&version)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "none", nil
+		}
+		return "", fmt.Errorf("failed to get schema version: %w", err)
+	}
+
+	return version, nil
+}
