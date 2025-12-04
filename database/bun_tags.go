@@ -144,6 +144,19 @@ func (b *BunDB) RemoveTagFromDocument(documentID int, tagID int) error {
 	return nil
 }
 
+// GetTagUsageCount returns the number of documents using a specific tag
+func (b *BunDB) GetTagUsageCount(tagID int) (int, error) {
+	ctx := context.Background()
+	count, err := b.db.NewSelect().
+		Model((*DocumentTag)(nil)).
+		Where("tag_id = ?", tagID).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get tag usage count: %w", err)
+	}
+	return count, nil
+}
+
 // ============================================================================
 // DIMENSION METHODS
 // ============================================================================

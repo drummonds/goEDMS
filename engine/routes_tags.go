@@ -12,6 +12,12 @@ import (
 // TAG ENDPOINTS
 // ============================================================================
 
+// TagWithUsage represents a tag with its usage count
+type TagWithUsage struct {
+	database.Tag
+	UsageCount int `json:"usageCount"`
+}
+
 // GetAllTags returns all available tags
 // @Summary Get all tags
 // @Description Retrieve all tags in the system
@@ -30,6 +36,41 @@ func (serverHandler *ServerHandler) GetAllTags(c echo.Context) error {
 		})
 	}
 	return c.JSON(http.StatusOK, tags)
+}
+
+// GetAllTagsWithUsage returns all tags with their document usage counts
+// @Summary Get all tags with usage counts
+// @Description Retrieve all tags with the number of documents using each tag
+// @Tags Tags
+// @Accept json
+// @Produce json
+// @Success 200 {array} TagWithUsage
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/tags/usage [get]
+func (serverHandler *ServerHandler) GetAllTagsWithUsage(c echo.Context) error {
+	tags, err := serverHandler.DB.GetAllTags()
+	if err != nil {
+		Logger.Error("Failed to get all tags", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"error": "Failed to retrieve tags",
+		})
+	}
+
+	// Get usage count for each tag
+	result := make([]TagWithUsage, len(tags))
+	for i, tag := range tags {
+		count, err := serverHandler.DB.GetTagUsageCount(tag.ID)
+		if err != nil {
+			Logger.Warn("Failed to get usage count for tag", "tag", tag.Name, "error", err)
+			count = 0
+		}
+		result[i] = TagWithUsage{
+			Tag:        tag,
+			UsageCount: count,
+		}
+	}
+
+	return c.JSON(http.StatusOK, result)
 }
 
 // CreateTag creates a new tag

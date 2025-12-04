@@ -20,6 +20,7 @@ var AppRoutes = []RouteConfig{
 	{Path: "/search", Render: func() app.UI { return &SearchPage{} }},
 	{Path: "/wordcloud", Render: func() app.UI { return &WordCloudPage{} }},
 	{Path: "/jobs", Render: func() app.UI { return &JobsPage{} }},
+	{Path: "/tags", Render: func() app.UI { return &TagsManagerPage{} }},
 	{Path: "/about", Render: func() app.UI { return &AboutPage{} }},
 	{Path: "/manuallog", Render: func() app.UI { return &ManualLogPage{} }},
 	{

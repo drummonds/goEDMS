@@ -135,6 +135,17 @@ func (p *PostgresDB) RemoveTagFromDocument(documentID int, tagID int) error {
 	return nil
 }
 
+// GetTagUsageCount returns the number of documents using a specific tag
+func (p *PostgresDB) GetTagUsageCount(tagID int) (int, error) {
+	query := `SELECT COUNT(*) FROM document_tags WHERE tag_id = $1`
+	var count int
+	err := p.db.QueryRow(query, tagID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get tag usage count: %w", err)
+	}
+	return count, nil
+}
+
 // ============================================================================
 // DIMENSION METHODS - PostgreSQL Implementation
 // ============================================================================

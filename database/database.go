@@ -78,6 +78,7 @@ type Repository interface {
 	GetTagsForDocument(documentID int) ([]Tag, error)
 	AddTagToDocument(documentID int, tagID int) error
 	RemoveTagFromDocument(documentID int, tagID int) error
+	GetTagUsageCount(tagID int) (int, error)
 	// Dimension methods
 	GetAllDimensions() ([]Dimension, error)
 	GetDimensionByID(id int) (*Dimension, error)

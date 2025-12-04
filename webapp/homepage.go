@@ -201,6 +201,63 @@ func (h *HomePage) renderPagination() app.UI {
 type DocumentCard struct {
 	app.Compo
 	Document Document
+	tags     []Tag
+	loaded   bool
+}
+
+// OnMount is called when the component is mounted - fetches document tags
+func (d *DocumentCard) OnMount(ctx app.Context) {
+	d.fetchTags(ctx)
+}
+
+// fetchTags fetches tags for this document
+func (d *DocumentCard) fetchTags(ctx app.Context) {
+	if d.Document.ULID == "" {
+		return
+	}
+
+	ctx.Async(func() {
+		url := BuildAPIURL(fmt.Sprintf("/api/documents/%s/tags", d.Document.ULID))
+		res := app.Window().Call("fetch", url)
+
+		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) == 0 {
+				return nil
+			}
+			response := args[0]
+
+			status := response.Get("status").Int()
+			if status != 200 {
+				ctx.Dispatch(func(ctx app.Context) {
+					d.loaded = true
+				})
+				return nil
+			}
+
+			response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+				if len(args) == 0 {
+					return nil
+				}
+				jsonData := args[0]
+				jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
+
+				var tags []Tag
+				ctx.Dispatch(func(ctx app.Context) {
+					if err := json.Unmarshal([]byte(jsonStr), &tags); err == nil {
+						d.tags = tags
+					}
+					d.loaded = true
+				})
+				return nil
+			}))
+			return nil
+		})).Call("catch", app.FuncOf(func(this app.Value, args []app.Value) any {
+			ctx.Dispatch(func(ctx app.Context) {
+				d.loaded = true
+			})
+			return nil
+		}))
+	})
 }
 
 // Render renders the document card
@@ -218,6 +275,36 @@ func (d *DocumentCard) Render() app.UI {
 		iconContent = app.Text("📄")
 	}
 
+	// Render tags (max 5 visible)
+	const maxVisibleTags = 5
+	var tagsContent app.UI
+	if len(d.tags) > 0 {
+		visibleTags := d.tags
+		hasMore := false
+		if len(d.tags) > maxVisibleTags {
+			visibleTags = d.tags[:maxVisibleTags]
+			hasMore = true
+		}
+
+		tagElements := make([]app.UI, 0, len(visibleTags)+1)
+		for _, tag := range visibleTags {
+			textColor := getContrastTextColor(tag.Color)
+			tagElements = append(tagElements,
+				app.Span().
+					Class("document-tag").
+					Style("background-color", tag.Color).
+					Style("color", textColor).
+					Text(tag.Name),
+			)
+		}
+		if hasMore {
+			tagElements = append(tagElements,
+				app.Span().Class("document-tags-more").Text(fmt.Sprintf("+%d more", len(d.tags)-maxVisibleTags)),
+			)
+		}
+		tagsContent = app.Div().Class("document-tags").Body(tagElements...)
+	}
+
 	return app.Div().
 		Class("document-card").
 		Body(
@@ -229,6 +316,7 @@ func (d *DocumentCard) Render() app.UI {
 				app.P().
 					Class("document-date").
 					Text("Ingested: "+d.Document.IngressTime),
+				tagsContent,
 				app.Div().Class("document-actions").Body(
 					app.A().
 						Href(d.Document.URL).

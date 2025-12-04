@@ -196,6 +196,23 @@ definitions:
       message:
         type: string
     type: object
+  engine.TagWithUsage:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+      usageCount:
+        type: integer
+    type: object
   engine.fileTreeStruct:
     properties:
       childrenIDs:
@@ -805,6 +822,28 @@ paths:
             additionalProperties: true
             type: object
       summary: Update a tag
+      tags:
+      - Tags
+  /api/tags/usage:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all tags with the number of documents using each tag
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/engine.TagWithUsage'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all tags with usage counts
       tags:
       - Tags
   /clean:
