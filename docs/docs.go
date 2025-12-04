@@ -220,6 +220,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/document/{id}/thumbnail/regenerate": {
+            "post": {
+                "description": "Force regeneration of thumbnail for a PDF document",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Regenerate document thumbnail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document ULID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Thumbnail regenerated",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Document is not a PDF",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Document not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to regenerate thumbnail",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/documents/{ulid}/dimensions": {
             "get": {
                 "description": "Get all dimension values assigned to a document",

@@ -384,6 +384,47 @@ paths:
       summary: Get document thumbnail
       tags:
       - Documents
+  /api/document/{id}/thumbnail/regenerate:
+    post:
+      consumes:
+      - application/json
+      description: Force regeneration of thumbnail for a PDF document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Thumbnail regenerated
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Document is not a PDF
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Document not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Failed to regenerate thumbnail
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Regenerate document thumbnail
+      tags:
+      - Documents
   /api/documents/{ulid}/dimensions:
     get:
       consumes:

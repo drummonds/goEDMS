@@ -3,9 +3,74 @@ package webapp
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
 )
+
+// getContrastTextColor returns "white" or "black" based on the background color's luminance
+// Uses the relative luminance formula from WCAG 2.0
+func getContrastTextColor(hexColor string) string {
+	// Remove # prefix if present
+	hexColor = strings.TrimPrefix(hexColor, "#")
+
+	// Default to black text if color is invalid
+	if len(hexColor) != 6 && len(hexColor) != 3 {
+		return "black"
+	}
+
+	// Expand 3-char hex to 6-char
+	if len(hexColor) == 3 {
+		hexColor = string(hexColor[0]) + string(hexColor[0]) +
+			string(hexColor[1]) + string(hexColor[1]) +
+			string(hexColor[2]) + string(hexColor[2])
+	}
+
+	// Parse RGB values
+	r, err1 := strconv.ParseInt(hexColor[0:2], 16, 64)
+	g, err2 := strconv.ParseInt(hexColor[2:4], 16, 64)
+	b, err3 := strconv.ParseInt(hexColor[4:6], 16, 64)
+
+	if err1 != nil || err2 != nil || err3 != nil {
+		return "black"
+	}
+
+	// Calculate relative luminance using sRGB formula
+	// Convert to 0-1 range and apply gamma correction
+	rLinear := float64(r) / 255.0
+	gLinear := float64(g) / 255.0
+	bLinear := float64(b) / 255.0
+
+	// Apply gamma correction
+	if rLinear <= 0.03928 {
+		rLinear = rLinear / 12.92
+	} else {
+		rLinear = ((rLinear + 0.055) / 1.055)
+		rLinear = rLinear * rLinear // simplified power of 2.4
+	}
+	if gLinear <= 0.03928 {
+		gLinear = gLinear / 12.92
+	} else {
+		gLinear = ((gLinear + 0.055) / 1.055)
+		gLinear = gLinear * gLinear
+	}
+	if bLinear <= 0.03928 {
+		bLinear = bLinear / 12.92
+	} else {
+		bLinear = ((bLinear + 0.055) / 1.055)
+		bLinear = bLinear * bLinear
+	}
+
+	// Calculate luminance
+	luminance := 0.2126*rLinear + 0.7152*gLinear + 0.0722*bLinear
+
+	// Use white text for dark backgrounds (luminance < 0.5)
+	if luminance < 0.5 {
+		return "white"
+	}
+	return "black"
+}
 
 // Tag represents a tag from the API
 type Tag struct {
@@ -53,16 +118,18 @@ type DocumentStatus struct {
 // EditPage allows editing document tags and dimensions
 type EditPage struct {
 	app.Compo
-	ulid               string
-	document           Document
-	documentStatus     DocumentStatus
-	allTags            []Tag
-	documentTags       []Tag
-	allDimensions      []Dimension
-	documentDimensions map[string]DimensionValue
-	loading            bool
-	error              string
-	newTagName         string
+	ulid                  string
+	document              Document
+	documentStatus        DocumentStatus
+	allTags               []Tag
+	documentTags          []Tag
+	allDimensions         []Dimension
+	documentDimensions    map[string]DimensionValue
+	loading               bool
+	error                 string
+	newTagName            string
+	regeneratingThumbnail bool
+	thumbnailMessage      string
 }
 
 // OnMount is called when the component is mounted
@@ -420,6 +487,57 @@ func (e *EditPage) setDimension(dimensionName, value string) func(ctx app.Contex
 	}
 }
 
+// regenerateThumbnail triggers thumbnail regeneration for the document
+func (e *EditPage) regenerateThumbnail(ctx app.Context, ev app.Event) {
+	ev.PreventDefault()
+
+	e.regeneratingThumbnail = true
+	e.thumbnailMessage = ""
+
+	url := BuildAPIURL(fmt.Sprintf("/api/document/%s/thumbnail/regenerate", e.ulid))
+
+	ctx.Async(func() {
+		opts := app.Window().Get("Object").New()
+		opts.Set("method", "POST")
+
+		res := app.Window().Call("fetch", url, opts)
+		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) == 0 {
+				return nil
+			}
+			response := args[0]
+			status := response.Get("status").Int()
+
+			response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+				if len(args) == 0 {
+					return nil
+				}
+				jsonData := args[0]
+
+				ctx.Dispatch(func(ctx app.Context) {
+					e.regeneratingThumbnail = false
+					if status == 200 {
+						e.thumbnailMessage = "Thumbnail regenerated successfully!"
+						// Reload status to update thumbnail info
+						e.fetchDocumentStatus(ctx)
+					} else {
+						errorMsg := jsonData.Get("error").String()
+						e.thumbnailMessage = "Error: " + errorMsg
+					}
+				})
+				return nil
+			}))
+			return nil
+		})).Call("catch", app.FuncOf(func(this app.Value, args []app.Value) any {
+			ctx.Dispatch(func(ctx app.Context) {
+				e.regeneratingThumbnail = false
+				e.thumbnailMessage = "Network error"
+			})
+			return nil
+		}))
+	})
+}
+
 // Render renders the edit page
 func (e *EditPage) Render() app.UI {
 	if e.loading {
@@ -525,20 +643,52 @@ func (e *EditPage) renderStatusSection() app.UI {
 		)
 	}
 
-	// Thumbnail status
-	thumbnailUI := statusIndicator(e.documentStatus.HasThumbnail, "Has thumbnail")
+	// Thumbnail status with regenerate button
+	var thumbnailElements []app.UI
+	thumbnailElements = append(thumbnailElements, statusIndicator(e.documentStatus.HasThumbnail, "Has thumbnail"))
+
 	if e.documentStatus.HasThumbnail && e.documentStatus.ThumbnailURL != "" {
-		thumbnailUI = app.Div().Body(
-			statusIndicator(true, "Has thumbnail"),
+		thumbnailElements = append(thumbnailElements,
 			app.Img().
-				Src(BuildAPIURL(e.documentStatus.ThumbnailURL)).
+				Src(BuildAPIURL(e.documentStatus.ThumbnailURL)+"?t="+fmt.Sprint(app.Window().Get("Date").Call("now").Int())).
 				Class("status-thumbnail").
 				Style("max-height", "64px").
 				Style("margin-left", "10px"),
 		)
 	}
+
+	// Add regenerate button for PDF documents
+	if e.documentStatus.DocumentType == "pdf" {
+		buttonText := "Regenerate Thumbnail"
+		buttonClass := "btn btn-small"
+		if e.regeneratingThumbnail {
+			buttonText = "Regenerating..."
+			buttonClass += " btn-disabled"
+		}
+		thumbnailElements = append(thumbnailElements,
+			app.Button().
+				Class(buttonClass).
+				Disabled(e.regeneratingThumbnail).
+				OnClick(e.regenerateThumbnail).
+				Text(buttonText),
+		)
+	}
+
+	// Show thumbnail message if any
+	if e.thumbnailMessage != "" {
+		msgClass := "status-message"
+		if len(e.thumbnailMessage) > 5 && e.thumbnailMessage[:5] == "Error" {
+			msgClass += " status-message-error"
+		} else {
+			msgClass += " status-message-success"
+		}
+		thumbnailElements = append(thumbnailElements,
+			app.Span().Class(msgClass).Text(e.thumbnailMessage),
+		)
+	}
+
 	statusItems = append(statusItems,
-		app.Div().Class("status-item").Body(thumbnailUI),
+		app.Div().Class("status-item thumbnail-item").Body(thumbnailElements...),
 	)
 
 	// Text status with link
@@ -610,9 +760,11 @@ func (e *EditPage) renderTagsSection() app.UI {
 					className += " tag-item-active"
 				}
 
+				textColor := getContrastTextColor(tag.Color)
 				return app.Button().
 					Class(className).
 					Style("background-color", tag.Color).
+					Style("color", textColor).
 					OnClick(e.toggleTag(tag.ID)).
 					Body(app.Text(tag.Name))
 			}),
@@ -647,9 +799,11 @@ func (e *EditPage) renderDimensionsSection() app.UI {
 							className += " dimension-value-active"
 						}
 
+						valTextColor := getContrastTextColor(val.Color)
 						return app.Button().
 							Class(className).
 							Style("background-color", val.Color).
+							Style("color", valTextColor).
 							OnClick(e.setDimension(dim.Name, val.Value)).
 							Body(app.Text(val.DisplayName))
 					}),

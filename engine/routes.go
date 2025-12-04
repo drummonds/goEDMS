@@ -472,6 +472,57 @@ func (serverHandler *ServerHandler) GetDocumentText(context echo.Context) error 
 	})
 }
 
+// RegenerateThumbnail regenerates the thumbnail for a document
+// @Summary Regenerate document thumbnail
+// @Description Force regeneration of thumbnail for a PDF document
+// @Tags Documents
+// @Accept json
+// @Produce json
+// @Param id path string true "Document ULID"
+// @Success 200 {object} map[string]string "Thumbnail regenerated"
+// @Failure 400 {object} map[string]string "Document is not a PDF"
+// @Failure 404 {object} map[string]string "Document not found"
+// @Failure 500 {object} map[string]string "Failed to regenerate thumbnail"
+// @Router /api/document/{id}/thumbnail/regenerate [post]
+func (serverHandler *ServerHandler) RegenerateThumbnail(context echo.Context) error {
+	ulidStr := context.Param("id")
+	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
+	if err != nil {
+		Logger.Error("RegenerateThumbnail API call failed", "error", err)
+		return context.JSON(httpStatus, map[string]string{"error": err.Error()})
+	}
+
+	// Check if document is a PDF
+	if filepath.Ext(document.Path) != ".pdf" {
+		return context.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Thumbnail generation is only supported for PDF documents",
+		})
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(document.Path); os.IsNotExist(err) {
+		return context.JSON(http.StatusNotFound, map[string]string{
+			"error": "Document file not found on disk",
+		})
+	}
+
+	// Generate thumbnail
+	if err := saveThumbnailFile(document.Path); err != nil {
+		Logger.Error("Failed to regenerate thumbnail", "document", document.Path, "error", err)
+		return context.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to regenerate thumbnail: %v", err),
+		})
+	}
+
+	thumbnailPath := getThumbnailPath(document.Path)
+	Logger.Info("Thumbnail regenerated", "document", document.Path, "thumbnail", thumbnailPath)
+
+	return context.JSON(http.StatusOK, map[string]string{
+		"message":      "Thumbnail regenerated successfully",
+		"thumbnailURL": "/api/document/" + document.ULID.String() + "/thumbnail",
+	})
+}
+
 // GetDocumentFileSystem will scan the document folder and get the complete tree to send to the frontend
 // @Summary Get document filesystem tree
 // @Description Retrieve the complete document folder structure as a tree
