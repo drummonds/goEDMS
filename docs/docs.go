@@ -79,6 +79,100 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/document/{id}/status": {
+            "get": {
+                "description": "Get status information including thumbnail, text, and tag availability",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Get document status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document ULID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Document status",
+                        "schema": {
+                            "$ref": "#/definitions/engine.DocumentStatus"
+                        }
+                    },
+                    "404": {
+                        "description": "Document not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/document/{id}/text": {
+            "get": {
+                "description": "Get the extracted full text content of a document",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Get document text",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Document ULID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Document text",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Document not found or no text available",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/document/{id}/thumbnail": {
             "get": {
                 "description": "Get a thumbnail image for a document by its ID",
@@ -1640,6 +1734,56 @@ const docTemplate = `{
                 }
             }
         },
+        "engine.DocumentStatus": {
+            "type": "object",
+            "properties": {
+                "documentType": {
+                    "type": "string"
+                },
+                "fileExists": {
+                    "type": "boolean"
+                },
+                "fileSizeBytes": {
+                    "type": "integer"
+                },
+                "hasTags": {
+                    "type": "boolean"
+                },
+                "hasText": {
+                    "type": "boolean"
+                },
+                "hasThumbnail": {
+                    "type": "boolean"
+                },
+                "ingressTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "tagCount": {
+                    "type": "integer"
+                },
+                "textLength": {
+                    "type": "integer"
+                },
+                "textURL": {
+                    "type": "string"
+                },
+                "thumbnailURL": {
+                    "type": "string"
+                },
+                "ulid": {
+                    "type": "string"
+                },
+                "viewURL": {
+                    "type": "string"
+                }
+            }
+        },
         "engine.LogEntry": {
             "type": "object",
             "properties": {
@@ -1709,6 +1853,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/engine.fileTreeStruct"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 }
             }

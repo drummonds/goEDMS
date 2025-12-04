@@ -31,11 +31,31 @@ type Dimension struct {
 	Values      []DimensionValue `json:"values"`
 }
 
+// DocumentStatus represents status information for a document
+type DocumentStatus struct {
+	ULID          string `json:"ulid"`
+	Name          string `json:"name"`
+	Path          string `json:"path"`
+	DocumentType  string `json:"documentType"`
+	HasThumbnail  bool   `json:"hasThumbnail"`
+	ThumbnailURL  string `json:"thumbnailURL,omitempty"`
+	HasText       bool   `json:"hasText"`
+	TextLength    int    `json:"textLength"`
+	TextURL       string `json:"textURL,omitempty"`
+	HasTags       bool   `json:"hasTags"`
+	TagCount      int    `json:"tagCount"`
+	ViewURL       string `json:"viewURL"`
+	IngressTime   string `json:"ingressTime"`
+	FileExists    bool   `json:"fileExists"`
+	FileSizeBytes int64  `json:"fileSizeBytes,omitempty"`
+}
+
 // EditPage allows editing document tags and dimensions
 type EditPage struct {
 	app.Compo
 	ulid               string
 	document           Document
+	documentStatus     DocumentStatus
 	allTags            []Tag
 	documentTags       []Tag
 	allDimensions      []Dimension
@@ -55,9 +75,8 @@ func (e *EditPage) OnMount(ctx app.Context) {
 // loadData loads all necessary data for the edit page
 func (e *EditPage) loadData(ctx app.Context) {
 	ctx.Async(func() {
-		// Fetch document details (we'll use the existing GetDocument endpoint if available)
-		// For now, we'll construct a minimal document from ULID
-		// In production, you'd want to add a GetDocumentByULID endpoint
+		// Load document status
+		e.fetchDocumentStatus(ctx)
 
 		// Load all tags
 		e.fetchAllTags(ctx)
@@ -75,6 +94,56 @@ func (e *EditPage) loadData(ctx app.Context) {
 			e.loading = false
 		})
 	})
+}
+
+// fetchDocumentStatus fetches status information for this document
+func (e *EditPage) fetchDocumentStatus(ctx app.Context) {
+	url := BuildAPIURL(fmt.Sprintf("/api/document/%s/status", e.ulid))
+	res := app.Window().Call("fetch", url)
+
+	res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+		if len(args) == 0 {
+			return nil
+		}
+		response := args[0]
+
+		status := response.Get("status").Int()
+		if status != 200 {
+			ctx.Dispatch(func(ctx app.Context) {
+				LogError(ctx, "Failed to load document status", map[string]interface{}{
+					"component": "EditPage",
+					"action":    "fetchDocumentStatus",
+					"ulid":      e.ulid,
+					"status":    status,
+				})
+			})
+			return nil
+		}
+
+		response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) == 0 {
+				return nil
+			}
+			jsonData := args[0]
+			jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
+
+			var docStatus DocumentStatus
+			ctx.Dispatch(func(ctx app.Context) {
+				if err := json.Unmarshal([]byte(jsonStr), &docStatus); err != nil {
+					LogError(ctx, "Failed to parse document status", map[string]interface{}{
+						"component": "EditPage",
+						"action":    "fetchDocumentStatus",
+						"ulid":      e.ulid,
+						"error":     err.Error(),
+					})
+				} else {
+					e.documentStatus = docStatus
+				}
+			})
+			return nil
+		}))
+		return nil
+	}))
 }
 
 // fetchAllTags fetches all available tags
@@ -375,8 +444,9 @@ func (e *EditPage) Render() app.UI {
 		app.H2().Text("Edit Document: "+e.ulid),
 
 		app.Div().Class("edit-layout").Body(
-			// Left sidebar - Tags and Dimensions
+			// Left sidebar - Status, Tags and Dimensions
 			app.Div().Class("edit-sidebar").Body(
+				e.renderStatusSection(),
 				e.renderTagsSection(),
 				e.renderDimensionsSection(),
 			),
@@ -386,6 +456,144 @@ func (e *EditPage) Render() app.UI {
 				e.renderDocumentViewer(),
 			),
 		),
+	)
+}
+
+// renderStatusSection renders the document status information
+func (e *EditPage) renderStatusSection() app.UI {
+	// Helper to format file size
+	formatSize := func(bytes int64) string {
+		const unit = 1024
+		if bytes < unit {
+			return fmt.Sprintf("%d B", bytes)
+		}
+		div, exp := int64(unit), 0
+		for n := bytes / unit; n >= unit; n /= unit {
+			div *= unit
+			exp++
+		}
+		return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+	}
+
+	// Status indicator helper
+	statusIndicator := func(hasIt bool, label string) app.UI {
+		icon := "✗"
+		className := "status-indicator status-no"
+		if hasIt {
+			icon = "✓"
+			className = "status-indicator status-yes"
+		}
+		return app.Span().Class(className).Body(
+			app.Text(icon + " " + label),
+		)
+	}
+
+	var statusItems []app.UI
+
+	// Document name and type
+	if e.documentStatus.Name != "" {
+		statusItems = append(statusItems,
+			app.Div().Class("status-item").Body(
+				app.Strong().Text("Name: "),
+				app.Text(e.documentStatus.Name),
+			),
+		)
+	}
+
+	if e.documentStatus.DocumentType != "" {
+		statusItems = append(statusItems,
+			app.Div().Class("status-item").Body(
+				app.Strong().Text("Type: "),
+				app.Text(e.documentStatus.DocumentType),
+			),
+		)
+	}
+
+	// File exists and size
+	statusItems = append(statusItems,
+		app.Div().Class("status-item").Body(
+			statusIndicator(e.documentStatus.FileExists, "File exists"),
+		),
+	)
+
+	if e.documentStatus.FileSizeBytes > 0 {
+		statusItems = append(statusItems,
+			app.Div().Class("status-item").Body(
+				app.Strong().Text("Size: "),
+				app.Text(formatSize(e.documentStatus.FileSizeBytes)),
+			),
+		)
+	}
+
+	// Thumbnail status
+	thumbnailUI := statusIndicator(e.documentStatus.HasThumbnail, "Has thumbnail")
+	if e.documentStatus.HasThumbnail && e.documentStatus.ThumbnailURL != "" {
+		thumbnailUI = app.Div().Body(
+			statusIndicator(true, "Has thumbnail"),
+			app.Img().
+				Src(BuildAPIURL(e.documentStatus.ThumbnailURL)).
+				Class("status-thumbnail").
+				Style("max-height", "64px").
+				Style("margin-left", "10px"),
+		)
+	}
+	statusItems = append(statusItems,
+		app.Div().Class("status-item").Body(thumbnailUI),
+	)
+
+	// Text status with link
+	textUI := statusIndicator(e.documentStatus.HasText, "Has extracted text")
+	if e.documentStatus.HasText {
+		textUI = app.Div().Body(
+			statusIndicator(true, fmt.Sprintf("Has text (%d chars)", e.documentStatus.TextLength)),
+			app.A().
+				Href(BuildAPIURL(e.documentStatus.TextURL)).
+				Target("_blank").
+				Class("status-link").
+				Text(" [View full text]"),
+		)
+	}
+	statusItems = append(statusItems,
+		app.Div().Class("status-item").Body(textUI),
+	)
+
+	// Tags status
+	tagText := "Has tags"
+	if e.documentStatus.TagCount > 0 {
+		tagText = fmt.Sprintf("Has %d tag(s)", e.documentStatus.TagCount)
+	}
+	statusItems = append(statusItems,
+		app.Div().Class("status-item").Body(
+			statusIndicator(e.documentStatus.HasTags, tagText),
+		),
+	)
+
+	// Ingress time
+	if e.documentStatus.IngressTime != "" {
+		statusItems = append(statusItems,
+			app.Div().Class("status-item").Body(
+				app.Strong().Text("Ingested: "),
+				app.Text(e.documentStatus.IngressTime),
+			),
+		)
+	}
+
+	// View document link
+	if e.documentStatus.ViewURL != "" {
+		statusItems = append(statusItems,
+			app.Div().Class("status-item").Body(
+				app.A().
+					Href(BuildAPIURL(e.documentStatus.ViewURL)).
+					Target("_blank").
+					Class("status-link").
+					Text("Open document in new tab"),
+			),
+		)
+	}
+
+	return app.Div().Class("edit-section status-section").Body(
+		app.H3().Text("Document Status"),
+		app.Div().Class("status-list").Body(statusItems...),
 	)
 }
 

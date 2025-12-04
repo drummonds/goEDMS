@@ -153,6 +153,39 @@ definitions:
       updated_at:
         type: string
     type: object
+  engine.DocumentStatus:
+    properties:
+      documentType:
+        type: string
+      fileExists:
+        type: boolean
+      fileSizeBytes:
+        type: integer
+      hasTags:
+        type: boolean
+      hasText:
+        type: boolean
+      hasThumbnail:
+        type: boolean
+      ingressTime:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      tagCount:
+        type: integer
+      textLength:
+        type: integer
+      textURL:
+        type: string
+      thumbnailURL:
+        type: string
+      ulid:
+        type: string
+      viewURL:
+        type: string
+    type: object
   engine.LogEntry:
     properties:
       attrs:
@@ -199,6 +232,10 @@ definitions:
       fileSystem:
         items:
           $ref: '#/definitions/engine.fileTreeStruct'
+        type: array
+      warnings:
+        items:
+          type: string
         type: array
     type: object
 host: localhost:8000
@@ -254,6 +291,68 @@ paths:
       summary: Get all dimensions
       tags:
       - Dimensions
+  /api/document/{id}/status:
+    get:
+      consumes:
+      - application/json
+      description: Get status information including thumbnail, text, and tag availability
+      parameters:
+      - description: Document ULID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Document status
+          schema:
+            $ref: '#/definitions/engine.DocumentStatus'
+        "404":
+          description: Document not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get document status
+      tags:
+      - Documents
+  /api/document/{id}/text:
+    get:
+      consumes:
+      - application/json
+      description: Get the extracted full text content of a document
+      parameters:
+      - description: Document ULID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Document text
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Document not found or no text available
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get document text
+      tags:
+      - Documents
   /api/document/{id}/thumbnail:
     get:
       description: Get a thumbnail image for a document by its ID

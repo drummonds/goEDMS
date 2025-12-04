@@ -27,6 +27,7 @@ type FileTreeNode struct {
 type FileSystem struct {
 	FileSystem []FileTreeNode `json:"fileSystem"`
 	Error      string         `json:"error"`
+	Warnings   []string       `json:"warnings,omitempty"`
 }
 
 // BrowsePage displays the document file tree
@@ -203,24 +204,46 @@ func formatBytes(bytes int64) string {
 
 // Render renders the browse page
 func (b *BrowsePage) Render() app.UI {
-	var content app.UI
+	var contentElements []app.UI
 
 	if b.loading {
-		content = app.Div().Class("loading").Body(app.Text("Loading..."))
+		contentElements = append(contentElements, app.Div().Class("loading").Body(app.Text("Loading...")))
 	} else if b.error != "" {
-		content = app.Div().Class("error").Body(app.Text("Error: " + b.error))
-	} else if b.fileSystem.Error != "" {
-		content = app.Div().Class("warning").Body(app.Text("Warning: " + b.fileSystem.Error))
-	} else if len(b.fileSystem.FileSystem) > 0 {
-		content = app.Div().Class("file-tree").Body(b.renderNode(b.fileSystem.FileSystem[0], 0))
+		contentElements = append(contentElements, app.Div().Class("error").Body(app.Text("Error: "+b.error)))
 	} else {
-		content = app.Text("No documents found")
+		// Show warnings if any (but continue to show documents)
+		if len(b.fileSystem.Warnings) > 0 {
+			warningItems := make([]app.UI, len(b.fileSystem.Warnings))
+			for i, warning := range b.fileSystem.Warnings {
+				warningItems[i] = app.Li().Text(warning)
+			}
+			contentElements = append(contentElements,
+				app.Div().Class("warning").Body(
+					app.Text("Warnings:"),
+					app.Ul().Body(warningItems...),
+				),
+			)
+		}
+		// Also show legacy single error if present
+		if b.fileSystem.Error != "" {
+			contentElements = append(contentElements,
+				app.Div().Class("warning").Body(app.Text("Warning: "+b.fileSystem.Error)),
+			)
+		}
+		// Show documents
+		if len(b.fileSystem.FileSystem) > 0 {
+			contentElements = append(contentElements,
+				app.Div().Class("file-tree").Body(b.renderNode(b.fileSystem.FileSystem[0], 0)),
+			)
+		} else {
+			contentElements = append(contentElements, app.Text("No documents found"))
+		}
 	}
 
 	return app.Div().
 		Class("browse-page").
 		Body(
 			app.H2().Text("Browse Documents"),
-			content,
+			app.Div().Body(contentElements...),
 		)
 }

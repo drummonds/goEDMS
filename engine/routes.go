@@ -41,6 +41,7 @@ type ServerHandler struct {
 type fullFileSystem struct {
 	FileSystem []fileTreeStruct `json:"fileSystem"`
 	Error      string           `json:"error"`
+	Warnings   []string         `json:"warnings,omitempty"`
 }
 
 type fileTreeStruct struct {
@@ -360,6 +361,117 @@ func (serverHandler *ServerHandler) GetDocumentThumbnail(context echo.Context) e
 	return context.File(thumbnailPath)
 }
 
+// DocumentStatus represents the status information for a document
+type DocumentStatus struct {
+	ULID          string `json:"ulid"`
+	Name          string `json:"name"`
+	Path          string `json:"path"`
+	DocumentType  string `json:"documentType"`
+	HasThumbnail  bool   `json:"hasThumbnail"`
+	ThumbnailURL  string `json:"thumbnailURL,omitempty"`
+	HasText       bool   `json:"hasText"`
+	TextLength    int    `json:"textLength"`
+	TextURL       string `json:"textURL,omitempty"`
+	HasTags       bool   `json:"hasTags"`
+	TagCount      int    `json:"tagCount"`
+	ViewURL       string `json:"viewURL"`
+	IngressTime   string `json:"ingressTime"`
+	FileExists    bool   `json:"fileExists"`
+	FileSizeBytes int64  `json:"fileSizeBytes,omitempty"`
+}
+
+// GetDocumentStatus returns status information about a document
+// @Summary Get document status
+// @Description Get status information including thumbnail, text, and tag availability
+// @Tags Documents
+// @Accept json
+// @Produce json
+// @Param id path string true "Document ULID"
+// @Success 200 {object} DocumentStatus "Document status"
+// @Failure 404 {object} map[string]string "Document not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/document/{id}/status [get]
+func (serverHandler *ServerHandler) GetDocumentStatus(context echo.Context) error {
+	ulidStr := context.Param("id")
+	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
+	if err != nil {
+		Logger.Error("GetDocumentStatus API call failed", "error", err)
+		return context.JSON(httpStatus, map[string]string{"error": err.Error()})
+	}
+
+	status := DocumentStatus{
+		ULID:         document.ULID.String(),
+		Name:         document.Name,
+		Path:         document.Path,
+		DocumentType: document.DocumentType,
+		HasText:      len(document.FullText) > 0,
+		TextLength:   len(document.FullText),
+		ViewURL:      "/document/view/" + document.ULID.String(),
+		IngressTime:  document.IngressTime.Format("2006-01-02 15:04:05"),
+	}
+
+	// Check if text is available
+	if status.HasText {
+		status.TextURL = "/api/document/" + document.ULID.String() + "/text"
+	}
+
+	// Check if thumbnail exists
+	thumbnailPath := getThumbnailPath(document.Path)
+	if _, err := os.Stat(thumbnailPath); err == nil {
+		status.HasThumbnail = true
+		status.ThumbnailURL = "/api/document/" + document.ULID.String() + "/thumbnail"
+	}
+
+	// Check if file exists and get size
+	if fileInfo, err := os.Stat(document.Path); err == nil {
+		status.FileExists = true
+		status.FileSizeBytes = fileInfo.Size()
+	}
+
+	// Get tag count
+	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
+	if err == nil && doc != nil {
+		tags, err := serverHandler.DB.GetTagsForDocument(doc.StormID)
+		if err == nil {
+			status.TagCount = len(tags)
+			status.HasTags = len(tags) > 0
+		}
+	}
+
+	return context.JSON(http.StatusOK, status)
+}
+
+// GetDocumentText returns the extracted text content of a document
+// @Summary Get document text
+// @Description Get the extracted full text content of a document
+// @Tags Documents
+// @Accept json
+// @Produce json
+// @Param id path string true "Document ULID"
+// @Success 200 {object} map[string]string "Document text"
+// @Failure 404 {object} map[string]string "Document not found or no text available"
+// @Router /api/document/{id}/text [get]
+func (serverHandler *ServerHandler) GetDocumentText(context echo.Context) error {
+	ulidStr := context.Param("id")
+	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
+	if err != nil {
+		Logger.Error("GetDocumentText API call failed", "error", err)
+		return context.JSON(httpStatus, map[string]string{"error": err.Error()})
+	}
+
+	if len(document.FullText) == 0 {
+		return context.JSON(http.StatusNotFound, map[string]string{
+			"error": "No text available for this document",
+		})
+	}
+
+	return context.JSON(http.StatusOK, map[string]interface{}{
+		"ulid": document.ULID.String(),
+		"name": document.Name,
+		"text": document.FullText,
+	})
+}
+
 // GetDocumentFileSystem will scan the document folder and get the complete tree to send to the frontend
 // @Summary Get document filesystem tree
 // @Description Retrieve the complete document folder structure as a tree
@@ -478,7 +590,10 @@ func fileTree(rootPath string, db database.Repository) (fileTree *fullFileSystem
 
 			document, err := database.FetchDocumentFromPath(path, db)
 			if err != nil {
-				fullFileTree.Error = fmt.Sprintf("Document found in directory without database entry, please investigate: %s", path)
+				// Skip this file but add a warning and continue processing other files
+				warning := fmt.Sprintf("Document found in directory without database entry, please investigate: %s", path)
+				fullFileTree.Warnings = append(fullFileTree.Warnings, warning)
+				return nil // Skip this file, continue with next
 			}
 			currentFile.FileURL = document.URL
 			currentFile.ID = document.ULID.String()

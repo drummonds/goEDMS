@@ -1043,6 +1043,63 @@ h3 {
     border-bottom: 2px solid #ecf0f1;
 }
 
+/* Document Status Section */
+.status-section {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.status-item {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.9rem;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-indicator {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.status-yes {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-no {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-link {
+    color: #3498db;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.status-link:hover {
+    text-decoration: underline;
+}
+
+.status-thumbnail {
+    display: block;
+    margin-top: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
 /* Tag Styles */
 .tags-list {
     display: flex;

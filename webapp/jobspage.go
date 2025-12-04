@@ -286,9 +286,10 @@ func (j *JobsPage) onAutoRefreshChange(ctx app.Context, e app.Event) {
 
 // loadJobs fetches jobs from the API
 func (j *JobsPage) loadJobs(ctx app.Context) {
-	j.loading = true
-	j.error = ""
-	ctx.Update()
+	ctx.Dispatch(func(ctx app.Context) {
+		j.loading = true
+		j.error = ""
+	})
 
 	ctx.Async(func() {
 		res := app.Window().Call("fetch", BuildAPIURL("/api/jobs?limit=50"))

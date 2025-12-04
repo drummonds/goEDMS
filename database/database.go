@@ -233,7 +233,6 @@ func UpdateDocumentField(docULIDSt string, field string, newValue interface{}, d
 
 // FetchDocument fetches the requested document by ULID
 func FetchDocument(docULIDSt string, db Repository) (Document, int, error) {
-	fmt.Println("UUID STRING: ", docULIDSt)
 	foundDocument, err := db.GetDocumentByULID(docULIDSt)
 	if err != nil {
 		if err == sql.ErrNoRows {

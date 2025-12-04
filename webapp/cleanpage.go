@@ -1,8 +1,10 @@
 package webapp
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
 )
@@ -16,6 +18,10 @@ type CleanPage struct {
 	deletedCount int
 	scannedCount int
 	movedCount   int
+	jobID        string
+	progress     int
+	currentStep  string
+	pollTicker   *time.Ticker
 }
 
 // Render renders the clean page
@@ -48,15 +54,30 @@ func (c *CleanPage) Render() app.UI {
 		)
 }
 
+// OnDismount stops the poll ticker when leaving the page
+func (c *CleanPage) OnDismount() {
+	if c.pollTicker != nil {
+		c.pollTicker.Stop()
+	}
+}
+
 // renderStatus renders the status section
 func (c *CleanPage) renderStatus() app.UI {
 	if c.running {
-		statusText := "Scanning documents and checking files..."
-		if c.scannedCount > 0 {
-			statusText = fmt.Sprintf("Scanned: %d documents", c.scannedCount)
+		statusText := "Starting cleanup..."
+		if c.currentStep != "" {
+			statusText = c.currentStep
 		}
-		return app.Div().Class("loading").Body(
-			app.Text(statusText),
+
+		return app.Div().Class("job-progress-container").Body(
+			app.Div().Class("progress-bar").Body(
+				app.Div().
+					Class("progress-fill").
+					Style("width", fmt.Sprintf("%d%%", c.progress)),
+			),
+			app.Div().Class("progress-text").Body(
+				app.Text(fmt.Sprintf("%d%% - %s", c.progress, statusText)),
+			),
 		)
 	}
 
@@ -127,28 +148,20 @@ func (c *CleanPage) runClean(ctx app.Context) {
 				jsonData := args[0]
 
 				ctx.Dispatch(func(ctx app.Context) {
-					c.running = false
 					if status >= 200 && status < 300 {
-						// Try to extract counts from response
+						// Get job ID and start polling
 						if jsonData.Truthy() {
-							if deleted := jsonData.Get("deleted"); deleted.Truthy() {
-								c.deletedCount = deleted.Int()
-							}
-							if scanned := jsonData.Get("scanned"); scanned.Truthy() {
-								c.scannedCount = scanned.Int()
-							}
-							if moved := jsonData.Get("moved"); moved.Truthy() {
-								c.movedCount = moved.Int()
-							}
-							if msg := jsonData.Get("message"); msg.Truthy() {
-								c.result = msg.String()
+							if jobID := jsonData.Get("jobId"); jobID.Truthy() {
+								c.jobID = jobID.String()
+								c.startPolling(ctx)
 							} else {
+								// No job ID - cleanup completed synchronously
+								c.running = false
 								c.result = "Cleanup completed successfully!"
 							}
-						} else {
-							c.result = "Cleanup completed successfully!"
 						}
 					} else {
+						c.running = false
 						c.error = fmt.Sprintf("Cleanup failed with status: %d", status)
 						LogError(ctx, "Cleanup job failed", map[string]interface{}{
 							"component": "CleanPage",
@@ -174,6 +187,85 @@ func (c *CleanPage) runClean(ctx app.Context) {
 			return nil
 		}))
 	})
+}
+
+// startPolling starts polling for job status
+func (c *CleanPage) startPolling(ctx app.Context) {
+	c.pollTicker = time.NewTicker(1 * time.Second)
+
+	ctx.Async(func() {
+		for range c.pollTicker.C {
+			c.pollJobStatus(ctx)
+		}
+	})
+}
+
+// pollJobStatus fetches the current job status
+func (c *CleanPage) pollJobStatus(ctx app.Context) {
+	url := BuildAPIURL("/api/jobs/" + c.jobID)
+	res := app.Window().Call("fetch", url)
+
+	res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+		if len(args) == 0 {
+			return nil
+		}
+		response := args[0]
+
+		response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) interface{} {
+			if len(args) == 0 {
+				return nil
+			}
+
+			jsonData := args[0]
+
+			ctx.Dispatch(func(ctx app.Context) {
+				if !jsonData.Truthy() {
+					return
+				}
+
+				// Parse job data
+				jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
+				var job Job
+				if err := json.Unmarshal([]byte(jsonStr), &job); err != nil {
+					return
+				}
+
+				c.progress = job.Progress
+				c.currentStep = job.CurrentStep
+
+				// Check if job is complete
+				if job.Status == "completed" || job.Status == "failed" {
+					c.pollTicker.Stop()
+					c.running = false
+
+					if job.Status == "completed" {
+						c.result = "Cleanup completed successfully!"
+						// Parse result for counts
+						if job.Result != "" {
+							var result map[string]interface{}
+							if err := json.Unmarshal([]byte(job.Result), &result); err == nil {
+								if v, ok := result["deleted"].(float64); ok {
+									c.deletedCount = int(v)
+								}
+								if v, ok := result["scanned"].(float64); ok {
+									c.scannedCount = int(v)
+								}
+								if v, ok := result["moved"].(float64); ok {
+									c.movedCount = int(v)
+								}
+							}
+						}
+					} else {
+						c.error = "Cleanup failed: " + job.Error
+					}
+				}
+			})
+
+			return nil
+		}))
+
+		return nil
+	}))
 }
 
 // joinStrings joins a slice of strings with a separator
