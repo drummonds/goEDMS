@@ -658,7 +658,7 @@ func (e *EditPage) renderStatusSection() app.UI {
 	}
 
 	// Add generate/regenerate button for PDF documents
-	if e.documentStatus.DocumentType == "pdf" {
+	if e.documentStatus.DocumentType == ".pdf" {
 		var buttonText string
 		buttonClass := "btn btn-small"
 		if e.regeneratingThumbnail {
