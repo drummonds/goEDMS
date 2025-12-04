@@ -1072,16 +1072,116 @@ func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.D
 	return orphanedFiles, nil
 }
 
+// rootDocumentExtensions are extensions that can be primary/root documents
+// Note: .txt is handled separately as it can be either a root document OR a sidecar
+// Use .text for primary text files to avoid ambiguity
+var rootDocumentExtensions = []string{".pdf", ".rtf", ".doc", ".docx", ".odf", ".tiff", ".jpg", ".jpeg", ".png", ".text"}
+
 // isProcessableDocument checks if a file is a document type that can be processed
 func isProcessableDocument(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	processableExts := []string{".pdf", ".txt", ".rtf", ".doc", ".docx", ".odf", ".tiff", ".jpg", ".jpeg", ".png"}
-	for _, validExt := range processableExts {
+
+	// Check root document types
+	for _, validExt := range rootDocumentExtensions {
 		if ext == validExt {
 			return true
 		}
 	}
+
+	// .txt is only a root document if no other root document exists with the same base name
+	if ext == ".txt" {
+		return isTxtRootDocument(path)
+	}
+
 	return false
+}
+
+// isTxtRootDocument checks if a .txt file is a root document (not a sidecar)
+// A .txt is a root document only if no other root document exists with the same base name
+func isTxtRootDocument(txtPath string) bool {
+	// Get base path without extension
+	basePath := txtPath[:len(txtPath)-len(".txt")]
+
+	// Check if any root document exists with this base name
+	for _, ext := range rootDocumentExtensions {
+		rootPath := basePath + ext
+		if _, err := os.Stat(rootPath); err == nil {
+			// Root document exists, so this .txt is a sidecar
+			return false
+		}
+	}
+
+	// No root document found, this .txt is a primary document
+	return true
+}
+
+// cleanOrphanedSidecars finds and deletes sidecar files that have no corresponding root document
+// Returns the number of sidecar files deleted
+func (serverHandler *ServerHandler) cleanOrphanedSidecars() int {
+	documentPath := serverHandler.ServerConfig.DocumentPath
+	deletedCount := 0
+
+	// Sidecar patterns to check
+	sidecarSuffixes := []string{".txt", ".tags.json", ".tn_64.png"}
+
+	err := filepath.Walk(documentPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Continue walking
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Check if this is a sidecar file
+		fileName := filepath.Base(path)
+
+		for _, suffix := range sidecarSuffixes {
+			if strings.HasSuffix(fileName, suffix) {
+				// This is a potential sidecar file
+				// Get the base path (without the sidecar suffix)
+				var basePath string
+				if suffix == ".txt" || suffix == ".tags.json" {
+					// For .txt and .tags.json, the base is the path without the extension
+					ext := filepath.Ext(path)
+					basePath = path[:len(path)-len(ext)]
+				} else if suffix == ".tn_64.png" {
+					// For thumbnails, remove .tn_64.png suffix
+					basePath = path[:len(path)-len(".tn_64.png")]
+				}
+
+				// Check if any root document exists
+				rootExists := false
+				for _, rootExt := range rootDocumentExtensions {
+					rootPath := basePath + rootExt
+					if _, err := os.Stat(rootPath); err == nil {
+						rootExists = true
+						break
+					}
+				}
+
+				// If no root document exists, this sidecar is orphaned
+				if !rootExists {
+					Logger.Info("Deleting orphaned sidecar file", "path", path)
+					if err := os.Remove(path); err != nil {
+						Logger.Error("Failed to delete orphaned sidecar", "path", path, "error", err)
+					} else {
+						deletedCount++
+					}
+				}
+				break // Don't check other suffixes for this file
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		Logger.Error("Error walking document path for sidecar cleanup", "error", err)
+	}
+
+	return deletedCount
 }
 
 // moveOrphanToIngress moves an orphaned document (and its companion files) to the ingress folder

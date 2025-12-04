@@ -373,20 +373,27 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 	Logger.Info("Thumbnail check complete", "checked", thumbnailsChecked, "generated", thumbnailCount)
 
-	// Step 5: Recalculate word cloud
-	db.UpdateJobProgress(jobID, 85, "Recalculating word cloud")
+	// Step 5: Remove orphaned sidecar files (sidecars without root documents)
+	db.UpdateJobProgress(jobID, 80, "Cleaning orphaned sidecar files")
+	orphanedSidecarsDeleted := 0
+	Logger.Info("Checking for orphaned sidecar files")
+	orphanedSidecarsDeleted = serverHandler.cleanOrphanedSidecars()
+	Logger.Info("Orphaned sidecar cleanup complete", "deleted", orphanedSidecarsDeleted)
+
+	// Step 6: Recalculate word cloud
+	db.UpdateJobProgress(jobID, 90, "Recalculating word cloud")
 	Logger.Info("Recalculating word cloud after database cleanup")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
 		Logger.Error("Word cloud recalculation failed after cleanup", "error", err)
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d}`, totalDocs, deletedCount, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d}`, totalDocs, deletedCount, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
 
-	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount)
+	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted)
 }
 
 // ingressDocumentWithError is like ingressDocument but returns errors instead of just logging
