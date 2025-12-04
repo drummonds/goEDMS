@@ -150,6 +150,15 @@ func (t *TagsManagerPage) fetchTags(ctx app.Context) {
 	})
 }
 
+// tagRequestBody is used for creating/updating tags with proper JSON encoding
+type tagRequestBody struct {
+	Name        string  `json:"name"`
+	Color       string  `json:"color"`
+	Description string  `json:"description"`
+	TagGroup    *string `json:"tag_group,omitempty"`
+	SortOrder   int     `json:"sort_order"`
+}
+
 // createTag creates a new tag
 func (t *TagsManagerPage) createTag(ctx app.Context, e app.Event) {
 	e.PreventDefault()
@@ -160,15 +169,24 @@ func (t *TagsManagerPage) createTag(ctx app.Context, e app.Event) {
 		return
 	}
 
-	// Build JSON body with optional group
-	var body string
-	if t.newGroup != "" {
-		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "tag_group": "%s", "sort_order": %d}`,
-			t.newName, t.newColor, t.newDesc, t.newGroup, t.newSortOrder)
-	} else {
-		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "sort_order": %d}`,
-			t.newName, t.newColor, t.newDesc, t.newSortOrder)
+	// Build JSON body with proper escaping
+	reqBody := tagRequestBody{
+		Name:        t.newName,
+		Color:       t.newColor,
+		Description: t.newDesc,
+		SortOrder:   t.newSortOrder,
 	}
+	if t.newGroup != "" {
+		reqBody.TagGroup = &t.newGroup
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		t.message = "Error encoding tag data"
+		t.messageType = "error"
+		return
+	}
+	body := string(bodyBytes)
 
 	ctx.Async(func() {
 		opts := app.Window().Get("Object").New()
@@ -254,15 +272,24 @@ func (t *TagsManagerPage) saveEdit(ctx app.Context, e app.Event) {
 		return
 	}
 
-	// Build JSON body with optional group
-	var body string
-	if t.editGroup != "" {
-		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "tag_group": "%s", "sort_order": %d}`,
-			t.editName, t.editColor, t.editDesc, t.editGroup, t.editSortOrder)
-	} else {
-		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "tag_group": null, "sort_order": %d}`,
-			t.editName, t.editColor, t.editDesc, t.editSortOrder)
+	// Build JSON body with proper escaping
+	reqBody := tagRequestBody{
+		Name:        t.editName,
+		Color:       t.editColor,
+		Description: t.editDesc,
+		SortOrder:   t.editSortOrder,
 	}
+	if t.editGroup != "" {
+		reqBody.TagGroup = &t.editGroup
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		t.message = "Error encoding tag data"
+		t.messageType = "error"
+		return
+	}
+	body := string(bodyBytes)
 	tagID := t.editingID
 
 	ctx.Async(func() {

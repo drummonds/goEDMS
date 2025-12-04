@@ -1179,13 +1179,18 @@ h3 {
 
 .tag-item-active {
     background: #3498db;
-    border-color: #3498db;
+    border-color: #2980b9;
+    border-width: 2px;
     color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    transform: scale(1.02);
 }
 
 .tag-item-active:hover {
     background: #2980b9;
-    border-color: #2980b9;
+    border-color: #1a6ca8;
+    box-shadow: 0 3px 10px rgba(52, 152, 219, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
 /* Tag Group Styles (for edit page grouped tags) */
