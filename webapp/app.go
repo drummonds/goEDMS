@@ -29,6 +29,13 @@ var AppRoutes = []RouteConfig{
 			return len(path) > 6 && path[:6] == "/edit/"
 		},
 	},
+	{
+		Path:   "/text/",
+		Render: func() app.UI { return &TextViewPage{} },
+		MatchFunc: func(path string) bool {
+			return len(path) > 6 && path[:6] == "/text/"
+		},
+	},
 }
 
 // RegisterRoutes registers all application routes

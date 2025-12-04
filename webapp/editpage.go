@@ -657,13 +657,17 @@ func (e *EditPage) renderStatusSection() app.UI {
 		)
 	}
 
-	// Add regenerate button for PDF documents
+	// Add generate/regenerate button for PDF documents
 	if e.documentStatus.DocumentType == "pdf" {
-		buttonText := "Regenerate Thumbnail"
+		var buttonText string
 		buttonClass := "btn btn-small"
 		if e.regeneratingThumbnail {
-			buttonText = "Regenerating..."
+			buttonText = "Generating..."
 			buttonClass += " btn-disabled"
+		} else if e.documentStatus.HasThumbnail {
+			buttonText = "Regenerate Thumbnail"
+		} else {
+			buttonText = "Generate Thumbnail"
 		}
 		thumbnailElements = append(thumbnailElements,
 			app.Button().
@@ -697,8 +701,7 @@ func (e *EditPage) renderStatusSection() app.UI {
 		textUI = app.Div().Body(
 			statusIndicator(true, fmt.Sprintf("Has text (%d chars)", e.documentStatus.TextLength)),
 			app.A().
-				Href(BuildAPIURL(e.documentStatus.TextURL)).
-				Target("_blank").
+				Href("/text/"+e.ulid).
 				Class("status-link").
 				Text(" [View full text]"),
 		)
