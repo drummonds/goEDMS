@@ -741,6 +741,39 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/tags/groups": {
+            "get": {
+                "description": "Retrieve all distinct tag group names",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Get tag groups",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/tags/usage": {
             "get": {
                 "description": "Retrieve all tags with the number of documents using each tag",
@@ -1824,6 +1857,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "tag_group": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -1910,6 +1949,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "tag_group": {
                     "type": "string"
                 },
                 "updated_at": {

@@ -150,6 +150,10 @@ definitions:
         type: integer
       name:
         type: string
+      sort_order:
+        type: integer
+      tag_group:
+        type: string
       updated_at:
         type: string
     type: object
@@ -207,6 +211,10 @@ definitions:
       id:
         type: integer
       name:
+        type: string
+      sort_order:
+        type: integer
+      tag_group:
         type: string
       updated_at:
         type: string
@@ -822,6 +830,28 @@ paths:
             additionalProperties: true
             type: object
       summary: Update a tag
+      tags:
+      - Tags
+  /api/tags/groups:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all distinct tag group names
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get tag groups
       tags:
       - Tags
   /api/tags/usage:

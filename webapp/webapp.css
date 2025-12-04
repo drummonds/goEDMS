@@ -1188,6 +1188,40 @@ h3 {
     border-color: #2980b9;
 }
 
+/* Tag Group Styles (for edit page grouped tags) */
+.tag-group-section {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.tag-group-section:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.tag-group-free {
+    border-bottom: none;
+}
+
+.tag-group-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #34495e;
+    margin-bottom: 0.5rem;
+}
+
+.tag-group-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tag-group-item {
+    border-radius: 16px;
+}
+
 /* Dimension Styles */
 .dimension-group {
     margin-bottom: 1.5rem;
@@ -1542,6 +1576,69 @@ h3 {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1rem;
+}
+
+/* Tags sections - grouped tags */
+.tags-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.tags-group-section {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e0e0e0;
+}
+
+.tags-group-header {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.group-icon {
+    font-size: 1rem;
+}
+
+.group-count {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    font-weight: normal;
+}
+
+.tags-group-note {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin: 0 0 1rem 0;
+    font-style: italic;
+}
+
+.tags-group-free {
+    background: #fff;
+    border-color: #ddd;
+}
+
+/* Group input wrapper for create/edit */
+.group-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.form-select {
+    min-width: 150px;
+    max-width: 200px;
+}
+
+.form-input-new-group {
+    min-width: 120px;
+    max-width: 150px;
 }
 
 /* Tag card */

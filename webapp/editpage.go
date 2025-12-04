@@ -74,10 +74,12 @@ func getContrastTextColor(hexColor string) string {
 
 // Tag represents a tag from the API
 type Tag struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Color       string `json:"color"`
-	Description string `json:"description"`
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	Color       string  `json:"color"`
+	Description string  `json:"description"`
+	TagGroup    *string `json:"tag_group"`
+	SortOrder   int     `json:"sort_order"`
 }
 
 // DimensionValue represents a dimension value
@@ -115,7 +117,7 @@ type DocumentStatus struct {
 	FileSizeBytes int64  `json:"fileSizeBytes,omitempty"`
 }
 
-// EditPage allows editing document tags and dimensions
+// EditPage allows editing document tags (unified with grouped tags for dimensions)
 type EditPage struct {
 	app.Compo
 	ulid                  string
@@ -123,8 +125,6 @@ type EditPage struct {
 	documentStatus        DocumentStatus
 	allTags               []Tag
 	documentTags          []Tag
-	allDimensions         []Dimension
-	documentDimensions    map[string]DimensionValue
 	loading               bool
 	error                 string
 	newTagName            string
@@ -145,17 +145,11 @@ func (e *EditPage) loadData(ctx app.Context) {
 		// Load document status
 		e.fetchDocumentStatus(ctx)
 
-		// Load all tags
+		// Load all tags (including grouped tags which replace dimensions)
 		e.fetchAllTags(ctx)
 
 		// Load document tags
 		e.fetchDocumentTags(ctx)
-
-		// Load all dimensions
-		e.fetchAllDimensions(ctx)
-
-		// Load document dimensions
-		e.fetchDocumentDimensions(ctx)
 
 		ctx.Dispatch(func(ctx app.Context) {
 			e.loading = false
@@ -302,95 +296,6 @@ func (e *EditPage) fetchDocumentTags(ctx app.Context) {
 	}))
 }
 
-// fetchAllDimensions fetches all dimensions with their values
-func (e *EditPage) fetchAllDimensions(ctx app.Context) {
-	url := BuildAPIURL("/api/dimensions")
-	res := app.Window().Call("fetch", url)
-
-	res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
-		if len(args) == 0 {
-			return nil
-		}
-		response := args[0]
-		response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
-			if len(args) == 0 {
-				return nil
-			}
-			jsonData := args[0]
-			jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
-
-			var dimensions []Dimension
-			ctx.Dispatch(func(ctx app.Context) {
-				if err := json.Unmarshal([]byte(jsonStr), &dimensions); err != nil {
-					e.error = fmt.Sprintf("Failed to parse dimensions: %v", err)
-					LogError(ctx, "Failed to parse all dimensions", map[string]interface{}{
-						"component": "EditPage",
-						"action":    "fetchAllDimensions",
-						"error":     err.Error(),
-					})
-				} else {
-					e.allDimensions = dimensions
-				}
-			})
-			return nil
-		}))
-		return nil
-	}))
-}
-
-// fetchDocumentDimensions fetches dimensions for this document
-func (e *EditPage) fetchDocumentDimensions(ctx app.Context) {
-	url := BuildAPIURL(fmt.Sprintf("/api/documents/%s/dimensions", e.ulid))
-	res := app.Window().Call("fetch", url)
-
-	res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
-		if len(args) == 0 {
-			return nil
-		}
-		response := args[0]
-
-		// Check HTTP status
-		status := response.Get("status").Int()
-		if status != 200 {
-			ctx.Dispatch(func(ctx app.Context) {
-				e.error = fmt.Sprintf("Failed to load document dimensions: HTTP %d - Document ULID '%s' not found or invalid", status, e.ulid)
-				LogError(ctx, "Failed to load document dimensions", map[string]interface{}{
-					"component": "EditPage",
-					"action":    "fetchDocumentDimensions",
-					"ulid":      e.ulid,
-					"status":    status,
-				})
-			})
-			return nil
-		}
-
-		response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
-			if len(args) == 0 {
-				return nil
-			}
-			jsonData := args[0]
-			jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
-
-			var dims map[string]DimensionValue
-			ctx.Dispatch(func(ctx app.Context) {
-				if err := json.Unmarshal([]byte(jsonStr), &dims); err != nil {
-					e.error = fmt.Sprintf("Failed to parse document dimensions: %v", err)
-					LogError(ctx, "Failed to parse document dimensions", map[string]interface{}{
-						"component": "EditPage",
-						"action":    "fetchDocumentDimensions",
-						"ulid":      e.ulid,
-						"error":     err.Error(),
-					})
-				} else {
-					e.documentDimensions = dims
-				}
-			})
-			return nil
-		}))
-		return nil
-	}))
-}
-
 // hasTag checks if document has a specific tag
 func (e *EditPage) hasTag(tagID int) bool {
 	for _, t := range e.documentTags {
@@ -457,34 +362,6 @@ func (e *EditPage) removeTag(ctx app.Context, tagID int) {
 			return nil
 		}))
 	})
-}
-
-// setDimension sets a dimension value for the document
-func (e *EditPage) setDimension(dimensionName, value string) func(ctx app.Context, ev app.Event) {
-	return func(ctx app.Context, ev app.Event) {
-		ev.PreventDefault()
-
-		url := BuildAPIURL(fmt.Sprintf("/api/documents/%s/dimensions", e.ulid))
-		body := fmt.Sprintf(`{"dimension_name": "%s", "value": "%s"}`, dimensionName, value)
-
-		ctx.Async(func() {
-			opts := app.Window().Get("Object").New()
-			opts.Set("method", "POST")
-			opts.Set("headers", map[string]interface{}{
-				"Content-Type": "application/json",
-			})
-			opts.Set("body", body)
-
-			res := app.Window().Call("fetch", url, opts)
-			res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
-				ctx.Dispatch(func(ctx app.Context) {
-					// Reload dimensions
-					e.fetchDocumentDimensions(ctx)
-				})
-				return nil
-			}))
-		})
-	}
 }
 
 // regenerateThumbnail triggers thumbnail regeneration for the document
@@ -562,11 +439,10 @@ func (e *EditPage) Render() app.UI {
 		app.H2().Text("Edit Document: "+e.ulid),
 
 		app.Div().Class("edit-layout").Body(
-			// Left sidebar - Status, Tags and Dimensions
+			// Left sidebar - Status and Tags (unified with grouped tags for dimensions)
 			app.Div().Class("edit-sidebar").Body(
 				e.renderStatusSection(),
 				e.renderTagsSection(),
-				e.renderDimensionsSection(),
 			),
 
 			// Right side - Document viewer
@@ -750,70 +626,144 @@ func (e *EditPage) renderStatusSection() app.UI {
 	)
 }
 
-// renderTagsSection renders the tags editing section
+// renderTagsSection renders the tags editing section, organized by groups
 func (e *EditPage) renderTagsSection() app.UI {
+	// Separate tags into groups and free tags
+	groupedTags := make(map[string][]Tag)
+	var freeTags []Tag
+	var groupOrder []string
+
+	for _, tag := range e.allTags {
+		if tag.TagGroup != nil && *tag.TagGroup != "" {
+			group := *tag.TagGroup
+			if _, exists := groupedTags[group]; !exists {
+				groupOrder = append(groupOrder, group)
+			}
+			groupedTags[group] = append(groupedTags[group], tag)
+		} else {
+			freeTags = append(freeTags, tag)
+		}
+	}
+
+	var sections []app.UI
+
+	// Render grouped tags first (one-per-group behavior)
+	for _, group := range groupOrder {
+		tags := groupedTags[group]
+		sections = append(sections,
+			app.Div().Class("tag-group-section").Body(
+				app.Label().Class("tag-group-label").Text(group),
+				app.Div().Class("tag-group-values").Body(
+					app.Range(tags).Slice(func(i int) app.UI {
+						tag := tags[i]
+						isActive := e.hasTag(tag.ID)
+						className := "tag-item tag-group-item"
+						if isActive {
+							className += " tag-item-active"
+						}
+
+						textColor := getContrastTextColor(tag.Color)
+						return app.Button().
+							Class(className).
+							Style("background-color", tag.Color).
+							Style("color", textColor).
+							OnClick(e.toggleGroupTag(tag.ID, group)).
+							Body(app.Text(tag.Name))
+					}),
+				),
+			),
+		)
+	}
+
+	// Render free tags (multiple selection allowed)
+	if len(freeTags) > 0 {
+		sections = append(sections,
+			app.Div().Class("tag-group-section tag-group-free").Body(
+				app.Label().Class("tag-group-label").Text("Tags"),
+				app.Div().Class("tags-list").Body(
+					app.Range(freeTags).Slice(func(i int) app.UI {
+						tag := freeTags[i]
+						isActive := e.hasTag(tag.ID)
+						className := "tag-item"
+						if isActive {
+							className += " tag-item-active"
+						}
+
+						textColor := getContrastTextColor(tag.Color)
+						return app.Button().
+							Class(className).
+							Style("background-color", tag.Color).
+							Style("color", textColor).
+							OnClick(e.toggleTag(tag.ID)).
+							Body(app.Text(tag.Name))
+					}),
+				),
+			),
+		)
+	}
+
 	return app.Div().Class("edit-section").Body(
 		app.H3().Text("Tags"),
-		app.Div().Class("tags-list").Body(
-			app.Range(e.allTags).Slice(func(i int) app.UI {
-				tag := e.allTags[i]
-				isActive := e.hasTag(tag.ID)
-				className := "tag-item"
-				if isActive {
-					className += " tag-item-active"
-				}
-
-				textColor := getContrastTextColor(tag.Color)
-				return app.Button().
-					Class(className).
-					Style("background-color", tag.Color).
-					Style("color", textColor).
-					OnClick(e.toggleTag(tag.ID)).
-					Body(app.Text(tag.Name))
-			}),
-		),
+		app.Div().Body(sections...),
 	)
 }
 
-// renderDimensionsSection renders the dimensions editing section
-func (e *EditPage) renderDimensionsSection() app.UI {
-	return app.Div().Class("edit-section").Body(
-		app.H3().Text("Dimensions"),
-		app.Range(e.allDimensions).Slice(func(i int) app.UI {
-			dim := e.allDimensions[i]
+// toggleGroupTag handles tag selection within a group (one-per-group)
+func (e *EditPage) toggleGroupTag(tagID int, group string) func(ctx app.Context, ev app.Event) {
+	return func(ctx app.Context, ev app.Event) {
+		ev.PreventDefault()
 
-			// Get current value for this dimension
-			currentValue, hasValue := e.documentDimensions[dim.Name]
-			currentValueStr := ""
-			if hasValue {
-				currentValueStr = currentValue.Value
+		// Check if this tag is already active
+		if e.hasTag(tagID) {
+			// Just remove it
+			e.removeTag(ctx, tagID)
+			return
+		}
+
+		// First, find and remove any existing tag from the same group
+		for _, existingTag := range e.documentTags {
+			if existingTag.TagGroup != nil && *existingTag.TagGroup == group {
+				e.removeTagAndAdd(ctx, existingTag.ID, tagID)
+				return
 			}
+		}
 
-			return app.Div().Class("dimension-group").Body(
-				app.Label().Class("dimension-label").Body(
-					app.Text(dim.DisplayName),
-				),
-				app.Div().Class("dimension-values").Body(
-					app.Range(dim.Values).Slice(func(j int) app.UI {
-						val := dim.Values[j]
-						isActive := currentValueStr == val.Value
-						className := "dimension-value"
-						if isActive {
-							className += " dimension-value-active"
-						}
+		// No existing tag in group, just add the new one
+		e.addTag(ctx, tagID)
+	}
+}
 
-						valTextColor := getContrastTextColor(val.Color)
-						return app.Button().
-							Class(className).
-							Style("background-color", val.Color).
-							Style("color", valTextColor).
-							OnClick(e.setDimension(dim.Name, val.Value)).
-							Body(app.Text(val.DisplayName))
-					}),
-				),
-			)
-		}),
-	)
+// removeTagAndAdd removes one tag and adds another (for group switching)
+func (e *EditPage) removeTagAndAdd(ctx app.Context, removeID int, addID int) {
+	removeURL := BuildAPIURL(fmt.Sprintf("/api/documents/%s/tags/%d", e.ulid, removeID))
+	addURL := BuildAPIURL(fmt.Sprintf("/api/documents/%s/tags", e.ulid))
+	addBody := fmt.Sprintf(`{"tag_id": %d}`, addID)
+
+	ctx.Async(func() {
+		// Remove the old tag first
+		removeOpts := app.Window().Get("Object").New()
+		removeOpts.Set("method", "DELETE")
+
+		res := app.Window().Call("fetch", removeURL, removeOpts)
+		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			// Then add the new tag
+			addOpts := app.Window().Get("Object").New()
+			addOpts.Set("method", "POST")
+			addOpts.Set("headers", map[string]interface{}{
+				"Content-Type": "application/json",
+			})
+			addOpts.Set("body", addBody)
+
+			addRes := app.Window().Call("fetch", addURL, addOpts)
+			addRes.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+				ctx.Dispatch(func(ctx app.Context) {
+					e.fetchDocumentTags(ctx)
+				})
+				return nil
+			}))
+			return nil
+		}))
+	})
 }
 
 // renderDocumentViewer renders the document viewer

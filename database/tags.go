@@ -6,13 +6,17 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// Tag represents a free-form tag that can be applied to documents
+// Tag represents a tag that can be applied to documents
+// If TagGroup is nil/empty, it's a free tag (multiple allowed per document)
+// If TagGroup has a value, only one tag from that group is allowed per document
 type Tag struct {
 	bun.BaseModel `bun:"table:tags"`
 	ID            int       `json:"id" bun:"id,pk,autoincrement"`
 	Name          string    `json:"name" bun:"name"`
 	Color         string    `json:"color" bun:"color"`
 	Description   string    `json:"description,omitempty" bun:"description"`
+	TagGroup      *string   `json:"tag_group,omitempty" bun:"tag_group"`
+	SortOrder     int       `json:"sort_order" bun:"sort_order"`
 	CreatedAt     time.Time `json:"created_at" bun:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at" bun:"updated_at"`
 }

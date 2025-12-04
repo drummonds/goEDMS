@@ -20,18 +20,35 @@ func (b *BunDB) CreateTag(tag *Tag) error {
 	return nil
 }
 
-// GetAllTags returns all tags
+// GetAllTags returns all tags sorted by group and sort_order
 func (b *BunDB) GetAllTags() ([]Tag, error) {
 	ctx := context.Background()
 	var tags []Tag
 	err := b.db.NewSelect().
 		Model(&tags).
-		Order("name ASC").
+		Order("tag_group ASC NULLS FIRST", "sort_order ASC", "name ASC").
 		Scan(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all tags: %w", err)
 	}
 	return tags, nil
+}
+
+// GetTagGroups returns all distinct tag group names
+func (b *BunDB) GetTagGroups() ([]string, error) {
+	ctx := context.Background()
+	var groups []string
+	err := b.db.NewSelect().
+		Model((*Tag)(nil)).
+		Column("tag_group").
+		Where("tag_group IS NOT NULL").
+		Distinct().
+		Order("tag_group ASC").
+		Scan(ctx, &groups)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tag groups: %w", err)
+	}
+	return groups, nil
 }
 
 // GetTagByID returns a tag by its ID
@@ -101,11 +118,11 @@ func (b *BunDB) GetTagsForDocument(documentID int) ([]Tag, error) {
 
 	// Use raw query to avoid any ORM alias issues
 	err := b.db.NewRaw(`
-		SELECT t.id, t.name, t.color, t.description, t.created_at, t.updated_at
+		SELECT t.id, t.name, t.color, t.description, t.tag_group, t.sort_order, t.created_at, t.updated_at
 		FROM tags t
 		INNER JOIN document_tags dt ON dt.tag_id = t.id
 		WHERE dt.document_id = ?
-		ORDER BY t.name ASC
+		ORDER BY t.tag_group ASC NULLS FIRST, t.sort_order ASC, t.name ASC
 	`, documentID).Scan(ctx, &tags)
 
 	if err != nil {

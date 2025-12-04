@@ -248,6 +248,7 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	// Tag API routes
 	e.GET("/api/tags", serverHandler.GetAllTags)
 	e.GET("/api/tags/usage", serverHandler.GetAllTagsWithUsage)
+	e.GET("/api/tags/groups", serverHandler.GetTagGroups)
 	e.POST("/api/tags", serverHandler.CreateTag)
 	e.PUT("/api/tags/:id", serverHandler.UpdateTag)
 	e.DELETE("/api/tags/:id", serverHandler.DeleteTag)

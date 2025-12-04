@@ -73,6 +73,26 @@ func (serverHandler *ServerHandler) GetAllTagsWithUsage(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+// GetTagGroups returns a list of distinct tag groups
+// @Summary Get tag groups
+// @Description Retrieve all distinct tag group names
+// @Tags Tags
+// @Accept json
+// @Produce json
+// @Success 200 {array} string
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/tags/groups [get]
+func (serverHandler *ServerHandler) GetTagGroups(c echo.Context) error {
+	groups, err := serverHandler.DB.GetTagGroups()
+	if err != nil {
+		Logger.Error("Failed to get tag groups", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"error": "Failed to retrieve tag groups",
+		})
+	}
+	return c.JSON(http.StatusOK, groups)
+}
+
 // CreateTag creates a new tag
 // @Summary Create a new tag
 // @Description Create a new tag

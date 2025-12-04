@@ -9,26 +9,33 @@ import (
 
 // TagWithUsage represents a tag with its usage count from the API
 type TagWithUsage struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Color       string `json:"color"`
-	Description string `json:"description"`
-	UsageCount  int    `json:"usageCount"`
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	Color       string  `json:"color"`
+	Description string  `json:"description"`
+	TagGroup    *string `json:"tag_group"`
+	SortOrder   int     `json:"sort_order"`
+	UsageCount  int     `json:"usageCount"`
 }
 
 // TagsManagerPage displays and manages all tags in the system
 type TagsManagerPage struct {
 	app.Compo
 	tags          []TagWithUsage
+	groups        []string // Available tag groups
 	loading       bool
 	error         string
 	editingID     int    // ID of tag currently being edited (0 = none)
 	editName      string // Temporary name during editing
 	editColor     string // Temporary color during editing
 	editDesc      string // Temporary description during editing
+	editGroup     string // Temporary group during editing (empty = free tag)
+	editSortOrder int    // Temporary sort order during editing
 	newName       string // New tag name input
 	newColor      string // New tag color input
 	newDesc       string // New tag description input
+	newGroup      string // New tag group input (empty = free tag)
+	newSortOrder  int    // New tag sort order
 	deleteConfirm int    // ID of tag pending delete confirmation (0 = none)
 	message       string // Success/info message
 	messageType   string // "success" or "error"
@@ -39,6 +46,43 @@ func (t *TagsManagerPage) OnMount(ctx app.Context) {
 	t.loading = true
 	t.newColor = "#3498db" // Default color for new tags
 	t.fetchTags(ctx)
+	t.fetchGroups(ctx)
+}
+
+// fetchGroups fetches all available tag groups
+func (t *TagsManagerPage) fetchGroups(ctx app.Context) {
+	ctx.Async(func() {
+		url := BuildAPIURL("/api/tags/groups")
+		res := app.Window().Call("fetch", url)
+
+		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) == 0 {
+				return nil
+			}
+			response := args[0]
+			status := response.Get("status").Int()
+			if status != 200 {
+				return nil
+			}
+
+			response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+				if len(args) == 0 {
+					return nil
+				}
+				jsonData := args[0]
+				jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
+
+				var groups []string
+				ctx.Dispatch(func(ctx app.Context) {
+					if err := json.Unmarshal([]byte(jsonStr), &groups); err == nil {
+						t.groups = groups
+					}
+				})
+				return nil
+			}))
+			return nil
+		}))
+	})
 }
 
 // fetchTags fetches all tags with usage counts from the API
@@ -116,7 +160,15 @@ func (t *TagsManagerPage) createTag(ctx app.Context, e app.Event) {
 		return
 	}
 
-	body := fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s"}`, t.newName, t.newColor, t.newDesc)
+	// Build JSON body with optional group
+	var body string
+	if t.newGroup != "" {
+		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "tag_group": "%s", "sort_order": %d}`,
+			t.newName, t.newColor, t.newDesc, t.newGroup, t.newSortOrder)
+	} else {
+		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "sort_order": %d}`,
+			t.newName, t.newColor, t.newDesc, t.newSortOrder)
+	}
 
 	ctx.Async(func() {
 		opts := app.Window().Get("Object").New()
@@ -143,7 +195,10 @@ func (t *TagsManagerPage) createTag(ctx app.Context, e app.Event) {
 					t.newName = ""
 					t.newDesc = ""
 					t.newColor = "#3498db"
+					t.newGroup = ""
+					t.newSortOrder = 0
 					t.fetchTags(ctx)
+					t.fetchGroups(ctx)
 				} else {
 					t.message = "Failed to create tag"
 					t.messageType = "error"
@@ -168,6 +223,12 @@ func (t *TagsManagerPage) startEdit(tag TagWithUsage) func(ctx app.Context, e ap
 		t.editName = tag.Name
 		t.editColor = tag.Color
 		t.editDesc = tag.Description
+		if tag.TagGroup != nil {
+			t.editGroup = *tag.TagGroup
+		} else {
+			t.editGroup = ""
+		}
+		t.editSortOrder = tag.SortOrder
 		t.deleteConfirm = 0
 	}
 }
@@ -179,6 +240,8 @@ func (t *TagsManagerPage) cancelEdit(ctx app.Context, e app.Event) {
 	t.editName = ""
 	t.editColor = ""
 	t.editDesc = ""
+	t.editGroup = ""
+	t.editSortOrder = 0
 }
 
 // saveEdit saves the edited tag
@@ -191,7 +254,15 @@ func (t *TagsManagerPage) saveEdit(ctx app.Context, e app.Event) {
 		return
 	}
 
-	body := fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s"}`, t.editName, t.editColor, t.editDesc)
+	// Build JSON body with optional group
+	var body string
+	if t.editGroup != "" {
+		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "tag_group": "%s", "sort_order": %d}`,
+			t.editName, t.editColor, t.editDesc, t.editGroup, t.editSortOrder)
+	} else {
+		body = fmt.Sprintf(`{"name": "%s", "color": "%s", "description": "%s", "tag_group": null, "sort_order": %d}`,
+			t.editName, t.editColor, t.editDesc, t.editSortOrder)
+	}
 	tagID := t.editingID
 
 	ctx.Async(func() {
@@ -217,7 +288,10 @@ func (t *TagsManagerPage) saveEdit(ctx app.Context, e app.Event) {
 					t.message = "Tag updated successfully"
 					t.messageType = "success"
 					t.editingID = 0
+					t.editGroup = ""
+					t.editSortOrder = 0
 					t.fetchTags(ctx)
+					t.fetchGroups(ctx)
 				} else {
 					t.message = "Failed to update tag"
 					t.messageType = "error"
@@ -316,6 +390,14 @@ func (t *TagsManagerPage) onEditDescChange(ctx app.Context, e app.Event) {
 	t.editDesc = ctx.JSSrc().Get("value").String()
 }
 
+func (t *TagsManagerPage) onNewGroupChange(ctx app.Context, e app.Event) {
+	t.newGroup = ctx.JSSrc().Get("value").String()
+}
+
+func (t *TagsManagerPage) onEditGroupChange(ctx app.Context, e app.Event) {
+	t.editGroup = ctx.JSSrc().Get("value").String()
+}
+
 // clearMessage clears the message
 func (t *TagsManagerPage) clearMessage(ctx app.Context, e app.Event) {
 	t.message = ""
@@ -326,7 +408,7 @@ func (t *TagsManagerPage) clearMessage(ctx app.Context, e app.Event) {
 func (t *TagsManagerPage) Render() app.UI {
 	return app.Div().Class("tags-manager-page").Body(
 		app.H2().Text("Tags Manager"),
-		app.P().Class("page-description").Text("Create, edit, and delete tags. Tags in use by documents can still be deleted."),
+		app.P().Class("page-description").Text("Create, edit, and delete tags. Tags with a group enforce one-per-group per document. Free tags (no group) can be applied multiple times."),
 
 		// Message display
 		app.If(t.message != "", func() app.UI {
@@ -350,23 +432,89 @@ func (t *TagsManagerPage) Render() app.UI {
 			return app.Div().Class("error").Text(t.error)
 		}),
 
-		// Tags list
+		// Tags list - organized by groups
 		app.If(!t.loading && t.error == "", func() app.UI {
 			if len(t.tags) == 0 {
 				return app.Div().Class("no-results").Text("No tags found. Create your first tag above!")
 			}
-			return app.Div().Class("tags-grid").Body(
-				app.Range(t.tags).Slice(func(i int) app.UI {
-					tag := t.tags[i]
-					return t.renderTagCard(tag)
-				}),
-			)
+			return t.renderTagsByGroups()
 		}),
 	)
 }
 
+// renderTagsByGroups renders tags organized by their groups
+func (t *TagsManagerPage) renderTagsByGroups() app.UI {
+	// Separate tags into groups and free tags
+	groupedTags := make(map[string][]TagWithUsage)
+	var freeTags []TagWithUsage
+	var groupOrder []string
+
+	for _, tag := range t.tags {
+		if tag.TagGroup != nil && *tag.TagGroup != "" {
+			group := *tag.TagGroup
+			if _, exists := groupedTags[group]; !exists {
+				groupOrder = append(groupOrder, group)
+			}
+			groupedTags[group] = append(groupedTags[group], tag)
+		} else {
+			freeTags = append(freeTags, tag)
+		}
+	}
+
+	var sections []app.UI
+
+	// Render grouped tags first
+	for _, group := range groupOrder {
+		tags := groupedTags[group]
+		sections = append(sections,
+			app.Div().Class("tags-group-section").Body(
+				app.H3().Class("tags-group-header").Body(
+					app.Span().Class("group-icon").Text("📁"),
+					app.Text(" "+group),
+					app.Span().Class("group-count").Text(fmt.Sprintf(" (%d tags)", len(tags))),
+				),
+				app.P().Class("tags-group-note").Text("One tag per document from this group"),
+				app.Div().Class("tags-grid").Body(
+					app.Range(tags).Slice(func(i int) app.UI {
+						return t.renderTagCard(tags[i])
+					}),
+				),
+			),
+		)
+	}
+
+	// Render free tags
+	if len(freeTags) > 0 {
+		sections = append(sections,
+			app.Div().Class("tags-group-section tags-group-free").Body(
+				app.H3().Class("tags-group-header").Body(
+					app.Span().Class("group-icon").Text("🏷️"),
+					app.Text(" Free Tags"),
+					app.Span().Class("group-count").Text(fmt.Sprintf(" (%d tags)", len(freeTags))),
+				),
+				app.P().Class("tags-group-note").Text("Can be applied freely to any document"),
+				app.Div().Class("tags-grid").Body(
+					app.Range(freeTags).Slice(func(i int) app.UI {
+						return t.renderTagCard(freeTags[i])
+					}),
+				),
+			),
+		)
+	}
+
+	return app.Div().Class("tags-sections").Body(sections...)
+}
+
 // renderCreateForm renders the create tag form
 func (t *TagsManagerPage) renderCreateForm() app.UI {
+	// Build group options with selected state
+	groupOptions := []app.UI{
+		app.Option().Value("").Text("(Free tag - no group)").Selected(t.newGroup == ""),
+	}
+	for _, group := range t.groups {
+		groupOptions = append(groupOptions, app.Option().Value(group).Text(group).Selected(t.newGroup == group))
+	}
+
 	return app.Div().Class("create-tag-section").Body(
 		app.H3().Text("Create New Tag"),
 		app.Form().Class("create-tag-form").OnSubmit(t.createTag).Body(
@@ -390,6 +538,25 @@ func (t *TagsManagerPage) renderCreateForm() app.UI {
 						Class("form-input-color").
 						Value(t.newColor).
 						OnInput(t.onNewColorChange),
+				),
+			),
+			app.Div().Class("form-row").Body(
+				app.Div().Class("form-group").Body(
+					app.Label().Text("Group (optional)").For("new-tag-group"),
+					app.Div().Class("group-input-wrapper").Body(
+						app.Select().
+							ID("new-tag-group").
+							Class("form-input form-select").
+							OnChange(t.onNewGroupChange).
+							Body(groupOptions...),
+						app.Text(" or "),
+						app.Input().
+							Type("text").
+							Class("form-input form-input-new-group").
+							Placeholder("New group name").
+							Value(t.newGroup).
+							OnInput(t.onNewGroupChange),
+					),
 				),
 			),
 			app.Div().Class("form-group").Body(
@@ -435,8 +602,15 @@ func (t *TagsManagerPage) renderTagCard(tag TagWithUsage) app.UI {
 		)
 	}
 
-	// Edit mode
+	// Edit mode - build group options
 	if isEditing {
+		groupOptions := []app.UI{
+			app.Option().Value("").Text("(Free tag - no group)").Selected(t.editGroup == ""),
+		}
+		for _, group := range t.groups {
+			groupOptions = append(groupOptions, app.Option().Value(group).Text(group).Selected(t.editGroup == group))
+		}
+
 		return app.Div().Class("tag-card tag-card-editing").Body(
 			app.Div().Class("tag-edit-form").Body(
 				app.Div().Class("form-row").Body(
@@ -455,6 +629,22 @@ func (t *TagsManagerPage) renderTagCard(tag TagWithUsage) app.UI {
 							Class("form-input-color").
 							Value(t.editColor).
 							OnInput(t.onEditColorChange),
+					),
+				),
+				app.Div().Class("form-group").Body(
+					app.Label().Text("Group"),
+					app.Div().Class("group-input-wrapper").Body(
+						app.Select().
+							Class("form-input form-select").
+							OnChange(t.onEditGroupChange).
+							Body(groupOptions...),
+						app.Text(" or "),
+						app.Input().
+							Type("text").
+							Class("form-input form-input-new-group").
+							Placeholder("New group").
+							Value(t.editGroup).
+							OnInput(t.onEditGroupChange),
 					),
 				),
 				app.Div().Class("form-group").Body(

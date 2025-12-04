@@ -11,17 +11,18 @@ import (
 
 // CreateTag creates a new tag
 func (p *PostgresDB) CreateTag(tag *Tag) error {
-	query := `INSERT INTO tags (name, color, description) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
-	err := p.db.QueryRow(query, tag.Name, tag.Color, tag.Description).Scan(&tag.ID, &tag.CreatedAt, &tag.UpdatedAt)
+	query := `INSERT INTO tags (name, color, description, tag_group, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at`
+	err := p.db.QueryRow(query, tag.Name, tag.Color, tag.Description, tag.TagGroup, tag.SortOrder).Scan(&tag.ID, &tag.CreatedAt, &tag.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create tag: %w", err)
 	}
 	return nil
 }
 
-// GetAllTags returns all tags
+// GetAllTags returns all tags sorted by group and sort_order
 func (p *PostgresDB) GetAllTags() ([]Tag, error) {
-	query := `SELECT id, name, color, description, created_at, updated_at FROM tags ORDER BY name ASC`
+	query := `SELECT id, name, color, description, tag_group, sort_order, created_at, updated_at
+	          FROM tags ORDER BY tag_group ASC NULLS FIRST, sort_order ASC, name ASC`
 	rows, err := p.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tags: %w", err)
@@ -31,7 +32,7 @@ func (p *PostgresDB) GetAllTags() ([]Tag, error) {
 	var tags []Tag
 	for rows.Next() {
 		var tag Tag
-		err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.CreatedAt, &tag.UpdatedAt)
+		err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.TagGroup, &tag.SortOrder, &tag.CreatedAt, &tag.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tag: %w", err)
 		}
@@ -40,11 +41,31 @@ func (p *PostgresDB) GetAllTags() ([]Tag, error) {
 	return tags, rows.Err()
 }
 
+// GetTagGroups returns all distinct tag group names
+func (p *PostgresDB) GetTagGroups() ([]string, error) {
+	query := `SELECT DISTINCT tag_group FROM tags WHERE tag_group IS NOT NULL ORDER BY tag_group ASC`
+	rows, err := p.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tag groups: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []string
+	for rows.Next() {
+		var group string
+		if err := rows.Scan(&group); err != nil {
+			return nil, fmt.Errorf("failed to scan tag group: %w", err)
+		}
+		groups = append(groups, group)
+	}
+	return groups, rows.Err()
+}
+
 // GetTagByID returns a tag by its ID
 func (p *PostgresDB) GetTagByID(id int) (*Tag, error) {
-	query := `SELECT id, name, color, description, created_at, updated_at FROM tags WHERE id = $1`
+	query := `SELECT id, name, color, description, tag_group, sort_order, created_at, updated_at FROM tags WHERE id = $1`
 	tag := &Tag{}
-	err := p.db.QueryRow(query, id).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.CreatedAt, &tag.UpdatedAt)
+	err := p.db.QueryRow(query, id).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.TagGroup, &tag.SortOrder, &tag.CreatedAt, &tag.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -56,9 +77,9 @@ func (p *PostgresDB) GetTagByID(id int) (*Tag, error) {
 
 // GetTagByName returns a tag by its name
 func (p *PostgresDB) GetTagByName(name string) (*Tag, error) {
-	query := `SELECT id, name, color, description, created_at, updated_at FROM tags WHERE name = $1`
+	query := `SELECT id, name, color, description, tag_group, sort_order, created_at, updated_at FROM tags WHERE name = $1`
 	tag := &Tag{}
-	err := p.db.QueryRow(query, name).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.CreatedAt, &tag.UpdatedAt)
+	err := p.db.QueryRow(query, name).Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.TagGroup, &tag.SortOrder, &tag.CreatedAt, &tag.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -70,8 +91,8 @@ func (p *PostgresDB) GetTagByName(name string) (*Tag, error) {
 
 // UpdateTag updates an existing tag
 func (p *PostgresDB) UpdateTag(tag *Tag) error {
-	query := `UPDATE tags SET name = $1, color = $2, description = $3 WHERE id = $4`
-	_, err := p.db.Exec(query, tag.Name, tag.Color, tag.Description, tag.ID)
+	query := `UPDATE tags SET name = $1, color = $2, description = $3, tag_group = $4, sort_order = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6`
+	_, err := p.db.Exec(query, tag.Name, tag.Color, tag.Description, tag.TagGroup, tag.SortOrder, tag.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update tag: %w", err)
 	}
@@ -91,11 +112,11 @@ func (p *PostgresDB) DeleteTag(id int) error {
 // GetTagsForDocument returns all tags associated with a document
 func (p *PostgresDB) GetTagsForDocument(documentID int) ([]Tag, error) {
 	query := `
-		SELECT t.id, t.name, t.color, t.description, t.created_at, t.updated_at
+		SELECT t.id, t.name, t.color, t.description, t.tag_group, t.sort_order, t.created_at, t.updated_at
 		FROM tags t
 		INNER JOIN document_tags dt ON dt.tag_id = t.id
 		WHERE dt.document_id = $1
-		ORDER BY t.name ASC
+		ORDER BY t.tag_group ASC NULLS FIRST, t.sort_order ASC, t.name ASC
 	`
 	rows, err := p.db.Query(query, documentID)
 	if err != nil {
@@ -106,7 +127,7 @@ func (p *PostgresDB) GetTagsForDocument(documentID int) ([]Tag, error) {
 	var tags []Tag
 	for rows.Next() {
 		var tag Tag
-		err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.CreatedAt, &tag.UpdatedAt)
+		err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description, &tag.TagGroup, &tag.SortOrder, &tag.CreatedAt, &tag.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tag: %w", err)
 		}
