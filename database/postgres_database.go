@@ -1,16 +1,14 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 
 	config "github.com/drummonds/godocs/config"
 	"github.com/oklog/ulid/v2"
@@ -73,54 +71,13 @@ func SetupPostgresDatabase(connectionString string) (*PostgresDB, error) {
 	}, nil
 }
 
-func runPostgresMigrations(db *sql.DB) error {
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to create migration driver: %w", err)
-	}
+func runPostgresMigrations(sqlDB *sql.DB) error {
+	// Create a bun.DB wrapper around the sql.DB to use bun migrations
+	bunDB := bun.NewDB(sqlDB, pgdialect.New())
 
-	// Try to find the migrations directory
-	// First try from project root
-	migrationsPath, err := filepath.Abs("database/migrations")
-	if err != nil {
-		return fmt.Errorf("failed to get migrations path: %w", err)
-	}
-
-	// If running from within the database directory (during tests), adjust path
-	if _, err := os.Stat(migrationsPath); os.IsNotExist(err) {
-		migrationsPath, err = filepath.Abs("migrations")
-		if err != nil {
-			return fmt.Errorf("failed to get migrations path: %w", err)
-		}
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
-		fmt.Sprintf("file://%s", migrationsPath),
-		"postgres",
-		driver,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
-	}
-
-	// Check current version and apply migrations
-	version, dirty, err := m.Version()
-	if err != nil && err != migrate.ErrNilVersion {
-		return fmt.Errorf("failed to get current version: %w", err)
-	}
-
-	if dirty {
-		// Try to force clean and retry
-		Logger.Warn("Database is in dirty state, attempting to recover")
-		if err := m.Force(int(version)); err != nil {
-			return fmt.Errorf("failed to force migration version: %w", err)
-		}
-	}
-
-	// Apply latest migrations
-	Logger.Info("Applying database migrations")
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("failed to apply migrations: %w", err)
+	// Run migrations using the unified bun migration system
+	if err := runMigrations(context.Background(), bunDB); err != nil {
+		return fmt.Errorf("failed to run bun migrations: %w", err)
 	}
 
 	Logger.Info("Database migrations completed successfully")

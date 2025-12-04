@@ -8,6 +8,14 @@ import (
 	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
+// AppliedMigration tracks which migrations have been applied
+type AppliedMigration struct {
+	bun.BaseModel `bun:"table:bun_schema_migrations"`
+	ID            int64  `bun:"id,pk,autoincrement"`
+	Version       string `bun:"version,notnull,unique"`
+	AppliedAt     string `bun:"applied_at,default:current_timestamp"`
+}
+
 // runMigrations runs all Bun migrations
 func runMigrations(ctx context.Context, db *bun.DB) error {
 	// Detect database dialect by type assertion
@@ -15,36 +23,16 @@ func runMigrations(ctx context.Context, db *bun.DB) error {
 
 	Logger.Info("Detected database dialect for migrations", "isPostgres", isPostgres)
 
-	// Create a simple migrations tracking table with dialect-specific syntax
-	var createMigrationsTableSQL string
-	if isPostgres {
-		createMigrationsTableSQL = `
-			CREATE TABLE IF NOT EXISTS bun_schema_migrations (
-				id SERIAL PRIMARY KEY,
-				version TEXT NOT NULL UNIQUE,
-				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-			)
-		`
-	} else {
-		createMigrationsTableSQL = `
-			CREATE TABLE IF NOT EXISTS bun_schema_migrations (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				version TEXT NOT NULL UNIQUE,
-				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-			)
-		`
-	}
-
-	_, err := db.ExecContext(ctx, createMigrationsTableSQL)
+	// Create migrations tracking table using bun's model-based approach
+	_, err := db.NewCreateTable().
+		Model((*AppliedMigration)(nil)).
+		IfNotExists().
+		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
 	// Check which migrations have been applied
-	type AppliedMigration struct {
-		bun.BaseModel `bun:"table:bun_schema_migrations"`
-		Version       string `bun:"version"`
-	}
 	var applied []AppliedMigration
 	err = db.NewSelect().
 		Model(&applied).
@@ -69,6 +57,7 @@ func runMigrations(ctx context.Context, db *bun.DB) error {
 		{"003", "add_word_cloud", init003AddWordCloud},
 		{"004", "create_jobs_table", init004CreateJobsTable},
 		{"005", "add_tagging_system", init005AddTaggingSystem},
+		{"006", "unify_tags_dimensions", init006UnifyTagsDimensions},
 	}
 
 	for _, m := range migrations {
@@ -848,5 +837,200 @@ func init005RollbackTaggingSystem(ctx context.Context, db *bun.DB) error {
 	}
 
 	Logger.Info("Migration 005 rollback completed")
+	return nil
+}
+
+// Migration 006: Unify Tags and Dimensions
+// Adds tag_group to tags table and migrates dimension values to grouped tags
+func init006UnifyTagsDimensions(ctx context.Context, db *bun.DB) error {
+	Logger.Info("Running migration 006: Unify tags and dimensions")
+
+	// Detect database dialect
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
+
+	// Step 1: Add new columns to tags table
+	Logger.Info("Migration 006: Adding tag_group and sort_order columns")
+
+	// Add tag_group column
+	_, err := db.ExecContext(ctx, `ALTER TABLE tags ADD COLUMN IF NOT EXISTS tag_group TEXT`)
+	if err != nil {
+		// SQLite doesn't support IF NOT EXISTS for ADD COLUMN, try without
+		_, err = db.ExecContext(ctx, `ALTER TABLE tags ADD COLUMN tag_group TEXT`)
+		if err != nil {
+			Logger.Warn("Could not add tag_group column (might already exist)", "error", err)
+		}
+	}
+
+	// Add sort_order column
+	_, err = db.ExecContext(ctx, `ALTER TABLE tags ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`)
+	if err != nil {
+		_, err = db.ExecContext(ctx, `ALTER TABLE tags ADD COLUMN sort_order INTEGER DEFAULT 0`)
+		if err != nil {
+			Logger.Warn("Could not add sort_order column (might already exist)", "error", err)
+		}
+	}
+
+	// Create index for group lookups
+	_, err = db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_tags_group ON tags(tag_group)`)
+	if err != nil {
+		Logger.Warn("Could not create idx_tags_group index", "error", err)
+	}
+
+	// Step 2: Migrate dimension values to grouped tags
+	Logger.Info("Migration 006: Migrating dimension values to grouped tags")
+
+	if isPostgres {
+		// PostgreSQL version with DISTINCT ON
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO tags (name, color, description, tag_group, sort_order, created_at, updated_at)
+			SELECT
+				sub.name,
+				sub.color,
+				sub.description,
+				sub.tag_group,
+				sub.sort_order,
+				CURRENT_TIMESTAMP,
+				CURRENT_TIMESTAMP
+			FROM (
+				SELECT DISTINCT ON (dv.display_name)
+					dv.display_name as name,
+					dv.color,
+					COALESCE(dv.description, '') as description,
+					d.display_name as tag_group,
+					dv.sort_order
+				FROM dimension_values dv
+				JOIN dimensions d ON dv.dimension_id = d.id
+				ORDER BY dv.display_name, dv.sort_order
+			) sub
+			WHERE NOT EXISTS (SELECT 1 FROM tags WHERE name = sub.name)
+		`)
+	} else {
+		// SQLite version without DISTINCT ON
+		_, err = db.ExecContext(ctx, `
+			INSERT OR IGNORE INTO tags (name, color, description, tag_group, sort_order, created_at, updated_at)
+			SELECT
+				dv.display_name as name,
+				dv.color,
+				COALESCE(dv.description, '') as description,
+				d.display_name as tag_group,
+				dv.sort_order,
+				CURRENT_TIMESTAMP,
+				CURRENT_TIMESTAMP
+			FROM dimension_values dv
+			JOIN dimensions d ON dv.dimension_id = d.id
+			GROUP BY dv.display_name
+		`)
+	}
+	if err != nil {
+		Logger.Warn("Could not migrate dimension values to tags (table might be empty)", "error", err)
+	}
+
+	// Step 3: Migrate document_dimensions to document_tags
+	Logger.Info("Migration 006: Migrating document dimensions to document tags")
+
+	if isPostgres {
+		_, err = db.ExecContext(ctx, `
+			INSERT INTO document_tags (document_id, tag_id, created_at)
+			SELECT
+				dd.document_id,
+				t.id as tag_id,
+				dd.created_at
+			FROM document_dimensions dd
+			JOIN dimension_values dv ON dd.dimension_value_id = dv.id
+			JOIN dimensions d ON dd.dimension_id = d.id
+			JOIN tags t ON t.name = dv.display_name AND t.tag_group = d.display_name
+			ON CONFLICT (document_id, tag_id) DO NOTHING
+		`)
+	} else {
+		_, err = db.ExecContext(ctx, `
+			INSERT OR IGNORE INTO document_tags (document_id, tag_id, created_at)
+			SELECT
+				dd.document_id,
+				t.id as tag_id,
+				dd.created_at
+			FROM document_dimensions dd
+			JOIN dimension_values dv ON dd.dimension_value_id = dv.id
+			JOIN dimensions d ON dd.dimension_id = d.id
+			JOIN tags t ON t.name = dv.display_name AND t.tag_group = d.display_name
+		`)
+	}
+	if err != nil {
+		Logger.Warn("Could not migrate document dimensions to tags (table might be empty)", "error", err)
+	}
+
+	// Step 4: Create constraint function for one-per-group (PostgreSQL only)
+	if isPostgres {
+		Logger.Info("Migration 006: Creating one-tag-per-group constraint")
+
+		_, err = db.ExecContext(ctx, `
+			CREATE OR REPLACE FUNCTION enforce_one_tag_per_group()
+			RETURNS TRIGGER AS $$
+			DECLARE
+				v_tag_group TEXT;
+			BEGIN
+				SELECT tag_group INTO v_tag_group FROM tags WHERE id = NEW.tag_id;
+				IF v_tag_group IS NOT NULL THEN
+					DELETE FROM document_tags
+					WHERE document_id = NEW.document_id
+					AND tag_id IN (SELECT id FROM tags WHERE tag_group = v_tag_group)
+					AND tag_id != NEW.tag_id;
+				END IF;
+				RETURN NEW;
+			END;
+			$$ LANGUAGE plpgsql
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to create enforce_one_tag_per_group function: %w", err)
+		}
+
+		// Create trigger
+		_, err = db.ExecContext(ctx, `DROP TRIGGER IF EXISTS enforce_one_tag_per_group_trigger ON document_tags`)
+		if err != nil {
+			Logger.Warn("Could not drop trigger", "error", err)
+		}
+
+		_, err = db.ExecContext(ctx, `
+			CREATE TRIGGER enforce_one_tag_per_group_trigger
+				AFTER INSERT ON document_tags
+				FOR EACH ROW
+				EXECUTE FUNCTION enforce_one_tag_per_group()
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to create trigger: %w", err)
+		}
+	}
+
+	Logger.Info("Migration 006 completed successfully")
+	return nil
+}
+
+func init006RollbackUnifyTagsDimensions(ctx context.Context, db *bun.DB) error {
+	Logger.Info("Rolling back migration 006")
+
+	// Detect database dialect
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
+
+	if isPostgres {
+		// Drop trigger and function
+		_, _ = db.ExecContext(ctx, `DROP TRIGGER IF EXISTS enforce_one_tag_per_group_trigger ON document_tags`)
+		_, _ = db.ExecContext(ctx, `DROP FUNCTION IF EXISTS enforce_one_tag_per_group()`)
+	}
+
+	// Remove document_tags entries that came from dimensions
+	_, _ = db.ExecContext(ctx, `DELETE FROM document_tags WHERE tag_id IN (SELECT id FROM tags WHERE tag_group IS NOT NULL)`)
+
+	// Remove tags that were created from dimensions
+	_, _ = db.ExecContext(ctx, `DELETE FROM tags WHERE tag_group IS NOT NULL`)
+
+	// Drop the index
+	_, _ = db.ExecContext(ctx, `DROP INDEX IF EXISTS idx_tags_group`)
+
+	// Remove the columns (note: SQLite doesn't support DROP COLUMN easily)
+	if isPostgres {
+		_, _ = db.ExecContext(ctx, `ALTER TABLE tags DROP COLUMN IF EXISTS tag_group`)
+		_, _ = db.ExecContext(ctx, `ALTER TABLE tags DROP COLUMN IF EXISTS sort_order`)
+	}
+
+	Logger.Info("Migration 006 rollback completed")
 	return nil
 }
