@@ -217,6 +217,21 @@ func (e *EditPage) fetchAllTags(ctx app.Context) {
 			return nil
 		}
 		response := args[0]
+
+		// Check HTTP status
+		status := response.Get("status").Int()
+		if status != 200 {
+			ctx.Dispatch(func(ctx app.Context) {
+				e.error = fmt.Sprintf("Failed to load tags: HTTP %d", status)
+				LogError(ctx, "Failed to load all tags", map[string]interface{}{
+					"component": "EditPage",
+					"action":    "fetchAllTags",
+					"status":    status,
+				})
+			})
+			return nil
+		}
+
 		response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 			if len(args) == 0 {
 				return nil
