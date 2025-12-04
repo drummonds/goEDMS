@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/disintegration/imaging"
 	"github.com/drummonds/godocs/config"
@@ -271,6 +272,7 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	sidecarCount := 0
 	if serverHandler.ServerConfig.UseSidecarTxt {
 		Logger.Info("Checking for missing sidecar .txt files")
+		lastSidecarUpdate := time.Now()
 		for i, doc := range documents {
 			// Skip if document was deleted in step 1
 			if doc.Path == "" {
@@ -296,26 +298,29 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 				}
 			}
 
-			// Update progress periodically
-			if i%100 == 0 {
-				progress := 70 + int((float64(i)/float64(totalDocs))*10)
+			// Update progress every 5 seconds or on last item
+			if time.Since(lastSidecarUpdate) >= 5*time.Second || i == totalDocs-1 {
+				progress := 70 + int((float64(i+1)/float64(totalDocs))*5)
 				db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking sidecar files %d/%d", i+1, totalDocs))
+				lastSidecarUpdate = time.Now()
 			}
 		}
 		Logger.Info("Sidecar .txt file check complete", "recreated", sidecarCount)
 	}
 
-	// Step 4: Regenerate missing thumbnails for PDF documents
+	// Step 4: Check for missing thumbnails for PDF documents (only generate if missing)
 	db.UpdateJobProgress(jobID, 75, "Checking document thumbnails")
 	thumbnailCount := 0
+	thumbnailsChecked := 0
 	Logger.Info("Checking for missing thumbnails")
+	lastThumbnailUpdate := time.Now()
 	for i, doc := range documents {
 		// Skip if document was deleted in step 1
 		if doc.Path == "" {
 			continue
 		}
 
-		// Only generate thumbnails for PDF files
+		// Only check thumbnails for PDF files
 		if filepath.Ext(doc.Path) != ".pdf" {
 			continue
 		}
@@ -325,25 +330,28 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 			continue
 		}
 
-		// Check if thumbnail exists
+		thumbnailsChecked++
+
+		// Check if thumbnail exists - only generate if missing
 		thumbnailPath := getThumbnailPath(doc.Path)
 		if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
 			// Thumbnail doesn't exist, generate it
-			Logger.Info("Regenerating missing thumbnail", "document", doc.Path, "thumbnail", thumbnailPath)
+			Logger.Info("Generating missing thumbnail", "document", doc.Path, "thumbnail", thumbnailPath)
 			if err := saveThumbnailFile(doc.Path); err != nil {
-				Logger.Error("Failed to regenerate thumbnail", "document", doc.Path, "error", err)
+				Logger.Error("Failed to generate thumbnail", "document", doc.Path, "error", err)
 			} else {
 				thumbnailCount++
 			}
 		}
 
-		// Update progress periodically
-		if i%100 == 0 {
-			progress := 75 + int((float64(i)/float64(totalDocs))*5)
-			db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking thumbnails %d/%d", i+1, totalDocs))
+		// Update progress every 5 seconds or on last item
+		if time.Since(lastThumbnailUpdate) >= 5*time.Second || i == totalDocs-1 {
+			progress := 75 + int((float64(i+1)/float64(totalDocs))*10)
+			db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking thumbnails %d/%d (generated %d)", i+1, totalDocs, thumbnailCount))
+			lastThumbnailUpdate = time.Now()
 		}
 	}
-	Logger.Info("Thumbnail check complete", "regenerated", thumbnailCount)
+	Logger.Info("Thumbnail check complete", "checked", thumbnailsChecked, "generated", thumbnailCount)
 
 	// Step 5: Recalculate word cloud
 	db.UpdateJobProgress(jobID, 85, "Recalculating word cloud")
@@ -353,7 +361,7 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "moved": %d, "sidecarRecreated": %d, "thumbnailsRegenerated": %d}`, totalDocs, deletedCount, movedCount, sidecarCount, thumbnailCount)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "moved": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d}`, totalDocs, deletedCount, movedCount, sidecarCount, thumbnailsChecked, thumbnailCount)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}

@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.32.5 2025-12-04
+## 0.32.6 2025-12-04
 
 - Extending edit to show more info
 - improving edit to regen thumbnail with button
