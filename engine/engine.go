@@ -223,6 +223,8 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	db.UpdateJobProgress(jobID, 10, fmt.Sprintf("Checking %d documents", totalDocs))
 
 	// Step 1: Check each document's file existence and remove orphaned DB entries
+	// Also remove .txt entries that are sidecars (have a corresponding root document)
+	sidecarTxtRemoved := 0
 	for i, doc := range documents {
 		if doc.Path == "" {
 			Logger.Warn("Document has empty path, skipping", "id", doc.StormID, "name", doc.Name)
@@ -230,7 +232,7 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		}
 
 		// Update progress
-		progress := 10 + int((float64(i)/float64(totalDocs))*50)
+		progress := 10 + int((float64(i)/float64(totalDocs))*40)
 		db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking document %d/%d", i+1, totalDocs))
 
 		// Check if file exists
@@ -243,6 +245,19 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 				continue
 			}
 			deletedCount++
+			continue
+		}
+
+		// Check if this is a .txt file that is actually a sidecar (has a root document)
+		if strings.ToLower(filepath.Ext(doc.Path)) == ".txt" {
+			if !isTxtRootDocument(doc.Path) {
+				Logger.Info("Removing .txt sidecar entry from database", "path", doc.Path, "id", doc.StormID)
+				if err := database.DeleteDocument(doc.ULID.String(), db); err != nil {
+					Logger.Error("Failed to delete .txt sidecar from DB", "error", err, "id", doc.StormID)
+					continue
+				}
+				sidecarTxtRemoved++
+			}
 		}
 	}
 
@@ -388,12 +403,12 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d}`, totalDocs, deletedCount, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d}`, totalDocs, deletedCount, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
 
-	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted)
+	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted)
 }
 
 // ingressDocumentWithError is like ingressDocument but returns errors instead of just logging

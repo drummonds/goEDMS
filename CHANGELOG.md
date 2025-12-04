@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.33.4 2025-12-04
+## 0.33.6 2025-12-04
 
 - Adding tag manager
 - Converting dimensions to tag groups
