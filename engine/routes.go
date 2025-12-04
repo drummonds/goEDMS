@@ -1001,11 +1001,16 @@ func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.D
 	for _, doc := range documents {
 		if doc.Path != "" {
 			dbPaths[doc.Path] = true
-			// Also mark companion files as tracked
-			yamlPath := doc.Path + ".yaml"
-			txtPath := doc.Path + ".txt"
-			dbPaths[yamlPath] = true
-			dbPaths[txtPath] = true
+			// Also mark companion/sidecar files as tracked
+			dbPaths[doc.Path+".yaml"] = true
+			dbPaths[doc.Path+".txt"] = true
+			// Mark .tags.json sidecar file
+			ext := filepath.Ext(doc.Path)
+			basePath := doc.Path[:len(doc.Path)-len(ext)]
+			dbPaths[basePath+".tags.json"] = true
+			dbPaths[basePath+".txt"] = true // sidecar txt without extension
+			// Mark thumbnail file
+			dbPaths[getThumbnailPath(doc.Path)] = true
 		}
 	}
 
@@ -1024,8 +1029,21 @@ func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.D
 			return nil
 		}
 
-		// Skip companion files (.yaml and .txt) - they'll be handled with their main file
+		// Skip thumbnail files
+		if strings.HasSuffix(path, ".tn_64.png") {
+			return nil
+		}
+
+		// Skip companion/sidecar files - they'll be handled with their main file
 		ext := filepath.Ext(path)
+		fileName := filepath.Base(path)
+
+		// Skip .tags.json files
+		if strings.HasSuffix(fileName, ".tags.json") {
+			return nil
+		}
+
+		// Skip .yaml and .txt companion files
 		if ext == ".yaml" || ext == ".txt" {
 			// Check if this is a companion file (base file + .yaml or .txt)
 			basePath := path[:len(path)-len(ext)]

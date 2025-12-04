@@ -246,23 +246,43 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		}
 	}
 
-	// Step 2: Find orphaned files in document storage and move them to ingress
+	// Step 2: Find orphaned files in document storage and rescan them in-place
 	db.UpdateJobProgress(jobID, 60, "Scanning for orphaned files")
-	movedCount := 0
+	rescannedCount := 0
+	duplicateCount := 0
+	seenHashes := make(map[string]string) // hash -> first file path (for duplicate detection within batch)
+
+	// Also build a hash set from existing documents for faster lookup
+	for _, doc := range documents {
+		if doc.Hash != "" {
+			seenHashes[doc.Hash] = doc.Path
+		}
+	}
+
 	orphanedFiles, err := serverHandler.findOrphanedDocuments(documents)
 	if err != nil {
 		Logger.Error("Failed to scan for orphaned documents", "error", err)
 		// Continue with cleanup even if orphan scan fails
 	} else {
 		totalOrphans := len(orphanedFiles)
+		Logger.Info("Found orphaned files to rescan", "count", totalOrphans)
 		for i, orphanPath := range orphanedFiles {
 			progress := 60 + int((float64(i)/float64(totalOrphans))*20)
-			db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Moving orphan %d/%d", i+1, totalOrphans))
+			db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Rescanning orphan %d/%d", i+1, totalOrphans))
 
-			if err := serverHandler.moveOrphanToIngress(orphanPath); err != nil {
-				Logger.Error("Failed to move orphaned document to ingress", "path", orphanPath, "error", err)
+			fileHash, err := serverHandler.RescanOrphanedDocument(orphanPath, db, seenHashes)
+			if err != nil {
+				if fileHash != "" {
+					// Duplicate detected
+					duplicateCount++
+					Logger.Info("Skipped duplicate file during rescan", "path", orphanPath, "reason", err.Error())
+				} else {
+					Logger.Error("Failed to rescan orphaned document", "path", orphanPath, "error", err)
+				}
 			} else {
-				movedCount++
+				// Successfully rescanned - track this hash
+				seenHashes[fileHash] = orphanPath
+				rescannedCount++
 			}
 		}
 	}
@@ -361,12 +381,12 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "moved": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d}`, totalDocs, deletedCount, movedCount, sidecarCount, thumbnailsChecked, thumbnailCount)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d}`, totalDocs, deletedCount, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
 
-	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "moved", movedCount)
+	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount)
 }
 
 // ingressDocumentWithError is like ingressDocument but returns errors instead of just logging

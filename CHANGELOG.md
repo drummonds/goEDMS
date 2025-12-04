@@ -2,10 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.33.2 2025-12-04
+## 0.33.3 2025-12-04
 
 - Adding tag manager
 - Converting dimensions to tag groups
+- clean_database now rescans orphaned files on demand
 
 ## 0.32.6 2025-12-04
 

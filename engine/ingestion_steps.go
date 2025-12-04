@@ -355,3 +355,78 @@ func saveSidecarTxtFile(docPath, text string) error {
 	Logger.Info("Saved sidecar .txt file", "document", docPath, "sidecar", sidecarPath, "textLength", len(text))
 	return nil
 }
+
+// RescanOrphanedDocument imports a file that exists on disk but not in the database.
+// Unlike regular ingestion, this does NOT move the file - it imports it in-place.
+// Returns the file's hash for duplicate tracking.
+func (serverHandler *ServerHandler) RescanOrphanedDocument(filePath string, db database.Repository, seenHashes map[string]string) (string, error) {
+	fileName := filepath.Base(filePath)
+
+	// Step 1: Calculate hash
+	Logger.Info("Rescan: Calculating hash", "filePath", filePath)
+	fileHash, err := calculateFileHash(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to calculate hash: %w", err)
+	}
+
+	// Step 2: Check for duplicate by hash in database
+	existingDoc, err := db.GetDocumentByHash(fileHash)
+	if err == nil && existingDoc != nil {
+		Logger.Info("Rescan: Duplicate found in database, skipping", "filePath", filePath, "existingDoc", existingDoc.Path)
+		return fileHash, fmt.Errorf("duplicate: already in database as %s", existingDoc.Path)
+	}
+
+	// Step 3: Check for duplicate by hash in current rescan batch (first occurrence wins)
+	if existingPath, exists := seenHashes[fileHash]; exists {
+		Logger.Info("Rescan: Duplicate found in scan batch, skipping", "filePath", filePath, "firstOccurrence", existingPath)
+		return fileHash, fmt.Errorf("duplicate: same content as %s", existingPath)
+	}
+
+	// Step 4: Create database record with current path (no moving)
+	newTime := time.Now()
+	newULID, err := database.CalculateUUID(newTime)
+	if err != nil {
+		return fileHash, fmt.Errorf("cannot generate ULID: %w", err)
+	}
+
+	doc := &database.Document{
+		Name:         fileName,
+		Path:         filePath,
+		Folder:       filepath.Dir(filePath),
+		Hash:         fileHash,
+		IngressTime:  newTime,
+		ULID:         newULID,
+		DocumentType: filepath.Ext(filePath),
+		FullText:     "", // Will be populated below
+	}
+
+	// Save initial document record
+	if err := db.SaveDocument(doc); err != nil {
+		return fileHash, fmt.Errorf("failed to save document: %w", err)
+	}
+	Logger.Info("Rescan: Created database record", "ulid", doc.ULID.String(), "path", filePath)
+
+	// Step 5: Extract text
+	fullText, err := serverHandler.extractText(filePath)
+	if err != nil {
+		Logger.Warn("Rescan: Text extraction failed, storing document without text", "error", err, "fileName", fileName)
+		fullText = ""
+	}
+
+	// Step 6: Update document with text and apply tags/dimensions/thumbnail
+	if err := serverHandler.updateDocumentText(doc, fullText, db); err != nil {
+		Logger.Error("Rescan: Failed to update document text", "error", err, "ulid", doc.ULID.String())
+	}
+
+	// Step 7: Set document URL
+	documentURL := "/document/view/" + doc.ULID.String()
+	if serverHandler.Echo != nil {
+		serverHandler.Echo.File(documentURL, doc.Path)
+	}
+	if _, err := database.UpdateDocumentField(doc.ULID.String(), "URL", documentURL, db); err != nil {
+		Logger.Error("Rescan: Failed to update document URL", "error", err, "ulid", doc.ULID.String())
+	}
+
+	Logger.Info("Rescan: Document imported successfully", "fileName", fileName, "ulid", doc.ULID.String(), "textLength", len(fullText))
+	return fileHash, nil
+}
