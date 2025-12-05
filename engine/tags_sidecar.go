@@ -27,8 +27,8 @@ func readTagsSidecar(docPath string) (*database.DocumentTagsAndDimensions, error
 	if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
 		// No sidecar file - this is not an error, just no tags
 		return &database.DocumentTagsAndDimensions{
-			Tags:       []string{},
-			Dimensions: make(map[string]string),
+			Tags:      []string{},
+			TagGroups: make(map[string]string),
 		}, nil
 	}
 
@@ -48,11 +48,11 @@ func readTagsSidecar(docPath string) (*database.DocumentTagsAndDimensions, error
 	if tagData.Tags == nil {
 		tagData.Tags = []string{}
 	}
-	if tagData.Dimensions == nil {
-		tagData.Dimensions = make(map[string]string)
+	if tagData.TagGroups == nil {
+		tagData.TagGroups = make(map[string]string)
 	}
 
-	Logger.Info("Read tags from sidecar", "path", sidecarPath, "tags", len(tagData.Tags), "dimensions", len(tagData.Dimensions))
+	Logger.Info("Read tags from sidecar", "path", sidecarPath, "freeTags", len(tagData.Tags), "tagGroups", len(tagData.TagGroups))
 	return &tagData, nil
 }
 
@@ -76,13 +76,13 @@ func writeTagsSidecar(docPath string, tagData *database.DocumentTagsAndDimension
 		return fmt.Errorf("failed to write tags sidecar file: %w", err)
 	}
 
-	Logger.Info("Wrote tags sidecar", "path", sidecarPath, "tags", len(tagData.Tags), "dimensions", len(tagData.Dimensions))
+	Logger.Info("Wrote tags sidecar", "path", sidecarPath, "freeTags", len(tagData.Tags), "groupedTags", len(tagData.TagGroups))
 	return nil
 }
 
-// applyTagsAndDimensionsToDocument applies tags and dimensions from sidecar to a document in the database
+// applyTagsAndDimensionsToDocument applies tags from sidecar to a document in the database
 func (serverHandler *ServerHandler) applyTagsAndDimensionsToDocument(doc *database.Document, tagData *database.DocumentTagsAndDimensions, db database.Repository) error {
-	// Apply tags
+	// Apply free tags (tags without a group)
 	for _, tagName := range tagData.Tags {
 		tagName = strings.TrimSpace(tagName)
 		if tagName == "" {
@@ -120,38 +120,43 @@ func (serverHandler *ServerHandler) applyTagsAndDimensionsToDocument(doc *databa
 		}
 	}
 
-	// Apply dimensions
-	for dimensionName, valueStr := range tagData.Dimensions {
-		valueStr = strings.TrimSpace(valueStr)
-		if valueStr == "" {
+	// Apply grouped tags (tag_groups: group_name -> tag_name)
+	for groupName, tagName := range tagData.TagGroups {
+		tagName = strings.TrimSpace(tagName)
+		groupName = strings.TrimSpace(groupName)
+		if tagName == "" || groupName == "" {
 			continue
 		}
 
-		// Get dimension
-		dimension, err := db.GetDimensionByName(dimensionName)
+		// Get the tag by name - it should exist and belong to the correct group
+		tag, err := db.GetTagByName(tagName)
 		if err != nil {
-			Logger.Warn("Failed to get dimension", "dimension", dimensionName, "error", err)
-			continue
-		}
-		if dimension == nil {
-			Logger.Warn("Dimension not found", "dimension", dimensionName)
+			Logger.Warn("Failed to get grouped tag", "tag", tagName, "group", groupName, "error", err)
 			continue
 		}
 
-		// Get dimension value
-		dimValue, err := db.GetDimensionValueByValue(dimension.ID, valueStr)
-		if err != nil {
-			Logger.Warn("Failed to get dimension value", "dimension", dimensionName, "value", valueStr, "error", err)
-			continue
-		}
-		if dimValue == nil {
-			Logger.Warn("Dimension value not found", "dimension", dimensionName, "value", valueStr)
-			continue
+		if tag == nil {
+			// Create the tag with the group
+			tag = &database.Tag{
+				Name:     tagName,
+				Color:    "#3498db",
+				TagGroup: &groupName,
+			}
+			if err := db.CreateTag(tag); err != nil {
+				Logger.Warn("Failed to create grouped tag", "tag", tagName, "group", groupName, "error", err)
+				continue
+			}
+			// Reload to get the ID
+			tag, err = db.GetTagByName(tagName)
+			if err != nil || tag == nil {
+				Logger.Warn("Failed to reload created grouped tag", "tag", tagName, "error", err)
+				continue
+			}
 		}
 
-		// Set dimension for document
-		if err := db.SetDocumentDimension(doc.StormID, dimension.ID, dimValue.ID); err != nil {
-			Logger.Warn("Failed to set document dimension", "dimension", dimensionName, "value", valueStr, "doc", doc.ULID.String(), "error", err)
+		// Associate tag with document
+		if err := db.AddTagToDocument(doc.StormID, tag.ID); err != nil {
+			Logger.Warn("Failed to add grouped tag to document", "tag", tagName, "group", groupName, "doc", doc.ULID.String(), "error", err)
 		}
 	}
 
@@ -166,27 +171,24 @@ func (serverHandler *ServerHandler) exportTagsAndDimensionsForDocument(doc *data
 		return fmt.Errorf("failed to get tags for document: %w", err)
 	}
 
-	// Get dimensions for document
-	dimensions, err := db.GetDocumentDimensions(doc.StormID)
-	if err != nil {
-		return fmt.Errorf("failed to get dimensions for document: %w", err)
-	}
-
-	// Build tag data structure
+	// Build tag data structure - separate free tags from grouped tags
 	tagData := &database.DocumentTagsAndDimensions{
-		Tags:       make([]string, len(tags)),
-		Dimensions: make(map[string]string),
+		Tags:      []string{},
+		TagGroups: make(map[string]string),
 	}
 
-	// Add tag names
-	for i, tag := range tags {
-		tagData.Tags[i] = tag.Name
+	// Categorize tags: free tags vs grouped tags
+	for _, tag := range tags {
+		if tag.TagGroup != nil && *tag.TagGroup != "" {
+			// Grouped tag - store as group_name -> tag_name
+			tagData.TagGroups[*tag.TagGroup] = tag.Name
+		} else {
+			// Free tag - add to tags array
+			tagData.Tags = append(tagData.Tags, tag.Name)
+		}
 	}
 
-	// Add dimension values
-	for dimName, dimValue := range dimensions {
-		tagData.Dimensions[dimName] = dimValue.Value
-	}
+	Logger.Info("Exporting tags to sidecar", "path", doc.Path, "freeTags", len(tagData.Tags), "groupedTags", len(tagData.TagGroups))
 
 	// Write to sidecar file
 	return writeTagsSidecar(doc.Path, tagData)

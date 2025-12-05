@@ -91,6 +91,16 @@ type Repository interface {
 	RemoveDocumentDimension(documentID int, dimensionID int) error
 	// Schema version
 	GetSchemaVersion() (string, error)
+	// Saved search methods
+	GetAllSavedSearches() ([]SavedSearch, error)
+	GetSavedSearchByID(id int) (*SavedSearch, error)
+	CreateSavedSearch(search *SavedSearch) error
+	UpdateSavedSearch(search *SavedSearch) error
+	DeleteSavedSearch(id int) error
+	// Search execution methods
+	GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int, error)
+	GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
+	ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Document, int, error)
 }
 
 // FetchConfigFromDB pulls the server config from the database

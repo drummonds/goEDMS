@@ -58,6 +58,7 @@ func runMigrations(ctx context.Context, db *bun.DB) error {
 		{"004", "create_jobs_table", init004CreateJobsTable},
 		{"005", "add_tagging_system", init005AddTaggingSystem},
 		{"006", "unify_tags_dimensions", init006UnifyTagsDimensions},
+		{"007", "create_saved_searches", init007CreateSavedSearches},
 	}
 
 	for _, m := range migrations {
@@ -1032,5 +1033,73 @@ func init006RollbackUnifyTagsDimensions(ctx context.Context, db *bun.DB) error {
 	}
 
 	Logger.Info("Migration 006 rollback completed")
+	return nil
+}
+
+// Migration 007: Create Saved Searches table
+func init007CreateSavedSearches(ctx context.Context, db *bun.DB) error {
+	Logger.Info("Running migration 007: Create saved searches table")
+
+	// Detect database dialect
+	_, isPostgres := db.Dialect().(*pgdialect.Dialect)
+
+	// Create saved_searches table
+	if isPostgres {
+		_, err := db.ExecContext(ctx, `
+			CREATE TABLE IF NOT EXISTS saved_searches (
+				id SERIAL PRIMARY KEY,
+				name TEXT NOT NULL,
+				description TEXT DEFAULT '',
+				query TEXT NOT NULL,
+				icon TEXT DEFAULT '',
+				sort_order INTEGER DEFAULT 0,
+				is_system BOOLEAN DEFAULT FALSE,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to create saved_searches table: %w", err)
+		}
+	} else {
+		// SQLite version
+		_, err := db.ExecContext(ctx, `
+			CREATE TABLE IF NOT EXISTS saved_searches (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL,
+				description TEXT DEFAULT '',
+				query TEXT NOT NULL,
+				icon TEXT DEFAULT '',
+				sort_order INTEGER DEFAULT 0,
+				is_system INTEGER DEFAULT 0,
+				created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+				updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+			)
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to create saved_searches table: %w", err)
+		}
+	}
+
+	// Insert default saved searches
+	// 1. Inbox - untagged documents
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO saved_searches (name, description, query, icon, sort_order, is_system)
+		VALUES ('Inbox', 'Documents without any tags', '!untagged', '📥', 1, true)
+	`)
+	if err != nil {
+		Logger.Warn("Could not insert Inbox saved search", "error", err)
+	}
+
+	// 2. All Documents
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO saved_searches (name, description, query, icon, sort_order, is_system)
+		VALUES ('All Documents', 'Browse all documents', '*', '📄', 2, true)
+	`)
+	if err != nil {
+		Logger.Warn("Could not insert All Documents saved search", "error", err)
+	}
+
+	Logger.Info("Migration 007 completed successfully")
 	return nil
 }

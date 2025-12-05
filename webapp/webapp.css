@@ -1839,3 +1839,95 @@ h3 {
     color: #7f8c8d;
     padding: 0.2rem 0.4rem;
 }
+
+/* ============================================
+   SAVED SEARCHES AND RECENT SEARCHES
+   ============================================ */
+
+.saved-searches-section,
+.recent-searches-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.saved-searches-section h3,
+.recent-searches-section h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    color: #495057;
+    font-weight: 600;
+}
+
+.saved-searches-grid,
+.recent-searches-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.saved-search-card,
+.recent-search-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    text-decoration: none;
+    color: #212529;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.saved-search-card:hover,
+.recent-search-card:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.saved-search-icon,
+.recent-search-icon {
+    font-size: 1.1rem;
+}
+
+.saved-search-name,
+.recent-search-name {
+    font-weight: 500;
+}
+
+.saved-search-count,
+.recent-search-count {
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+/* Search Results Page */
+.search-results-page {
+    padding: 1rem;
+}
+
+.search-header {
+    margin-bottom: 1rem;
+}
+
+.search-header h2 {
+    margin: 0 0 0.5rem 0;
+}
+
+.search-query {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.search-query code {
+    background: #f1f3f4;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}

@@ -265,6 +265,19 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	e.DELETE("/api/documents/:ulid/dimensions/:dimensionName", serverHandler.RemoveDocumentDimension)
 	e.GET("/api/jobs/:id", serverHandler.GetJob)
 
+	// Saved search API routes
+	e.GET("/api/saved-searches", serverHandler.GetAllSavedSearches)
+	e.GET("/api/saved-searches/:id", serverHandler.GetSavedSearch)
+	e.POST("/api/saved-searches", serverHandler.CreateSavedSearch)
+	e.PUT("/api/saved-searches/:id", serverHandler.UpdateSavedSearch)
+	e.DELETE("/api/saved-searches/:id", serverHandler.DeleteSavedSearch)
+	e.GET("/api/saved-searches/:id/execute", serverHandler.ExecuteSavedSearch)
+
+	// Search execution routes
+	e.GET("/api/search/query", serverHandler.ExecuteAdHocSearch)
+	e.GET("/api/documents/by-tag/:tagId", serverHandler.GetDocumentsByTag)
+	e.GET("/api/documents/untagged", serverHandler.GetUntaggedDocuments)
+
 	// Document view routes are now handled dynamically by /document/view/:ulid route above
 
 	// Serve a simple index page that redirects to the frontend

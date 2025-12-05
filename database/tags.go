@@ -69,8 +69,8 @@ type DocumentDimension struct {
 
 // DocumentTagsAndDimensions is a helper struct for JSON sidecar files
 type DocumentTagsAndDimensions struct {
-	Tags       []string          `json:"tags"`
-	Dimensions map[string]string `json:"dimensions"` // dimension_name -> value
+	Tags      []string          `json:"tags"`                 // Free tags (no group)
+	TagGroups map[string]string `json:"tag_groups,omitempty"` // group_name -> tag_name (one per group)
 }
 
 // TagWithCount includes the count of documents using this tag

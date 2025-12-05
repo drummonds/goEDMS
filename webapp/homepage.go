@@ -33,17 +33,31 @@ type PaginatedResponse struct {
 	HasPrevious bool       `json:"hasPrevious"`
 }
 
+// SavedSearchWithCount matches the API response
+type SavedSearchWithCount struct {
+	ID            int    `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Query         string `json:"query"`
+	Icon          string `json:"icon"`
+	SortOrder     int    `json:"sort_order"`
+	IsSystem      bool   `json:"is_system"`
+	DocumentCount int    `json:"document_count"`
+}
+
 // HomePage displays the latest documents with pagination
 type HomePage struct {
 	app.Compo
-	documents   []Document
-	currentPage int
-	totalPages  int
-	totalCount  int
-	hasNext     bool
-	hasPrevious bool
-	loading     bool
-	error       string
+	documents      []Document
+	currentPage    int
+	totalPages     int
+	totalCount     int
+	hasNext        bool
+	hasPrevious    bool
+	loading        bool
+	error          string
+	savedSearches  []SavedSearchWithCount
+	recentSearches []RecentSearch
 }
 
 // OnMount is called when the component is mounted
@@ -51,6 +65,51 @@ func (h *HomePage) OnMount(ctx app.Context) {
 	h.currentPage = 1
 	h.loading = true
 	h.fetchDocuments(ctx, 1)
+	h.fetchSavedSearches(ctx)
+	h.loadRecentSearches(ctx)
+}
+
+// fetchSavedSearches fetches saved searches from the API
+func (h *HomePage) fetchSavedSearches(ctx app.Context) {
+	ctx.Async(func() {
+		url := BuildAPIURL("/api/saved-searches")
+		res := app.Window().Call("fetch", url)
+
+		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) == 0 {
+				return nil
+			}
+			response := args[0]
+
+			response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+				if len(args) == 0 {
+					return nil
+				}
+				jsonData := args[0]
+				jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
+
+				var searches []SavedSearchWithCount
+				ctx.Dispatch(func(ctx app.Context) {
+					if err := json.Unmarshal([]byte(jsonStr), &searches); err == nil {
+						h.savedSearches = searches
+					}
+				})
+				return nil
+			}))
+			return nil
+		}))
+	})
+}
+
+// loadRecentSearches loads recent searches from localStorage
+func (h *HomePage) loadRecentSearches(ctx app.Context) {
+	var recentSearches []RecentSearch
+	ctx.LocalStorage().Get("recentSearches", &recentSearches)
+	// Keep only top 3
+	if len(recentSearches) > 3 {
+		recentSearches = recentSearches[:3]
+	}
+	h.recentSearches = recentSearches
 }
 
 // fetchDocuments fetches documents for a specific page
@@ -145,6 +204,8 @@ func (h *HomePage) Render() app.UI {
 	return app.Div().
 		Class("home-page").
 		Body(
+			h.renderSavedSearches(),
+			h.renderRecentSearches(),
 			app.H2().Text("Latest Documents"),
 			app.P().Class("page-info").Text(
 				fmt.Sprintf("Showing page %d of %d (%d total documents)",
@@ -153,6 +214,78 @@ func (h *HomePage) Render() app.UI {
 			content,
 			h.renderPagination(),
 		)
+}
+
+// renderSavedSearches renders the saved searches section
+func (h *HomePage) renderSavedSearches() app.UI {
+	if len(h.savedSearches) == 0 {
+		return nil
+	}
+
+	items := make([]app.UI, 0, len(h.savedSearches))
+	for _, search := range h.savedSearches {
+		s := search // capture for closure
+		items = append(items,
+			app.A().
+				Class("saved-search-card").
+				Href(fmt.Sprintf("/results?id=%d", s.ID)).
+				Body(
+					app.Span().Class("saved-search-icon").Text(s.Icon),
+					app.Span().Class("saved-search-name").Text(s.Name),
+					app.Span().Class("saved-search-count").Text(fmt.Sprintf("(%d)", s.DocumentCount)),
+				),
+		)
+	}
+
+	return app.Div().Class("saved-searches-section").Body(
+		app.H3().Text("Saved Searches"),
+		app.Div().Class("saved-searches-grid").Body(items...),
+	)
+}
+
+// renderRecentSearches renders the recent searches section
+func (h *HomePage) renderRecentSearches() app.UI {
+	if len(h.recentSearches) == 0 {
+		return nil
+	}
+
+	items := make([]app.UI, 0, len(h.recentSearches))
+	for _, search := range h.recentSearches {
+		s := search // capture for closure
+		var href string
+		if s.SearchID > 0 {
+			href = fmt.Sprintf("/results?id=%d", s.SearchID)
+		} else {
+			href = fmt.Sprintf("/results?q=%s", s.Query)
+		}
+
+		// Determine icon based on query type
+		icon := "🔍"
+		if len(s.Query) > 0 && s.Query[0] == '#' {
+			icon = "🏷️"
+		}
+
+		displayName := s.Name
+		if displayName == "" {
+			displayName = s.Query
+		}
+
+		items = append(items,
+			app.A().
+				Class("recent-search-card").
+				Href(href).
+				Body(
+					app.Span().Class("recent-search-icon").Text(icon),
+					app.Span().Class("recent-search-name").Text(displayName),
+					app.Span().Class("recent-search-count").Text(fmt.Sprintf("(%d)", s.TotalCount)),
+				),
+		)
+	}
+
+	return app.Div().Class("recent-searches-section").Body(
+		app.H3().Text("Recent Searches"),
+		app.Div().Class("recent-searches-grid").Body(items...),
+	)
 }
 
 // renderPagination renders the pagination controls

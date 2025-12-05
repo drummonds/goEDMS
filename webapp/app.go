@@ -18,6 +18,7 @@ var AppRoutes = []RouteConfig{
 	{Path: "/ingest", Render: func() app.UI { return &IngestPage{} }},
 	{Path: "/clean", Render: func() app.UI { return &CleanPage{} }},
 	{Path: "/search", Render: func() app.UI { return &SearchPage{} }},
+	{Path: "/results", Render: func() app.UI { return &SearchResultsPage{} }},
 	{Path: "/wordcloud", Render: func() app.UI { return &WordCloudPage{} }},
 	{Path: "/jobs", Render: func() app.UI { return &JobsPage{} }},
 	{Path: "/tags", Render: func() app.UI { return &TagsManagerPage{} }},

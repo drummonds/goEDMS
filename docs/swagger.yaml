@@ -138,6 +138,58 @@ definitions:
     - JobTypeCleanup
     - JobTypeWordCloud
     - JobTypeSearchReindex
+  database.SavedSearch:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      icon:
+        description: Emoji icon
+        type: string
+      id:
+        type: integer
+      is_system:
+        description: True for built-in searches
+        type: boolean
+      name:
+        type: string
+      query:
+        description: 'Unified search query (text #tag ~exclude)'
+        type: string
+      sort_order:
+        description: Display order
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  database.SavedSearchWithCount:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      document_count:
+        type: integer
+      icon:
+        description: Emoji icon
+        type: string
+      id:
+        type: integer
+      is_system:
+        description: True for built-in searches
+        type: boolean
+      name:
+        type: string
+      query:
+        description: 'Unified search query (text #tag ~exclude)'
+        type: string
+      sort_order:
+        description: Display order
+        type: integer
+      updated_at:
+        type: string
+    type: object
   database.Tag:
     properties:
       color:
@@ -199,6 +251,29 @@ definitions:
         type: string
       message:
         type: string
+    type: object
+  engine.SearchResponse:
+    properties:
+      documents:
+        items:
+          $ref: '#/definitions/database.Document'
+        type: array
+      hasNext:
+        type: boolean
+      hasPrevious:
+        type: boolean
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      query:
+        type: string
+      searchName:
+        type: string
+      totalCount:
+        type: integer
+      totalPages:
+        type: integer
     type: object
   engine.TagWithUsage:
     properties:
@@ -678,6 +753,78 @@ paths:
       summary: Remove tag from document
       tags:
       - Tags
+  /api/documents/by-tag/{tagId}:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated documents that have a specific tag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagId
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/engine.SearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get documents by tag
+      tags:
+      - Searches
+  /api/documents/untagged:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated documents that have no tags (Inbox)
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/engine.SearchResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get untagged documents
+      tags:
+      - Searches
   /api/log:
     post:
       consumes:
@@ -709,6 +856,246 @@ paths:
       summary: Log from frontend
       tags:
       - Admin
+  /api/saved-searches:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all saved searches with their document counts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/database.SavedSearchWithCount'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all saved searches
+      tags:
+      - Searches
+    post:
+      consumes:
+      - application/json
+      description: Create a new saved search
+      parameters:
+      - description: Saved search object
+        in: body
+        name: search
+        required: true
+        schema:
+          $ref: '#/definitions/database.SavedSearch'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/database.SavedSearch'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a saved search
+      tags:
+      - Searches
+  /api/saved-searches/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a saved search by ID
+      parameters:
+      - description: Search ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a saved search
+      tags:
+      - Searches
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a saved search by ID
+      parameters:
+      - description: Search ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/database.SavedSearch'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get a saved search
+      tags:
+      - Searches
+    put:
+      consumes:
+      - application/json
+      description: Update saved search properties
+      parameters:
+      - description: Search ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Saved search object
+        in: body
+        name: search
+        required: true
+        schema:
+          $ref: '#/definitions/database.SavedSearch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/database.SavedSearch'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update a saved search
+      tags:
+      - Searches
+  /api/saved-searches/{id}/execute:
+    get:
+      consumes:
+      - application/json
+      description: Execute a saved search and return paginated results
+      parameters:
+      - description: Search ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/engine.SearchResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Execute a saved search
+      tags:
+      - Searches
+  /api/search/query:
+    get:
+      consumes:
+      - application/json
+      description: Execute a search query and return paginated results
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/engine.SearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Execute an ad-hoc search
+      tags:
+      - Searches
   /api/tags:
     get:
       consumes:
