@@ -90,7 +90,7 @@ func (b *BunDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, in
 	// Get total count
 	count, err := b.db.NewSelect().
 		TableExpr("documents d").
-		Join("INNER JOIN document_tags dt ON dt.document_id = d.storm_id").
+		Join("INNER JOIN document_tags dt ON dt.document_id = d.id").
 		Where("dt.tag_id = ?", tagID).
 		Count(ctx)
 	if err != nil {
@@ -102,7 +102,7 @@ func (b *BunDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, in
 	err = b.db.NewSelect().
 		TableExpr("documents d").
 		ColumnExpr("d.*").
-		Join("INNER JOIN document_tags dt ON dt.document_id = d.storm_id").
+		Join("INNER JOIN document_tags dt ON dt.document_id = d.id").
 		Where("dt.tag_id = ?", tagID).
 		Order("d.ingress_time DESC").
 		Limit(pageSize).
@@ -123,7 +123,7 @@ func (b *BunDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error
 	// Get total count of untagged documents
 	count, err := b.db.NewSelect().
 		TableExpr("documents d").
-		Where("NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.storm_id)").
+		Where("NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)").
 		Count(ctx)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count untagged documents: %w", err)
@@ -134,7 +134,7 @@ func (b *BunDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error
 	err = b.db.NewSelect().
 		TableExpr("documents d").
 		ColumnExpr("d.*").
-		Where("NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.storm_id)").
+		Where("NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)").
 		Order("d.ingress_time DESC").
 		Limit(pageSize).
 		Offset(offset).
@@ -172,7 +172,7 @@ func (b *BunDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Docum
 	for i, tagName := range parsed.IncludeTags {
 		alias := fmt.Sprintf("it%d", i)
 		tagAlias := fmt.Sprintf("t%d", i)
-		joinClause := fmt.Sprintf("INNER JOIN document_tags %s ON %s.document_id = d.storm_id", alias, alias)
+		joinClause := fmt.Sprintf("INNER JOIN document_tags %s ON %s.document_id = d.id", alias, alias)
 		tagJoin := fmt.Sprintf("INNER JOIN tags %s ON %s.id = %s.tag_id AND LOWER(%s.name) = LOWER(?)", tagAlias, tagAlias, alias, tagAlias)
 
 		baseQuery = baseQuery.Join(joinClause).Join(tagJoin, tagName)
@@ -184,7 +184,7 @@ func (b *BunDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Docum
 		excludeClause := `NOT EXISTS (
 			SELECT 1 FROM document_tags edt
 			INNER JOIN tags et ON et.id = edt.tag_id
-			WHERE edt.document_id = d.storm_id AND LOWER(et.name) = LOWER(?)
+			WHERE edt.document_id = d.id AND LOWER(et.name) = LOWER(?)
 		)`
 		baseQuery = baseQuery.Where(excludeClause, tagName)
 		countQuery = countQuery.Where(excludeClause, tagName)

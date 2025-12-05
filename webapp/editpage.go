@@ -660,11 +660,17 @@ func (e *EditPage) renderTagsSection() app.UI {
 		}
 	}
 
+	// Sort free tags: selected first, then unselected
+	freeTags = e.sortTagsSelectedFirst(freeTags)
+
 	var sections []app.UI
 
 	// Render grouped tags first (one-per-group behavior)
 	for _, group := range groupOrder {
 		tags := groupedTags[group]
+		// Sort grouped tags: selected first
+		tags = e.sortTagsSelectedFirst(tags)
+
 		sections = append(sections,
 			app.Div().Class("tag-group-section").Body(
 				app.Label().Class("tag-group-label").Text(group),
@@ -675,6 +681,8 @@ func (e *EditPage) renderTagsSection() app.UI {
 						className := "tag-item tag-group-item"
 						if isActive {
 							className += " tag-item-active"
+						} else {
+							className += " tag-item-inactive"
 						}
 
 						textColor := getContrastTextColor(tag.Color)
@@ -702,6 +710,8 @@ func (e *EditPage) renderTagsSection() app.UI {
 						className := "tag-item"
 						if isActive {
 							className += " tag-item-active"
+						} else {
+							className += " tag-item-inactive"
 						}
 
 						textColor := getContrastTextColor(tag.Color)
@@ -721,6 +731,19 @@ func (e *EditPage) renderTagsSection() app.UI {
 		app.H3().Text("Tags"),
 		app.Div().Body(sections...),
 	)
+}
+
+// sortTagsSelectedFirst sorts tags with selected ones first
+func (e *EditPage) sortTagsSelectedFirst(tags []Tag) []Tag {
+	var selected, unselected []Tag
+	for _, tag := range tags {
+		if e.hasTag(tag.ID) {
+			selected = append(selected, tag)
+		} else {
+			unselected = append(unselected, tag)
+		}
+	}
+	return append(selected, unselected...)
 }
 
 // toggleGroupTag handles tag selection within a group (one-per-group)

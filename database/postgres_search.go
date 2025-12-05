@@ -91,7 +91,7 @@ func (p *PostgresDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Documen
 	// Get total count
 	var count int
 	countQuery := `SELECT COUNT(*) FROM documents d
-	               INNER JOIN document_tags dt ON dt.document_id = d.storm_id
+	               INNER JOIN document_tags dt ON dt.document_id = d.id
 	               WHERE dt.tag_id = $1`
 	err := p.db.QueryRow(countQuery, tagID).Scan(&count)
 	if err != nil {
@@ -99,9 +99,9 @@ func (p *PostgresDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Documen
 	}
 
 	// Get documents
-	query := `SELECT d.storm_id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
+	query := `SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
 	          FROM documents d
-	          INNER JOIN document_tags dt ON dt.document_id = d.storm_id
+	          INNER JOIN document_tags dt ON dt.document_id = d.id
 	          WHERE dt.tag_id = $1
 	          ORDER BY d.ingress_time DESC
 	          LIMIT $2 OFFSET $3`
@@ -126,16 +126,16 @@ func (p *PostgresDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, 
 	// Get total count
 	var count int
 	countQuery := `SELECT COUNT(*) FROM documents d
-	               WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.storm_id)`
+	               WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`
 	err := p.db.QueryRow(countQuery).Scan(&count)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count untagged documents: %w", err)
 	}
 
 	// Get documents
-	query := `SELECT d.storm_id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
+	query := `SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
 	          FROM documents d
-	          WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.storm_id)
+	          WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)
 	          ORDER BY d.ingress_time DESC
 	          LIMIT $1 OFFSET $2`
 	rows, err := p.db.Query(query, pageSize, offset)
@@ -174,7 +174,7 @@ func (p *PostgresDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]
 	for i, tagName := range parsed.IncludeTags {
 		alias := fmt.Sprintf("it%d", i)
 		tagAlias := fmt.Sprintf("t%d", i)
-		joinClauses = append(joinClauses, fmt.Sprintf("INNER JOIN document_tags %s ON %s.document_id = d.storm_id", alias, alias))
+		joinClauses = append(joinClauses, fmt.Sprintf("INNER JOIN document_tags %s ON %s.document_id = d.id", alias, alias))
 		joinClauses = append(joinClauses, fmt.Sprintf("INNER JOIN tags %s ON %s.id = %s.tag_id AND LOWER(%s.name) = LOWER($%d)", tagAlias, tagAlias, alias, tagAlias, argNum))
 		args = append(args, tagName)
 		argNum++
@@ -185,7 +185,7 @@ func (p *PostgresDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]
 		excludeClause := fmt.Sprintf(`NOT EXISTS (
 			SELECT 1 FROM document_tags edt
 			INNER JOIN tags et ON et.id = edt.tag_id
-			WHERE edt.document_id = d.storm_id AND LOWER(et.name) = LOWER($%d)
+			WHERE edt.document_id = d.id AND LOWER(et.name) = LOWER($%d)
 		)`, argNum)
 		whereClauses = append(whereClauses, excludeClause)
 		args = append(args, tagName)
@@ -226,7 +226,7 @@ func (p *PostgresDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]
 	}
 
 	// Results query
-	resultsQuery := fmt.Sprintf(`SELECT d.storm_id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
+	resultsQuery := fmt.Sprintf(`SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
 	                              FROM documents d %s %s
 	                              ORDER BY d.ingress_time DESC
 	                              LIMIT $%d OFFSET $%d`, joinSQL, whereSQL, argNum, argNum+1)
