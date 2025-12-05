@@ -7,6 +7,8 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/stapelberg/postgrestest"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
 // EphemeralPostgresDB implements Repository using ephemeral PostgreSQL
@@ -63,9 +65,13 @@ func SetupEphemeralPostgresDatabase() (*EphemeralPostgresDB, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
+	// Create Bun DB wrapper for ORM operations
+	bunDB := bun.NewDB(db, pgdialect.New())
+
 	return &EphemeralPostgresDB{
 		PostgresDB: &PostgresDB{
 			db:         db,
+			bunDB:      bunDB,
 			isEmbedded: true, // Mark as ephemeral
 		},
 		server: pgt,

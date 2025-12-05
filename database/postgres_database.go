@@ -17,6 +17,7 @@ import (
 // PostgresDB implements Repository for PostgreSQL
 type PostgresDB struct {
 	db         *sql.DB
+	bunDB      *bun.DB
 	isEmbedded bool // Now refers to ephemeral instances
 }
 
@@ -65,8 +66,12 @@ func SetupPostgresDatabase(connectionString string) (*PostgresDB, error) {
 	}
 	Logger.Info("Database migrations completed successfully")
 
+	// Create Bun DB wrapper for ORM operations
+	bunDB := bun.NewDB(db, pgdialect.New())
+
 	return &PostgresDB{
 		db:         db,
+		bunDB:      bunDB,
 		isEmbedded: isEmbedded,
 	}, nil
 }

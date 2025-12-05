@@ -1,58 +1,51 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 )
 
 // ============================================================================
-// SAVED SEARCH METHODS - PostgreSQL Implementation
+// SAVED SEARCH METHODS
 // ============================================================================
 
 // GetAllSavedSearches returns all saved searches sorted by sort_order
 func (p *PostgresDB) GetAllSavedSearches() ([]SavedSearch, error) {
-	query := `SELECT id, name, description, query, icon, sort_order, is_system, created_at, updated_at
-	          FROM saved_searches ORDER BY sort_order ASC, name ASC`
-	rows, err := p.db.Query(query)
+	ctx := context.Background()
+	var searches []SavedSearch
+	err := p.bunDB.NewSelect().
+		Model(&searches).
+		Order("sort_order ASC", "name ASC").
+		Scan(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get saved searches: %w", err)
 	}
-	defer rows.Close()
-
-	var searches []SavedSearch
-	for rows.Next() {
-		var s SavedSearch
-		err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.Query, &s.Icon, &s.SortOrder, &s.IsSystem, &s.CreatedAt, &s.UpdatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan saved search: %w", err)
-		}
-		searches = append(searches, s)
-	}
-	return searches, rows.Err()
+	return searches, nil
 }
 
 // GetSavedSearchByID returns a saved search by its ID
 func (p *PostgresDB) GetSavedSearchByID(id int) (*SavedSearch, error) {
-	query := `SELECT id, name, description, query, icon, sort_order, is_system, created_at, updated_at
-	          FROM saved_searches WHERE id = $1`
-	s := &SavedSearch{}
-	err := p.db.QueryRow(query, id).Scan(&s.ID, &s.Name, &s.Description, &s.Query, &s.Icon, &s.SortOrder, &s.IsSystem, &s.CreatedAt, &s.UpdatedAt)
+	ctx := context.Background()
+	search := &SavedSearch{}
+	err := p.bunDB.NewSelect().
+		Model(search).
+		Where("id = ?", id).
+		Scan(ctx)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get saved search: %w", err)
 	}
-	return s, nil
+	return search, nil
 }
 
 // CreateSavedSearch creates a new saved search
 func (p *PostgresDB) CreateSavedSearch(search *SavedSearch) error {
-	query := `INSERT INTO saved_searches (name, description, query, icon, sort_order, is_system)
-	          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at`
-	err := p.db.QueryRow(query, search.Name, search.Description, search.Query, search.Icon, search.SortOrder, search.IsSystem).
-		Scan(&search.ID, &search.CreatedAt, &search.UpdatedAt)
+	ctx := context.Background()
+	_, err := p.bunDB.NewInsert().Model(search).Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create saved search: %w", err)
 	}
@@ -61,9 +54,11 @@ func (p *PostgresDB) CreateSavedSearch(search *SavedSearch) error {
 
 // UpdateSavedSearch updates an existing saved search
 func (p *PostgresDB) UpdateSavedSearch(search *SavedSearch) error {
-	query := `UPDATE saved_searches SET name = $1, description = $2, query = $3, icon = $4, sort_order = $5, updated_at = CURRENT_TIMESTAMP
-	          WHERE id = $6`
-	_, err := p.db.Exec(query, search.Name, search.Description, search.Query, search.Icon, search.SortOrder, search.ID)
+	ctx := context.Background()
+	_, err := p.bunDB.NewUpdate().
+		Model(search).
+		WherePK().
+		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to update saved search: %w", err)
 	}
@@ -72,8 +67,11 @@ func (p *PostgresDB) UpdateSavedSearch(search *SavedSearch) error {
 
 // DeleteSavedSearch deletes a saved search by ID
 func (p *PostgresDB) DeleteSavedSearch(id int) error {
-	query := `DELETE FROM saved_searches WHERE id = $1`
-	_, err := p.db.Exec(query, id)
+	ctx := context.Background()
+	_, err := p.bunDB.NewDelete().
+		Model((*SavedSearch)(nil)).
+		Where("id = ?", id).
+		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to delete saved search: %w", err)
 	}
@@ -81,39 +79,37 @@ func (p *PostgresDB) DeleteSavedSearch(id int) error {
 }
 
 // ============================================================================
-// SEARCH EXECUTION METHODS - PostgreSQL Implementation
+// SEARCH EXECUTION METHODS
 // ============================================================================
 
 // GetDocumentsByTag returns paginated documents that have a specific tag
 func (p *PostgresDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int, error) {
+	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
 	// Get total count
-	var count int
-	countQuery := `SELECT COUNT(*) FROM documents d
-	               INNER JOIN document_tags dt ON dt.document_id = d.id
-	               WHERE dt.tag_id = $1`
-	err := p.db.QueryRow(countQuery, tagID).Scan(&count)
+	count, err := p.bunDB.NewSelect().
+		TableExpr("documents d").
+		Join("INNER JOIN document_tags dt ON dt.document_id = d.id").
+		Where("dt.tag_id = ?", tagID).
+		Count(ctx)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count documents by tag: %w", err)
 	}
 
 	// Get documents
-	query := `SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
-	          FROM documents d
-	          INNER JOIN document_tags dt ON dt.document_id = d.id
-	          WHERE dt.tag_id = $1
-	          ORDER BY d.ingress_time DESC
-	          LIMIT $2 OFFSET $3`
-	rows, err := p.db.Query(query, tagID, pageSize, offset)
+	var docs []Document
+	err = p.bunDB.NewSelect().
+		TableExpr("documents d").
+		ColumnExpr("d.*").
+		Join("INNER JOIN document_tags dt ON dt.document_id = d.id").
+		Where("dt.tag_id = ?", tagID).
+		Order("d.ingress_time DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Scan(ctx, &docs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get documents by tag: %w", err)
-	}
-	defer rows.Close()
-
-	docs, err := scanDocuments(rows)
-	if err != nil {
-		return nil, 0, err
 	}
 
 	return docs, count, nil
@@ -121,32 +117,30 @@ func (p *PostgresDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Documen
 
 // GetUntaggedDocuments returns paginated documents that have no tags
 func (p *PostgresDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error) {
+	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
-	// Get total count
-	var count int
-	countQuery := `SELECT COUNT(*) FROM documents d
-	               WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`
-	err := p.db.QueryRow(countQuery).Scan(&count)
+	// Get total count of untagged documents
+	count, err := p.bunDB.NewSelect().
+		TableExpr("documents d").
+		Where("NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)").
+		Count(ctx)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count untagged documents: %w", err)
 	}
 
-	// Get documents
-	query := `SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
-	          FROM documents d
-	          WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)
-	          ORDER BY d.ingress_time DESC
-	          LIMIT $1 OFFSET $2`
-	rows, err := p.db.Query(query, pageSize, offset)
+	// Get untagged documents
+	var docs []Document
+	err = p.bunDB.NewSelect().
+		TableExpr("documents d").
+		ColumnExpr("d.*").
+		Where("NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)").
+		Order("d.ingress_time DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Scan(ctx, &docs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get untagged documents: %w", err)
-	}
-	defer rows.Close()
-
-	docs, err := scanDocuments(rows)
-	if err != nil {
-		return nil, 0, err
 	}
 
 	return docs, count, nil
@@ -154,6 +148,7 @@ func (p *PostgresDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, 
 
 // ExecuteSearch executes a parsed search query and returns paginated results
 func (p *PostgresDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Document, int, error) {
+	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
 	// Handle special cases
@@ -165,85 +160,68 @@ func (p *PostgresDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]
 	}
 
 	// Build dynamic query
-	var whereClauses []string
-	var joinClauses []string
-	var args []interface{}
-	argNum := 1
+	// Start with base query
+	baseQuery := p.bunDB.NewSelect().
+		TableExpr("documents d").
+		ColumnExpr("d.*")
 
-	// Add include tag filters
+	countQuery := p.bunDB.NewSelect().
+		TableExpr("documents d")
+
+	// Add include tag filters (documents must have ALL these tags)
 	for i, tagName := range parsed.IncludeTags {
 		alias := fmt.Sprintf("it%d", i)
 		tagAlias := fmt.Sprintf("t%d", i)
-		joinClauses = append(joinClauses, fmt.Sprintf("INNER JOIN document_tags %s ON %s.document_id = d.id", alias, alias))
-		joinClauses = append(joinClauses, fmt.Sprintf("INNER JOIN tags %s ON %s.id = %s.tag_id AND LOWER(%s.name) = LOWER($%d)", tagAlias, tagAlias, alias, tagAlias, argNum))
-		args = append(args, tagName)
-		argNum++
+		joinClause := fmt.Sprintf("INNER JOIN document_tags %s ON %s.document_id = d.id", alias, alias)
+		tagJoin := fmt.Sprintf("INNER JOIN tags %s ON %s.id = %s.tag_id AND LOWER(%s.name) = LOWER(?)", tagAlias, tagAlias, alias, tagAlias)
+
+		baseQuery = baseQuery.Join(joinClause).Join(tagJoin, tagName)
+		countQuery = countQuery.Join(joinClause).Join(tagJoin, tagName)
 	}
 
-	// Add exclude tag filters
+	// Add exclude tag filters (documents must NOT have these tags)
 	for _, tagName := range parsed.ExcludeTags {
-		excludeClause := fmt.Sprintf(`NOT EXISTS (
+		excludeClause := `NOT EXISTS (
 			SELECT 1 FROM document_tags edt
 			INNER JOIN tags et ON et.id = edt.tag_id
-			WHERE edt.document_id = d.id AND LOWER(et.name) = LOWER($%d)
-		)`, argNum)
-		whereClauses = append(whereClauses, excludeClause)
-		args = append(args, tagName)
-		argNum++
+			WHERE edt.document_id = d.id AND LOWER(et.name) = LOWER(?)
+		)`
+		baseQuery = baseQuery.Where(excludeClause, tagName)
+		countQuery = countQuery.Where(excludeClause, tagName)
 	}
 
-	// Add text search
+	// Add text search if present
 	if parsed.TextTerms != "" {
+		// Use full-text search if available, otherwise simple LIKE
 		searchTerms := strings.Split(parsed.TextTerms, " ")
 		for _, term := range searchTerms {
 			term = strings.TrimSpace(term)
 			if term == "" {
 				continue
 			}
-			textClause := fmt.Sprintf("(LOWER(d.name) LIKE LOWER($%d) OR LOWER(d.full_text) LIKE LOWER($%d))", argNum, argNum+1)
-			whereClauses = append(whereClauses, textClause)
 			likeTerm := "%" + term + "%"
-			args = append(args, likeTerm, likeTerm)
-			argNum += 2
+			textClause := "(LOWER(d.name) LIKE LOWER(?) OR LOWER(d.full_text) LIKE LOWER(?))"
+			baseQuery = baseQuery.Where(textClause, likeTerm, likeTerm)
+			countQuery = countQuery.Where(textClause, likeTerm, likeTerm)
 		}
 	}
 
-	// Build WHERE clause
-	whereSQL := ""
-	if len(whereClauses) > 0 {
-		whereSQL = "WHERE " + strings.Join(whereClauses, " AND ")
-	}
-
-	// Build JOIN clause
-	joinSQL := strings.Join(joinClauses, " ")
-
-	// Count query
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM documents d %s %s`, joinSQL, whereSQL)
-	var count int
-	err := p.db.QueryRow(countQuery, args...).Scan(&count)
+	// Get total count
+	count, err := countQuery.Count(ctx)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count search results: %w", err)
 	}
 
-	// Results query
-	resultsQuery := fmt.Sprintf(`SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url
-	                              FROM documents d %s %s
-	                              ORDER BY d.ingress_time DESC
-	                              LIMIT $%d OFFSET $%d`, joinSQL, whereSQL, argNum, argNum+1)
-	args = append(args, pageSize, offset)
-
-	rows, err := p.db.Query(resultsQuery, args...)
+	// Get results
+	var docs []Document
+	err = baseQuery.
+		Order("d.ingress_time DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Scan(ctx, &docs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to execute search: %w", err)
-	}
-	defer rows.Close()
-
-	docs, err := scanDocuments(rows)
-	if err != nil {
-		return nil, 0, err
 	}
 
 	return docs, count, nil
 }
-
-// Note: scanDocuments helper is defined in postgres_database.go
