@@ -341,13 +341,15 @@ func (e *EditPage) addTag(ctx app.Context, tagID int) {
 	url := BuildAPIURL(fmt.Sprintf("/api/documents/%s/tags", e.ulid))
 	body := fmt.Sprintf(`{"tag_id": %d}`, tagID)
 
-	// Optimistic update: immediately add tag to local state for responsive UI
-	for i := range e.allTags {
-		if e.allTags[i].ID == tagID {
-			e.documentTags = append(e.documentTags, e.allTags[i])
-			break
+	// Optimistic update: immediately add tag to local state and trigger re-render
+	ctx.Dispatch(func(ctx app.Context) {
+		for i := range e.allTags {
+			if e.allTags[i].ID == tagID {
+				e.documentTags = append(e.documentTags, e.allTags[i])
+				break
+			}
 		}
-	}
+	})
 
 	ctx.Async(func() {
 		opts := app.Window().Get("Object").New()
@@ -373,14 +375,16 @@ func (e *EditPage) addTag(ctx app.Context, tagID int) {
 func (e *EditPage) removeTag(ctx app.Context, tagID int) {
 	url := BuildAPIURL(fmt.Sprintf("/api/documents/%s/tags/%d", e.ulid, tagID))
 
-	// Optimistic update: immediately remove tag from local state for responsive UI
-	var newDocumentTags []Tag
-	for _, t := range e.documentTags {
-		if t.ID != tagID {
-			newDocumentTags = append(newDocumentTags, t)
+	// Optimistic update: immediately remove tag from local state and trigger re-render
+	ctx.Dispatch(func(ctx app.Context) {
+		var newDocumentTags []Tag
+		for _, t := range e.documentTags {
+			if t.ID != tagID {
+				newDocumentTags = append(newDocumentTags, t)
+			}
 		}
-	}
-	e.documentTags = newDocumentTags
+		e.documentTags = newDocumentTags
+	})
 
 	ctx.Async(func() {
 		opts := app.Window().Get("Object").New()
@@ -811,27 +815,29 @@ func (e *EditPage) removeTagAndAdd(ctx app.Context, removeID int, addID int) {
 	addURL := BuildAPIURL(fmt.Sprintf("/api/documents/%s/tags", e.ulid))
 	addBody := fmt.Sprintf(`{"tag_id": %d}`, addID)
 
-	// Optimistic update: immediately update local state for responsive UI
-	// Find the tag to add from allTags
-	var tagToAdd *Tag
-	for i := range e.allTags {
-		if e.allTags[i].ID == addID {
-			tagToAdd = &e.allTags[i]
-			break
+	// Optimistic update: immediately update local state and trigger re-render
+	ctx.Dispatch(func(ctx app.Context) {
+		// Find the tag to add from allTags
+		var tagToAdd *Tag
+		for i := range e.allTags {
+			if e.allTags[i].ID == addID {
+				tagToAdd = &e.allTags[i]
+				break
+			}
 		}
-	}
 
-	// Update documentTags: remove old tag, add new tag
-	var newDocumentTags []Tag
-	for _, t := range e.documentTags {
-		if t.ID != removeID {
-			newDocumentTags = append(newDocumentTags, t)
+		// Update documentTags: remove old tag, add new tag
+		var newDocumentTags []Tag
+		for _, t := range e.documentTags {
+			if t.ID != removeID {
+				newDocumentTags = append(newDocumentTags, t)
+			}
 		}
-	}
-	if tagToAdd != nil {
-		newDocumentTags = append(newDocumentTags, *tagToAdd)
-	}
-	e.documentTags = newDocumentTags
+		if tagToAdd != nil {
+			newDocumentTags = append(newDocumentTags, *tagToAdd)
+		}
+		e.documentTags = newDocumentTags
+	})
 
 	ctx.Async(func() {
 		// Remove the old tag first
