@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.34.6 2025-12-05
+
+- Fixing edit tags errors
+
 ## 0.34.3 2025-12-05
 
 - Adding search manager

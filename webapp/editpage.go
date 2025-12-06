@@ -352,7 +352,8 @@ func (e *EditPage) addTag(ctx app.Context, tagID int) {
 		res := app.Window().Call("fetch", url, opts)
 		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 			ctx.Dispatch(func(ctx app.Context) {
-				// Reload tags
+				// Reload all tags (in case tag properties changed) and document tags
+				e.fetchAllTags(ctx)
 				e.fetchDocumentTags(ctx)
 			})
 			return nil
@@ -371,7 +372,8 @@ func (e *EditPage) removeTag(ctx app.Context, tagID int) {
 		res := app.Window().Call("fetch", url, opts)
 		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 			ctx.Dispatch(func(ctx app.Context) {
-				// Reload tags
+				// Reload all tags (in case tag properties changed) and document tags
+				e.fetchAllTags(ctx)
 				e.fetchDocumentTags(ctx)
 			})
 			return nil
@@ -795,6 +797,8 @@ func (e *EditPage) removeTagAndAdd(ctx app.Context, removeID int, addID int) {
 			addRes := app.Window().Call("fetch", addURL, addOpts)
 			addRes.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
 				ctx.Dispatch(func(ctx app.Context) {
+					// Reload all tags (in case tag properties changed) and document tags
+					e.fetchAllTags(ctx)
 					e.fetchDocumentTags(ctx)
 				})
 				return nil
