@@ -686,17 +686,25 @@ func (e *EditPage) renderTagsSection() app.UI {
 
 	// Render grouped tags first (one-per-group behavior)
 	for _, group := range groupOrder {
+		// Create local copies to avoid closure capturing loop variables
+		currentGroup := group
 		tags := groupedTags[group]
 		// Sort grouped tags: selected first
 		tags = e.sortTagsSelectedFirst(tags)
 
 		sections = append(sections,
 			app.Div().Class("tag-group-section").Body(
-				app.Label().Class("tag-group-label").Text(group),
+				app.Label().Class("tag-group-label").Text(currentGroup),
 				app.Div().Class("tag-group-values").Body(
 					app.Range(tags).Slice(func(i int) app.UI {
 						tag := tags[i]
-						isActive := e.hasTag(tag.ID)
+						// Create local copies for the closure
+						tagID := tag.ID
+						tagName := tag.Name
+						tagColor := tag.Color
+						groupName := currentGroup
+
+						isActive := e.hasTag(tagID)
 						className := "tag-item tag-group-item"
 						if isActive {
 							className += " tag-item-active"
@@ -704,13 +712,14 @@ func (e *EditPage) renderTagsSection() app.UI {
 							className += " tag-item-inactive"
 						}
 
-						textColor := getContrastTextColor(tag.Color)
+						textColor := getContrastTextColor(tagColor)
 						return app.Button().
+							ID(fmt.Sprintf("tag-group-%d", tagID)).
 							Class(className).
-							Style("background-color", tag.Color).
+							Style("background-color", tagColor).
 							Style("color", textColor).
-							OnClick(e.toggleGroupTag(tag.ID, group)).
-							Body(app.Text(tag.Name))
+							OnClick(e.toggleGroupTag(tagID, groupName)).
+							Body(app.Text(tagName))
 					}),
 				),
 			),
@@ -725,7 +734,12 @@ func (e *EditPage) renderTagsSection() app.UI {
 				app.Div().Class("tags-list").Body(
 					app.Range(freeTags).Slice(func(i int) app.UI {
 						tag := freeTags[i]
-						isActive := e.hasTag(tag.ID)
+						// Create local copies for the closure
+						tagID := tag.ID
+						tagName := tag.Name
+						tagColor := tag.Color
+
+						isActive := e.hasTag(tagID)
 						className := "tag-item"
 						if isActive {
 							className += " tag-item-active"
@@ -733,13 +747,14 @@ func (e *EditPage) renderTagsSection() app.UI {
 							className += " tag-item-inactive"
 						}
 
-						textColor := getContrastTextColor(tag.Color)
+						textColor := getContrastTextColor(tagColor)
 						return app.Button().
+							ID(fmt.Sprintf("tag-free-%d", tagID)).
 							Class(className).
-							Style("background-color", tag.Color).
+							Style("background-color", tagColor).
 							Style("color", textColor).
-							OnClick(e.toggleTag(tag.ID)).
-							Body(app.Text(tag.Name))
+							OnClick(e.toggleTag(tagID)).
+							Body(app.Text(tagName))
 					}),
 				),
 			),
