@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.34.10 2025-12-07
+
+- Debug tag errors
+
 ## 0.34.9 2025-12-06
 
 - Fixing edit tags errors

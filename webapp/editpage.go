@@ -689,12 +689,12 @@ func (e *EditPage) renderTagsSection() app.UI {
 	var sections []app.UI
 
 	// Render grouped tags first (one-per-group behavior)
+	// Note: We don't sort grouped tags because only one can be selected at a time,
+	// and sorting causes issues with closure/element sync during rapid clicks
 	for _, group := range groupOrder {
 		// Create local copies to avoid closure capturing loop variables
 		currentGroup := group
 		tags := groupedTags[group]
-		// Sort grouped tags: selected first
-		tags = e.sortTagsSelectedFirst(tags)
 
 		sections = append(sections,
 			app.Div().Class("tag-group-section").Body(
