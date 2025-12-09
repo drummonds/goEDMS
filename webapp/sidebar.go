@@ -42,6 +42,7 @@ func (s *Sidebar) Render() app.UI {
 				s.renderNavItem("⚙️", "Jobs", "/jobs"),
 				s.renderNavItem("📊", "Word Cloud", "/wordcloud"),
 				s.renderNavItem("🏷️", "Manage Tags", "/tags"),
+				s.renderNavItem("💾", "Saved Searches", "/searches"),
 				s.renderNavItem("ℹ️", "About", "/about"),
 			),
 		)

@@ -17,7 +17,7 @@ var Logger *slog.Logger
 
 // ServerConfig contains all of the server settings
 type ServerConfig struct {
-	StormID              int `storm:"id"`
+	ID                   int
 	ListenAddrIP         string
 	ListenAddrPort       string
 	DatabaseType         string

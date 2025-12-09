@@ -2187,6 +2187,9 @@ const docTemplate = `{
                 "hash": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "integer"
+                },
                 "ingressTime": {
                     "type": "string"
                 },
@@ -2196,10 +2199,6 @@ const docTemplate = `{
                 "path": {
                     "description": "full path to the file",
                     "type": "string"
-                },
-                "stormID": {
-                    "description": "ID field (kept as StormID for backward compatibility)",
-                    "type": "integer"
                 },
                 "ulid": {
                     "description": "Have a smaller (than hash) id that can be used in URL's, hopefully speed things up",

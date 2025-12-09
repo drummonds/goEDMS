@@ -175,7 +175,7 @@ func TestOCRProcessingAndDatabaseStorage(t *testing.T) {
 		t.Fatal("Test document not found in database")
 	}
 
-	t.Logf("✓ Document found in database: %s (ID: %d)", testDoc.Name, testDoc.StormID)
+	t.Logf("✓ Document found in database: %s (ID: %d)", testDoc.Name, testDoc.ID)
 
 	// Verify the full_text field is populated
 	if testDoc.FullText == "" {

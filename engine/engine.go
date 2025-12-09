@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -227,7 +228,7 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	sidecarTxtRemoved := 0
 	for i, doc := range documents {
 		if doc.Path == "" {
-			Logger.Warn("Document has empty path, skipping", "id", doc.StormID, "name", doc.Name)
+			Logger.Warn("Document has empty path, skipping", "id", doc.ID, "name", doc.Name)
 			continue
 		}
 
@@ -237,11 +238,11 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 
 		// Check if file exists
 		if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
-			Logger.Info("File not found, removing from database", "path", doc.Path, "id", doc.StormID)
+			Logger.Info("File not found, removing from database", "path", doc.Path, "id", doc.ID)
 
 			// Delete from database
 			if err := database.DeleteDocument(doc.ULID.String(), db); err != nil {
-				Logger.Error("Failed to delete document from DB", "error", err, "id", doc.StormID)
+				Logger.Error("Failed to delete document from DB", "error", err, "id", doc.ID)
 				continue
 			}
 			deletedCount++
@@ -251,9 +252,9 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		// Check if this is a .txt file that is actually a sidecar (has a root document)
 		if strings.ToLower(filepath.Ext(doc.Path)) == ".txt" {
 			if !isTxtRootDocument(doc.Path) {
-				Logger.Info("Removing .txt sidecar entry from database", "path", doc.Path, "id", doc.StormID)
+				Logger.Info("Removing .txt sidecar entry from database", "path", doc.Path, "id", doc.ID)
 				if err := database.DeleteDocument(doc.ULID.String(), db); err != nil {
-					Logger.Error("Failed to delete .txt sidecar from DB", "error", err, "id", doc.StormID)
+					Logger.Error("Failed to delete .txt sidecar from DB", "error", err, "id", doc.ID)
 					continue
 				}
 				sidecarTxtRemoved++
@@ -395,7 +396,14 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	orphanedSidecarsDeleted = serverHandler.cleanOrphanedSidecars()
 	Logger.Info("Orphaned sidecar cleanup complete", "deleted", orphanedSidecarsDeleted)
 
-	// Step 6: Recalculate word cloud
+	// Step 6: Migrate stormid to id in .tags.json files (legacy cleanup)
+	db.UpdateJobProgress(jobID, 85, "Migrating legacy JSON fields")
+	jsonMigratedCount := 0
+	Logger.Info("Checking for legacy stormid fields in .tags.json files")
+	jsonMigratedCount = serverHandler.migrateStormIDInTagsFiles()
+	Logger.Info("JSON field migration complete", "migrated", jsonMigratedCount)
+
+	// Step 7: Recalculate word cloud
 	db.UpdateJobProgress(jobID, 90, "Recalculating word cloud")
 	Logger.Info("Recalculating word cloud after database cleanup")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
@@ -403,12 +411,12 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d}`, totalDocs, deletedCount, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "jsonFilesMigrated": %d}`, totalDocs, deletedCount, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, jsonMigratedCount)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
 
-	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted)
+	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted, "jsonFilesMigrated", jsonMigratedCount)
 }
 
 // ingressDocumentWithError is like ingressDocument but returns errors instead of just logging
@@ -820,4 +828,128 @@ func (serverHandler *ServerHandler) ocrProcessing(imageName string) (*string, er
 		// Empty text is valid - return it successfully
 	}
 	return &fullText, nil
+}
+
+// migrateStormIDInTagsFiles scans all .tags.json files and migrates "stormid" fields to "id"
+// This is a legacy cleanup for files created with the old Storm ORM
+// Returns the number of files that were migrated
+func (serverHandler *ServerHandler) migrateStormIDInTagsFiles() int {
+	documentPath := serverHandler.ServerConfig.DocumentPath
+	migratedCount := 0
+
+	err := filepath.Walk(documentPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip files we can't access
+		}
+
+		// Only process .tags.json files
+		if info.IsDir() || !strings.HasSuffix(path, ".tags.json") {
+			return nil
+		}
+
+		// Read the file
+		data, err := os.ReadFile(path)
+		if err != nil {
+			Logger.Warn("Failed to read tags file for migration", "path", path, "error", err)
+			return nil
+		}
+
+		// Check if file contains "stormid" (case-insensitive check)
+		content := string(data)
+		if !strings.Contains(strings.ToLower(content), "stormid") {
+			return nil // No migration needed
+		}
+
+		// Parse as generic JSON to preserve structure
+		var jsonData map[string]interface{}
+		if err := json.Unmarshal(data, &jsonData); err != nil {
+			Logger.Warn("Failed to parse tags file for migration", "path", path, "error", err)
+			return nil
+		}
+
+		// Migrate stormid to id at root level
+		modified := false
+		if val, exists := jsonData["stormid"]; exists {
+			if _, hasID := jsonData["id"]; !hasID {
+				jsonData["id"] = val
+			}
+			delete(jsonData, "stormid")
+			modified = true
+		}
+		if val, exists := jsonData["StormID"]; exists {
+			if _, hasID := jsonData["id"]; !hasID {
+				jsonData["id"] = val
+			}
+			delete(jsonData, "StormID")
+			modified = true
+		}
+
+		// Also check nested structures (e.g., arrays of objects)
+		modified = migrateStormIDRecursive(jsonData) || modified
+
+		if !modified {
+			return nil
+		}
+
+		// Write back the migrated file
+		newData, err := json.MarshalIndent(jsonData, "", "  ")
+		if err != nil {
+			Logger.Warn("Failed to marshal migrated tags file", "path", path, "error", err)
+			return nil
+		}
+
+		if err := os.WriteFile(path, newData, 0644); err != nil {
+			Logger.Warn("Failed to write migrated tags file", "path", path, "error", err)
+			return nil
+		}
+
+		Logger.Info("Migrated stormid to id in tags file", "path", path)
+		migratedCount++
+		return nil
+	})
+
+	if err != nil {
+		Logger.Error("Error walking document path for stormid migration", "error", err)
+	}
+
+	return migratedCount
+}
+
+// migrateStormIDRecursive recursively migrates stormid fields in nested structures
+func migrateStormIDRecursive(data interface{}) bool {
+	modified := false
+
+	switch v := data.(type) {
+	case map[string]interface{}:
+		// Migrate at this level
+		if val, exists := v["stormid"]; exists {
+			if _, hasID := v["id"]; !hasID {
+				v["id"] = val
+			}
+			delete(v, "stormid")
+			modified = true
+		}
+		if val, exists := v["StormID"]; exists {
+			if _, hasID := v["id"]; !hasID {
+				v["id"] = val
+			}
+			delete(v, "StormID")
+			modified = true
+		}
+		// Recurse into nested values
+		for _, val := range v {
+			if migrateStormIDRecursive(val) {
+				modified = true
+			}
+		}
+	case []interface{}:
+		// Recurse into array elements
+		for _, item := range v {
+			if migrateStormIDRecursive(item) {
+				modified = true
+			}
+		}
+	}
+
+	return modified
 }

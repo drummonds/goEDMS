@@ -431,7 +431,7 @@ func (serverHandler *ServerHandler) GetDocumentStatus(context echo.Context) erro
 	// Get tag count
 	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
 	if err == nil && doc != nil {
-		tags, err := serverHandler.DB.GetTagsForDocument(doc.StormID)
+		tags, err := serverHandler.DB.GetTagsForDocument(doc.ID)
 		if err == nil {
 			status.TagCount = len(tags)
 			status.HasTags = len(tags) > 0

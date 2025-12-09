@@ -9,7 +9,7 @@ import (
 
 // Document represents a document from the API
 type Document struct {
-	StormID      int    `json:"StormID"`
+	ID           int    `json:"ID"`
 	Name         string `json:"Name"`
 	Path         string `json:"Path"`
 	IngressTime  string `json:"IngressTime"`

@@ -173,7 +173,7 @@ func (b *BunDB) SaveDocument(doc *Document) error {
 		}
 	}
 
-	doc.StormID = bunDoc.ID
+	doc.ID = bunDoc.ID
 	return nil
 }
 
@@ -423,7 +423,7 @@ func (b *BunDB) GetConfig() (*config.ServerConfig, error) {
 	}
 
 	cfg := &config.ServerConfig{
-		StormID:              1,
+		ID:                   1,
 		ListenAddrIP:         bunConfig.ListenAddrIP,
 		ListenAddrPort:       bunConfig.ListenAddrPort,
 		IngressPath:          bunConfig.IngressPath,

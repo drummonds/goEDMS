@@ -34,7 +34,7 @@ func (bd *BunDocument) ToDocument() (*Document, error) {
 	}
 
 	return &Document{
-		StormID:      bd.ID,
+		ID:           bd.ID,
 		Name:         bd.Name,
 		Path:         bd.Path,
 		IngressTime:  bd.IngressTime,
@@ -50,7 +50,7 @@ func (bd *BunDocument) ToDocument() (*Document, error) {
 // FromDocument converts Document to BunDocument
 func FromDocument(doc *Document) *BunDocument {
 	return &BunDocument{
-		ID:           doc.StormID,
+		ID:           doc.ID,
 		Name:         doc.Name,
 		Path:         doc.Path,
 		IngressTime:  doc.IngressTime,

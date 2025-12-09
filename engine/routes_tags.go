@@ -238,7 +238,7 @@ func (serverHandler *ServerHandler) GetDocumentTags(c echo.Context) error {
 		})
 	}
 
-	tags, err := serverHandler.DB.GetTagsForDocument(doc.StormID)
+	tags, err := serverHandler.DB.GetTagsForDocument(doc.ID)
 	if err != nil {
 		Logger.Error("Failed to get document tags", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
@@ -281,7 +281,7 @@ func (serverHandler *ServerHandler) AddDocumentTag(c echo.Context) error {
 		})
 	}
 
-	if err := serverHandler.DB.AddTagToDocument(doc.StormID, req.TagID); err != nil {
+	if err := serverHandler.DB.AddTagToDocument(doc.ID, req.TagID); err != nil {
 		Logger.Error("Failed to add tag to document", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": "Failed to add tag",
@@ -329,7 +329,7 @@ func (serverHandler *ServerHandler) RemoveDocumentTag(c echo.Context) error {
 		})
 	}
 
-	if err := serverHandler.DB.RemoveTagFromDocument(doc.StormID, tagID); err != nil {
+	if err := serverHandler.DB.RemoveTagFromDocument(doc.ID, tagID); err != nil {
 		Logger.Error("Failed to remove tag from document", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": "Failed to remove tag",
@@ -404,7 +404,7 @@ func (serverHandler *ServerHandler) GetDocumentDimensions(c echo.Context) error 
 		})
 	}
 
-	dimensions, err := serverHandler.DB.GetDocumentDimensions(doc.StormID)
+	dimensions, err := serverHandler.DB.GetDocumentDimensions(doc.ID)
 	if err != nil {
 		Logger.Error("Failed to get document dimensions", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
@@ -465,7 +465,7 @@ func (serverHandler *ServerHandler) SetDocumentDimension(c echo.Context) error {
 	}
 
 	// Set dimension
-	if err := serverHandler.DB.SetDocumentDimension(doc.StormID, dimension.ID, dimValue.ID); err != nil {
+	if err := serverHandler.DB.SetDocumentDimension(doc.ID, dimension.ID, dimValue.ID); err != nil {
 		Logger.Error("Failed to set document dimension", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": "Failed to set dimension",
@@ -514,7 +514,7 @@ func (serverHandler *ServerHandler) RemoveDocumentDimension(c echo.Context) erro
 		})
 	}
 
-	if err := serverHandler.DB.RemoveDocumentDimension(doc.StormID, dimension.ID); err != nil {
+	if err := serverHandler.DB.RemoveDocumentDimension(doc.ID, dimension.ID); err != nil {
 		Logger.Error("Failed to remove document dimension", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": "Failed to remove dimension",

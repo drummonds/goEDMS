@@ -2,6 +2,13 @@
 
 All notable changes to godocs will be documented in this file.
 
+
+
+## 0.35.0 2025-12-09
+
+- Adding search manager page
+- removing stormid
+
 ## 0.34.10 2025-12-07
 
 - Debug tag errors

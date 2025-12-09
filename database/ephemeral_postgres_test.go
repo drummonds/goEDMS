@@ -113,10 +113,10 @@ func TestSetupEphemeralPostgresDatabase(t *testing.T) {
 		t.Fatalf("Failed to save document: %v", err)
 	}
 
-	t.Logf("Document saved with ID: %d", doc.StormID)
+	t.Logf("Document saved with ID: %d", doc.ID)
 
 	// Try to retrieve the document
-	retrievedDoc, err := ephemeralDB.PostgresDB.GetDocumentByID(doc.StormID)
+	retrievedDoc, err := ephemeralDB.PostgresDB.GetDocumentByID(doc.ID)
 	if err != nil {
 		t.Fatalf("Failed to retrieve document: %v", err)
 	}

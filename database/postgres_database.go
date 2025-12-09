@@ -124,7 +124,7 @@ func (p *PostgresDB) SaveDocument(doc *Document) error {
 	err := p.db.QueryRow(query,
 		doc.Name, doc.Path, doc.IngressTime, doc.Folder, doc.Hash,
 		doc.ULID.String(), doc.DocumentType, doc.FullText, doc.URL,
-	).Scan(&doc.StormID)
+	).Scan(&doc.ID)
 
 	return err
 }
@@ -138,7 +138,7 @@ func (p *PostgresDB) GetDocumentByID(id int) (*Document, error) {
 	var ulidStr string
 
 	err := p.db.QueryRow(query, id).Scan(
-		&doc.StormID, &doc.Name, &doc.Path, &doc.IngressTime,
+		&doc.ID, &doc.Name, &doc.Path, &doc.IngressTime,
 		&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
 		&doc.FullText, &doc.URL,
 	)
@@ -165,7 +165,7 @@ func (p *PostgresDB) GetDocumentByULID(ulidStr string) (*Document, error) {
 	var docUlidStr string
 
 	err := p.db.QueryRow(query, ulidStr).Scan(
-		&doc.StormID, &doc.Name, &doc.Path, &doc.IngressTime,
+		&doc.ID, &doc.Name, &doc.Path, &doc.IngressTime,
 		&doc.Folder, &doc.Hash, &docUlidStr, &doc.DocumentType,
 		&doc.FullText, &doc.URL,
 	)
@@ -192,7 +192,7 @@ func (p *PostgresDB) GetDocumentByPath(path string) (*Document, error) {
 	var ulidStr string
 
 	err := p.db.QueryRow(query, path).Scan(
-		&doc.StormID, &doc.Name, &doc.Path, &doc.IngressTime,
+		&doc.ID, &doc.Name, &doc.Path, &doc.IngressTime,
 		&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
 		&doc.FullText, &doc.URL,
 	)
@@ -219,7 +219,7 @@ func (p *PostgresDB) GetDocumentByHash(hash string) (*Document, error) {
 	var ulidStr string
 
 	err := p.db.QueryRow(query, hash).Scan(
-		&doc.StormID, &doc.Name, &doc.Path, &doc.IngressTime,
+		&doc.ID, &doc.Name, &doc.Path, &doc.IngressTime,
 		&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
 		&doc.FullText, &doc.URL,
 	)
@@ -249,7 +249,7 @@ func scanDocuments(rows *sql.Rows) ([]Document, error) {
 		var ulidStr string
 
 		err := rows.Scan(
-			&doc.StormID, &doc.Name, &doc.Path, &doc.IngressTime,
+			&doc.ID, &doc.Name, &doc.Path, &doc.IngressTime,
 			&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
 			&doc.FullText, &doc.URL,
 		)
@@ -397,7 +397,7 @@ func (p *PostgresDB) GetConfig() (*config.ServerConfig, error) {
 		return nil, err
 	}
 
-	cfg.StormID = 1
+	cfg.ID = 1
 	return cfg, nil
 }
 

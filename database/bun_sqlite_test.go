@@ -49,12 +49,12 @@ func TestBunSQLiteDatabase(t *testing.T) {
 			t.Fatalf("Failed to save document: %v", err)
 		}
 
-		if doc.StormID == 0 {
+		if doc.ID == 0 {
 			t.Error("Document ID was not set after save")
 		}
 
 		// Retrieve by ID
-		retrieved, err := db.GetDocumentByID(doc.StormID)
+		retrieved, err := db.GetDocumentByID(doc.ID)
 		if err != nil {
 			t.Fatalf("Failed to get document by ID: %v", err)
 		}
@@ -69,8 +69,8 @@ func TestBunSQLiteDatabase(t *testing.T) {
 			t.Fatalf("Failed to get document by ULID: %v", err)
 		}
 
-		if retrievedByULID.StormID != doc.StormID {
-			t.Errorf("Expected ID %d, got %d", doc.StormID, retrievedByULID.StormID)
+		if retrievedByULID.ID != doc.ID {
+			t.Errorf("Expected ID %d, got %d", doc.ID, retrievedByULID.ID)
 		}
 
 		t.Log("Document create and retrieve test passed")

@@ -19,16 +19,16 @@ import (
 
 // Document is all of the document information stored in the database
 type Document struct {
-	StormID      int // ID field (kept as StormID for backward compatibility)
-	Name         string
-	Path         string // full path to the file
-	IngressTime  time.Time
-	Folder       string
-	Hash         string
-	ULID         ulid.ULID // Have a smaller (than hash) id that can be used in URL's, hopefully speed things up
-	DocumentType string    // type of document (pdf, txt, etc)
-	FullText     string
-	URL          string
+	ID           int       `bun:"id,pk"`
+	Name         string    `bun:"name"`
+	Path         string    `bun:"path"` // full path to the file
+	IngressTime  time.Time `bun:"ingress_time"`
+	Folder       string    `bun:"folder"`
+	Hash         string    `bun:"hash"`
+	ULID         ulid.ULID `bun:"ulid"`          // Have a smaller (than hash) id that can be used in URL's, hopefully speed things up
+	DocumentType string    `bun:"document_type"` // type of document (pdf, txt, etc)
+	FullText     string    `bun:"full_text"`
+	URL          string    `bun:"url"`
 }
 
 // Logger is global since we will need it everywhere
@@ -115,7 +115,7 @@ func FetchConfigFromDB(db Repository) (config.ServerConfig, error) {
 
 // WriteConfigToDB writes the serverconfig to the database for later retrieval
 func WriteConfigToDB(serverConfig config.ServerConfig, db Repository) {
-	serverConfig.StormID = 1 // config will be stored in bucket 1
+	serverConfig.ID = 1 // config will be stored in bucket 1
 	fmt.Printf("%+v\n", serverConfig)
 	err := db.SaveConfig(&serverConfig)
 	if err != nil {

@@ -115,7 +115,7 @@ func (serverHandler *ServerHandler) applyTagsAndDimensionsToDocument(doc *databa
 		}
 
 		// Associate tag with document
-		if err := db.AddTagToDocument(doc.StormID, tag.ID); err != nil {
+		if err := db.AddTagToDocument(doc.ID, tag.ID); err != nil {
 			Logger.Warn("Failed to add tag to document", "tag", tagName, "doc", doc.ULID.String(), "error", err)
 		}
 	}
@@ -155,7 +155,7 @@ func (serverHandler *ServerHandler) applyTagsAndDimensionsToDocument(doc *databa
 		}
 
 		// Associate tag with document
-		if err := db.AddTagToDocument(doc.StormID, tag.ID); err != nil {
+		if err := db.AddTagToDocument(doc.ID, tag.ID); err != nil {
 			Logger.Warn("Failed to add grouped tag to document", "tag", tagName, "group", groupName, "doc", doc.ULID.String(), "error", err)
 		}
 	}
@@ -166,7 +166,7 @@ func (serverHandler *ServerHandler) applyTagsAndDimensionsToDocument(doc *databa
 // exportTagsAndDimensionsForDocument exports tags and dimensions from database to sidecar file
 func (serverHandler *ServerHandler) exportTagsAndDimensionsForDocument(doc *database.Document, db database.Repository) error {
 	// Get tags for document
-	tags, err := db.GetTagsForDocument(doc.StormID)
+	tags, err := db.GetTagsForDocument(doc.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get tags for document: %w", err)
 	}
