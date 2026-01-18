@@ -624,7 +624,7 @@ func (s *SavedSearchesPage) renderSearchCard(search SavedSearchWithCount) app.UI
 			app.A().
 				Href(fmt.Sprintf("/results?id=%d", search.ID)).
 				Class("btn btn-small").
-				Text("Run"),
+				Text("Show"),
 			app.If(!search.IsSystem, func() app.UI {
 				return app.Div().Body(
 					app.Button().Class("btn btn-small").OnClick(s.startEdit(search)).Text("Edit"),

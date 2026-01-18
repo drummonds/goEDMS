@@ -264,11 +264,20 @@ func (serverHandler *ServerHandler) ExecuteSavedSearch(c echo.Context) error {
 	}
 
 	search, err := serverHandler.DB.GetSavedSearchByID(id)
-	if err != nil || search == nil {
+	if err != nil {
+		Logger.Error("Failed to get saved search by ID", "id", id, "error", err)
 		return c.JSON(http.StatusNotFound, map[string]interface{}{
 			"error": "Saved search not found",
 		})
 	}
+	if search == nil {
+		Logger.Warn("Saved search not found", "id", id)
+		return c.JSON(http.StatusNotFound, map[string]interface{}{
+			"error": "Saved search not found",
+		})
+	}
+
+	Logger.Info("Executing saved search", "id", id, "name", search.Name, "query", search.Query)
 
 	// Parse pagination
 	page := 1
@@ -286,9 +295,11 @@ func (serverHandler *ServerHandler) ExecuteSavedSearch(c echo.Context) error {
 
 	// Execute search
 	parsed := database.ParseSearchQuery(search.Query)
+	Logger.Debug("Parsed search query", "isUntagged", parsed.IsUntagged, "isAllDocs", parsed.IsAllDocs, "textTerms", parsed.TextTerms, "includeTags", parsed.IncludeTags, "excludeTags", parsed.ExcludeTags)
+
 	docs, totalCount, err := serverHandler.DB.ExecuteSearch(parsed, page, pageSize)
 	if err != nil {
-		Logger.Error("Failed to execute search", "error", err)
+		Logger.Error("Failed to execute search", "error", err, "query", search.Query)
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": "Failed to execute search",
 		})

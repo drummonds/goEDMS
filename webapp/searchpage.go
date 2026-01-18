@@ -200,6 +200,26 @@ func (s *SearchResultItem) Render() app.UI {
 		iconUI = app.Text("📄")
 	}
 
+	// Build actions - view link and edit button (if ULID available)
+	var actionsUI app.UI
+	if s.Node.ULID != "" {
+		var viewLink app.UI
+		if s.Node.FileURL != "" {
+			viewLink = app.A().
+				Href(BuildAPIURL(s.Node.FileURL)).
+				Class("document-link").
+				Target("_blank").
+				Body(app.Text("View Document"))
+		}
+		actionsUI = app.Div().Class("document-actions").Body(
+			viewLink,
+			app.Button().
+				Class("document-link document-link-edit").
+				OnClick(s.navigateToEdit).
+				Body(app.Text("Edit")),
+		)
+	}
+
 	return app.Div().
 		Class("search-result-item").
 		Body(
@@ -209,6 +229,13 @@ func (s *SearchResultItem) Render() app.UI {
 				app.P().Class("result-path").Text(s.Node.FullPath),
 				sizeUI,
 				dateUI,
+				actionsUI,
 			),
 		)
+}
+
+// navigateToEdit handles navigation to the edit page
+func (s *SearchResultItem) navigateToEdit(ctx app.Context, e app.Event) {
+	e.PreventDefault()
+	ctx.Navigate("/edit/" + s.Node.ULID)
 }

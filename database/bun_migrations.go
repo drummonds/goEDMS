@@ -1048,7 +1048,7 @@ func init007CreateSavedSearches(ctx context.Context, db *bun.DB) error {
 		_, err := db.ExecContext(ctx, `
 			CREATE TABLE IF NOT EXISTS saved_searches (
 				id SERIAL PRIMARY KEY,
-				name TEXT NOT NULL,
+				name TEXT NOT NULL UNIQUE,
 				description TEXT DEFAULT '',
 				query TEXT NOT NULL,
 				icon TEXT DEFAULT '',
@@ -1066,7 +1066,7 @@ func init007CreateSavedSearches(ctx context.Context, db *bun.DB) error {
 		_, err := db.ExecContext(ctx, `
 			CREATE TABLE IF NOT EXISTS saved_searches (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				name TEXT NOT NULL,
+				name TEXT NOT NULL UNIQUE,
 				description TEXT DEFAULT '',
 				query TEXT NOT NULL,
 				icon TEXT DEFAULT '',
@@ -1081,21 +1081,44 @@ func init007CreateSavedSearches(ctx context.Context, db *bun.DB) error {
 		}
 	}
 
-	// Insert default saved searches
+	// Add unique constraint if table already exists (for existing databases)
+	if isPostgres {
+		db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_searches_name ON saved_searches(name)`)
+	} else {
+		db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_searches_name ON saved_searches(name)`)
+	}
+
+	// Insert default saved searches using Bun's query builder (handles boolean conversion automatically)
 	// 1. Inbox - untagged documents
-	_, err := db.ExecContext(ctx, `
-		INSERT INTO saved_searches (name, description, query, icon, sort_order, is_system)
-		VALUES ('Inbox', 'Documents without any tags', '!untagged', '📥', 1, true)
-	`)
+	inboxSearch := &SavedSearch{
+		Name:        "Inbox",
+		Description: "Documents without any tags",
+		Query:       "!untagged",
+		Icon:        "📥",
+		SortOrder:   1,
+		IsSystem:    true,
+	}
+	_, err := db.NewInsert().
+		Model(inboxSearch).
+		On("CONFLICT (name) DO NOTHING"). // Skip if already exists
+		Exec(ctx)
 	if err != nil {
 		Logger.Warn("Could not insert Inbox saved search", "error", err)
 	}
 
 	// 2. All Documents
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO saved_searches (name, description, query, icon, sort_order, is_system)
-		VALUES ('All Documents', 'Browse all documents', '*', '📄', 2, true)
-	`)
+	allDocsSearch := &SavedSearch{
+		Name:        "All Documents",
+		Description: "Browse all documents",
+		Query:       "*",
+		Icon:        "📄",
+		SortOrder:   2,
+		IsSystem:    true,
+	}
+	_, err = db.NewInsert().
+		Model(allDocsSearch).
+		On("CONFLICT (name) DO NOTHING"). // Skip if already exists
+		Exec(ctx)
 	if err != nil {
 		Logger.Warn("Could not insert All Documents saved search", "error", err)
 	}
