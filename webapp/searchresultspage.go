@@ -180,13 +180,30 @@ func (s *SearchResultsPage) addToRecentSearches(ctx app.Context) {
 	ctx.LocalStorage().Set("recentSearches", filtered)
 }
 
-// onPageChange handles page navigation
+// onPageChange handles page navigation by updating the URL
 func (s *SearchResultsPage) onPageChange(page int) func(ctx app.Context, e app.Event) {
 	return func(ctx app.Context, e app.Event) {
 		e.PreventDefault()
 		s.loading = true
 		s.error = ""
+		// Update URL with the new page number
+		s.updateURL(ctx, page)
 		s.executeSearch(ctx, page)
+	}
+}
+
+// updateURL updates the browser URL with the current page number
+func (s *SearchResultsPage) updateURL(ctx app.Context, page int) {
+	var newURL string
+	if s.searchID > 0 {
+		newURL = fmt.Sprintf("/results?id=%d&page=%d", s.searchID, page)
+	} else if s.query != "" {
+		encodedQuery := url.QueryEscape(s.query)
+		newURL = fmt.Sprintf("/results?q=%s&page=%d", encodedQuery, page)
+	}
+	if newURL != "" {
+		// Use history.replaceState to update URL without navigation
+		app.Window().Get("history").Call("replaceState", nil, "", newURL)
 	}
 }
 
@@ -240,42 +257,38 @@ func (s *SearchResultsPage) renderPagination() app.UI {
 		return nil
 	}
 
-	var items []app.UI
+	return app.Div().Class("pagination").Body(
+		// First button
+		app.Button().
+			Class("pagination-btn-small").
+			Disabled(s.currentPage == 1 || s.loading).
+			OnClick(s.onPageChange(1)).
+			Body(app.Text("First")),
 
-	// Previous button
-	if s.hasPrevious {
-		items = append(items,
-			app.Button().
-				Class("pagination-btn").
-				Text("← Previous").
-				OnClick(s.onPageChange(s.currentPage-1)),
-		)
-	}
+		// Previous button
+		app.Button().
+			Class("pagination-btn").
+			Disabled(!s.hasPrevious || s.loading).
+			OnClick(s.onPageChange(s.currentPage-1)).
+			Body(app.Text("← Previous")),
 
-	// Page numbers
-	for i := 1; i <= s.totalPages; i++ {
-		page := i
-		class := "pagination-num"
-		if i == s.currentPage {
-			class += " pagination-current"
-		}
-		items = append(items,
-			app.Button().
-				Class(class).
-				Text(fmt.Sprintf("%d", i)).
-				OnClick(s.onPageChange(page)),
-		)
-	}
+		// Page info
+		app.Span().Class("pagination-info").Body(
+			app.Text(fmt.Sprintf("Page %d of %d", s.currentPage, s.totalPages)),
+		),
 
-	// Next button
-	if s.hasNext {
-		items = append(items,
-			app.Button().
-				Class("pagination-btn").
-				Text("Next →").
-				OnClick(s.onPageChange(s.currentPage+1)),
-		)
-	}
+		// Next button
+		app.Button().
+			Class("pagination-btn").
+			Disabled(!s.hasNext || s.loading).
+			OnClick(s.onPageChange(s.currentPage+1)).
+			Body(app.Text("Next →")),
 
-	return app.Div().Class("pagination").Body(items...)
+		// Last button
+		app.Button().
+			Class("pagination-btn-small").
+			Disabled(s.currentPage == s.totalPages || s.loading).
+			OnClick(s.onPageChange(s.totalPages)).
+			Body(app.Text("Last")),
+	)
 }

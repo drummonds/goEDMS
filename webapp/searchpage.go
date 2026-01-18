@@ -163,7 +163,64 @@ func (s *SearchPage) performSearch(ctx app.Context) {
 // SearchResultItem displays a single search result
 type SearchResultItem struct {
 	app.Compo
-	Node FileTreeNode
+	Node   FileTreeNode
+	tags   []Tag
+	loaded bool
+}
+
+// OnMount is called when the component is mounted - fetches document tags
+func (s *SearchResultItem) OnMount(ctx app.Context) {
+	s.fetchTags(ctx)
+}
+
+// fetchTags fetches tags for this document
+func (s *SearchResultItem) fetchTags(ctx app.Context) {
+	if s.Node.ULID == "" {
+		return
+	}
+
+	ctx.Async(func() {
+		url := BuildAPIURL(fmt.Sprintf("/api/documents/%s/tags", s.Node.ULID))
+		res := app.Window().Call("fetch", url)
+
+		res.Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+			if len(args) == 0 {
+				return nil
+			}
+			response := args[0]
+
+			status := response.Get("status").Int()
+			if status != 200 {
+				ctx.Dispatch(func(ctx app.Context) {
+					s.loaded = true
+				})
+				return nil
+			}
+
+			response.Call("json").Call("then", app.FuncOf(func(this app.Value, args []app.Value) any {
+				if len(args) == 0 {
+					return nil
+				}
+				jsonData := args[0]
+				jsonStr := app.Window().Get("JSON").Call("stringify", jsonData).String()
+
+				var tags []Tag
+				ctx.Dispatch(func(ctx app.Context) {
+					if err := json.Unmarshal([]byte(jsonStr), &tags); err == nil {
+						s.tags = tags
+					}
+					s.loaded = true
+				})
+				return nil
+			}))
+			return nil
+		})).Call("catch", app.FuncOf(func(this app.Value, args []app.Value) any {
+			ctx.Dispatch(func(ctx app.Context) {
+				s.loaded = true
+			})
+			return nil
+		}))
+	})
 }
 
 // Render renders the search result item
@@ -200,6 +257,36 @@ func (s *SearchResultItem) Render() app.UI {
 		iconUI = app.Text("📄")
 	}
 
+	// Render tags (max 5 visible)
+	const maxVisibleTags = 5
+	var tagsContent app.UI
+	if len(s.tags) > 0 {
+		visibleTags := s.tags
+		hasMore := false
+		if len(s.tags) > maxVisibleTags {
+			visibleTags = s.tags[:maxVisibleTags]
+			hasMore = true
+		}
+
+		tagElements := make([]app.UI, 0, len(visibleTags)+1)
+		for _, tag := range visibleTags {
+			textColor := getContrastTextColor(tag.Color)
+			tagElements = append(tagElements,
+				app.Span().
+					Class("document-tag").
+					Style("background-color", tag.Color).
+					Style("color", textColor).
+					Text(tag.Name),
+			)
+		}
+		if hasMore {
+			tagElements = append(tagElements,
+				app.Span().Class("document-tags-more").Text(fmt.Sprintf("+%d more", len(s.tags)-maxVisibleTags)),
+			)
+		}
+		tagsContent = app.Div().Class("document-tags").Body(tagElements...)
+	}
+
 	// Build actions - view link and edit button (if ULID available)
 	var actionsUI app.UI
 	if s.Node.ULID != "" {
@@ -229,6 +316,7 @@ func (s *SearchResultItem) Render() app.UI {
 				app.P().Class("result-path").Text(s.Node.FullPath),
 				sizeUI,
 				dateUI,
+				tagsContent,
 				actionsUI,
 			),
 		)

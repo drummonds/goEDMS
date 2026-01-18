@@ -3,6 +3,7 @@ package webapp
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
 )
@@ -64,7 +65,16 @@ type HomePage struct {
 func (h *HomePage) OnMount(ctx app.Context) {
 	h.currentPage = 1
 	h.loading = true
-	h.fetchDocuments(ctx, 1)
+
+	// Parse URL parameters for page number
+	urlPath := ctx.Page().URL()
+	if urlObj, err := url.Parse(urlPath.String()); err == nil {
+		if p := urlObj.Query().Get("page"); p != "" {
+			fmt.Sscanf(p, "%d", &h.currentPage)
+		}
+	}
+
+	h.fetchDocuments(ctx, h.currentPage)
 	h.fetchSavedSearches(ctx)
 	h.loadRecentSearches(ctx)
 }
@@ -178,8 +188,22 @@ func (h *HomePage) onPageChange(page int) func(ctx app.Context, e app.Event) {
 		e.PreventDefault()
 		h.loading = true
 		h.error = ""
+		// Update URL with the new page number
+		h.updateURL(page)
 		h.fetchDocuments(ctx, page)
 	}
+}
+
+// updateURL updates the browser URL with the current page number
+func (h *HomePage) updateURL(page int) {
+	var newURL string
+	if page == 1 {
+		newURL = "/"
+	} else {
+		newURL = fmt.Sprintf("/?page=%d", page)
+	}
+	// Use history.replaceState to update URL without navigation
+	app.Window().Get("history").Call("replaceState", nil, "", newURL)
 }
 
 // Render renders the home page

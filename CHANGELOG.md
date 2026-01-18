@@ -4,8 +4,10 @@ All notable changes to godocs will be documented in this file.
 
 
 
-## 0.36.0 2026-01-18
+## 0.36.1 2026-01-18
 
+- Fixing pagination
+- Adding tags to search results
 - Adding edit button to search results
 
 ## 0.35.0 2025-12-09
