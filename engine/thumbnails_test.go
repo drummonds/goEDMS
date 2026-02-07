@@ -11,44 +11,34 @@ func TestThumbnailGeneration(t *testing.T) {
 		t.Skip("Skipping thumbnail generation test in short mode")
 	}
 
-	// Test files
 	testCases := []struct {
-		name          string
-		pdfFile       string
-		expectedPages int
-		expectPlus    bool
+		name    string
+		file    string
 	}{
-		{"Empty PDF", "../testdocs/1-empty.pdf", 1, false},
-		{"Single page", "../testdocs/2-hello.pdf", 1, false},
-		{"Two pages", "../testdocs/5-twopage.pdf", 2, false},
-		{"Five pages", "../testdocs/6-fivepage.pdf", 5, true}, // Should show first 4 + "+"
+		{"Empty PDF", "../testdocs/1-empty.pdf"},
+		{"Single page", "../testdocs/2-hello.pdf"},
+		{"Two pages", "../testdocs/5-twopage.pdf"},
+		{"Five pages", "../testdocs/6-fivepage.pdf"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Check if test PDF exists
-			if _, err := os.Stat(tc.pdfFile); os.IsNotExist(err) {
-				t.Skipf("Test PDF not found: %s (run 'go run cmd/testgen/main.go' first)", tc.pdfFile)
+			if _, err := os.Stat(tc.file); os.IsNotExist(err) {
+				t.Skipf("Test file not found: %s (run 'go run cmd/testgen/main.go' first)", tc.file)
 			}
 
-			// Generate thumbnail
-			err := generateThumbnail(tc.pdfFile)
+			err := saveThumbnailFile(tc.file)
 			if err != nil {
 				t.Fatalf("Failed to generate thumbnail: %v", err)
 			}
 
-			// Check thumbnail exists
-			thumbnailPath := getThumbnailPath(tc.pdfFile)
+			thumbnailPath := getThumbnailPath(tc.file)
 			if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
 				t.Errorf("Thumbnail was not created: %s", thumbnailPath)
 			} else {
-				t.Logf("✓ Thumbnail created: %s", filepath.Base(thumbnailPath))
-
-				// Get file info
+				t.Logf("Thumbnail created: %s", filepath.Base(thumbnailPath))
 				info, _ := os.Stat(thumbnailPath)
 				t.Logf("  Size: %d bytes", info.Size())
-
-				// Clean up
 				defer os.Remove(thumbnailPath)
 			}
 		})
@@ -70,6 +60,32 @@ func TestGetThumbnailPath(t *testing.T) {
 		result := getThumbnailPath(tt.input)
 		if result != tt.expected {
 			t.Errorf("getThumbnailPath(%q) = %q, want %q", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestThumbnailSupported(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{"document.pdf", true},
+		{"document.PDF", true},
+		{"photo.jpg", true},
+		{"photo.jpeg", true},
+		{"photo.png", true},
+		{"scan.tif", true},
+		{"scan.tiff", true},
+		{"document.doc", false},
+		{"document.docx", false},
+		{"document.txt", false},
+		{"document.rtf", false},
+	}
+
+	for _, tt := range tests {
+		result := thumbnailSupported(tt.path)
+		if result != tt.expected {
+			t.Errorf("thumbnailSupported(%q) = %v, want %v", tt.path, result, tt.expected)
 		}
 	}
 }

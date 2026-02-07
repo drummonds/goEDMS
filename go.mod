@@ -6,6 +6,7 @@ require (
 	github.com/chromedp/chromedp v0.14.2
 	github.com/disintegration/imaging v1.6.2
 	github.com/drummonds/go-postgres v0.0.0-20260207020524-bda54c68ffcc
+	github.com/drummonds/go-thumbnails v0.0.0-20260207173430-0e76de95babb
 	github.com/joho/godotenv v1.5.1
 	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/klippa-app/go-pdfium v1.17.2
@@ -13,7 +14,6 @@ require (
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/lib/pq v1.10.10-0.20241116184759-b7ffbd3b47da
 	github.com/maxence-charriere/go-app/v10 v10.1.8
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b

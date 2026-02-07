@@ -308,8 +308,8 @@ func (serverHandler *ServerHandler) updateDocumentText(doc *database.Document, f
 		}
 	}
 
-	// Generate thumbnail for PDF documents
-	if filepath.Ext(doc.Path) == ".pdf" {
+	// Generate thumbnail for supported document types
+	if thumbnailSupported(doc.Path) {
 		if err := saveThumbnailFile(doc.Path); err != nil {
 			Logger.Warn("Failed to generate thumbnail", "document", doc.Path, "error", err)
 			// Don't fail the ingestion if thumbnail generation fails

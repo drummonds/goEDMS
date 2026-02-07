@@ -492,10 +492,10 @@ func (serverHandler *ServerHandler) RegenerateThumbnail(context echo.Context) er
 		return context.JSON(httpStatus, map[string]string{"error": err.Error()})
 	}
 
-	// Check if document is a PDF
-	if filepath.Ext(document.Path) != ".pdf" {
+	// Check if document type supports thumbnails
+	if !thumbnailSupported(document.Path) {
 		return context.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Thumbnail generation is only supported for PDF documents",
+			"error": "Thumbnail generation is not supported for this document type",
 		})
 	}
 

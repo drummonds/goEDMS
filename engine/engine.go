@@ -356,8 +356,8 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 			continue
 		}
 
-		// Only check thumbnails for PDF files
-		if filepath.Ext(doc.Path) != ".pdf" {
+		// Only check thumbnails for supported file types
+		if !thumbnailSupported(doc.Path) {
 			continue
 		}
 
