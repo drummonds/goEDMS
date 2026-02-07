@@ -21,7 +21,7 @@ import (
 type Document struct {
 	ID           int       `json:"id"`
 	Name         string    `json:"name"`
-	Path         string    `json:"path"`          // full path to the file
+	Path         string    `json:"path"` // full path to the file
 	IngressTime  time.Time `json:"ingress_time"`
 	Folder       string    `json:"folder"`
 	Hash         string    `json:"hash"`

@@ -2174,14 +2174,14 @@ const docTemplate = `{
         "database.Document": {
             "type": "object",
             "properties": {
-                "documentType": {
+                "document_type": {
                     "description": "type of document (pdf, txt, etc)",
                     "type": "string"
                 },
                 "folder": {
                     "type": "string"
                 },
-                "fullText": {
+                "full_text": {
                     "type": "string"
                 },
                 "hash": {
@@ -2190,7 +2190,7 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "ingressTime": {
+                "ingress_time": {
                     "type": "string"
                 },
                 "name": {

@@ -11,10 +11,10 @@ type SavedSearch struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	Query       string    `json:"query"`           // Unified search query (text #tag ~exclude)
-	Icon        string    `json:"icon"`             // Emoji icon
-	SortOrder   int       `json:"sort_order"`       // Display order
-	IsSystem    bool      `json:"is_system"`        // True for built-in searches
+	Query       string    `json:"query"`      // Unified search query (text #tag ~exclude)
+	Icon        string    `json:"icon"`       // Emoji icon
+	SortOrder   int       `json:"sort_order"` // Display order
+	IsSystem    bool      `json:"is_system"`  // True for built-in searches
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
