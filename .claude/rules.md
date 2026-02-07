@@ -12,7 +12,7 @@ Helpful, concise, practical. Focus on code quality and maintainability.
 - Professional objectivity over validation
 
 ## PROJECT CONTEXT (godocs)
-- **Stack**: Go backend, WebAssembly frontend (go-app), PostgreSQL database
+- **Stack**: Go backend, WebAssembly frontend (go-app), PostgreSQL database using drummonds/go-postgres
 - **Core features**: Document ingestion, OCR (Tesseract), full-text search, file management
 - **Architecture principles**:
   - PostgreSQL-first: use native features (triggers, full-text search, constraints)

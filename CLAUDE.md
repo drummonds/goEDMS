@@ -17,7 +17,6 @@ task swagger:download   # Download Swagger UI assets
 cmd/webapp/        # WASM frontend entry point
 webapp/            # Frontend components (go-app)
 webapp/webapp.css  # All frontend styles
-database/          # Bun ORM migrations (in bun_migrations.go)
 internal/          # Shared internal packages
 engine/            # Core document processing
 static/            # Served static files (Swagger UI)
@@ -35,6 +34,7 @@ document.tags.json     # Sidecar: metadata including tags (optional)
 ```
 
 **Rules:**
+
 - Root documents: `.pdf`, `.jpg`, `.jpeg`, `.png`, `.tiff`, `.doc`, `.docx`, `.odf`, `.rtf`, `.text`
 - `.txt` is ONLY a root document if no other source file exists with the same base name
 - Use `.text` extension for primary text files to avoid ambiguity with sidecar `.txt` files
@@ -43,6 +43,7 @@ document.tags.json     # Sidecar: metadata including tags (optional)
 - `.tags.json`: JSON file with tags and metadata
 
 **Clean Database behavior:**
+
 - Removes DB entries for files that no longer exist on disk
 - Rescans orphaned files (on disk but not in DB) in-place
 - Skips duplicate files by hash (first occurrence wins)
@@ -57,7 +58,6 @@ document.tags.json     # Sidecar: metadata including tags (optional)
 
 **CSS changes**: Edit `webapp/webapp.css` (single CSS file for all styles)
 
-**Database changes**: Add migration function in `database/bun_migrations.go`
 
 **API changes**: Update handlers in `main.go`, regenerate with `task openapi`
 

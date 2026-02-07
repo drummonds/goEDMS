@@ -2,6 +2,9 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.37.0 2026-02-07
+
+- Switching to drummonds/go-postgres for pglike wrapper over sqlite.
 
 
 ## 0.36.1 2026-01-18
