@@ -4,22 +4,19 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/uptrace/bun"
 )
 
 // SavedSearch represents a saved search query
 type SavedSearch struct {
-	bun.BaseModel `bun:"table:saved_searches"`
-	ID            int       `json:"id" bun:"id,pk,autoincrement"`
-	Name          string    `json:"name" bun:"name"`
-	Description   string    `json:"description" bun:"description"`
-	Query         string    `json:"query" bun:"query"`           // Unified search query (text #tag ~exclude)
-	Icon          string    `json:"icon" bun:"icon"`             // Emoji icon
-	SortOrder     int       `json:"sort_order" bun:"sort_order"` // Display order
-	IsSystem      bool      `json:"is_system" bun:"is_system"`   // True for built-in searches
-	CreatedAt     time.Time `json:"created_at" bun:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at" bun:"updated_at"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Query       string    `json:"query"`           // Unified search query (text #tag ~exclude)
+	Icon        string    `json:"icon"`             // Emoji icon
+	SortOrder   int       `json:"sort_order"`       // Display order
+	IsSystem    bool      `json:"is_system"`        // True for built-in searches
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // ParsedSearch represents a parsed search query

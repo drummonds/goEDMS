@@ -7,34 +7,25 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/stapelberg/postgrestest"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
-// EphemeralPostgresDB implements Repository using ephemeral PostgreSQL
+// EphemeralPostgresDB wraps PGDB with an ephemeral PostgreSQL server for testing
 type EphemeralPostgresDB struct {
-	*PostgresDB
+	*PGDB
 	server *postgrestest.Server
 }
 
 // SetupEphemeralPostgresDatabase creates an ephemeral PostgreSQL instance
-func SetupEphemeralPostgresDatabase() (*EphemeralPostgresDB, error) {
+func SetupEphemeralPostgresDatabase() (*PGDB, error) {
 	Logger.Info("Starting ephemeral PostgreSQL server...")
 
 	ctx := context.Background()
 
-	// Start the ephemeral PostgreSQL server
-	// Uses a temporary directory by default for simplicity
 	pgt, err := postgrestest.Start(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start ephemeral postgres: %w", err)
 	}
 
-	// Get the default database DSN
-	defaultDSN := pgt.DefaultDatabase()
-	Logger.Info("Ephemeral PostgreSQL server started", "dsn", defaultDSN)
-
-	// Create a new database for the application
 	godocsDSN, err := pgt.CreateDatabase(ctx)
 	if err != nil {
 		pgt.Cleanup()
@@ -43,14 +34,12 @@ func SetupEphemeralPostgresDatabase() (*EphemeralPostgresDB, error) {
 
 	Logger.Info("Created ephemeral database", "dsn", godocsDSN)
 
-	// Connect to the new database
 	db, err := sql.Open("postgres", godocsDSN)
 	if err != nil {
 		pgt.Cleanup()
 		return nil, fmt.Errorf("failed to open godocs database: %w", err)
 	}
 
-	// Test connection
 	if err := db.Ping(); err != nil {
 		pgt.Cleanup()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
@@ -58,39 +47,12 @@ func SetupEphemeralPostgresDatabase() (*EphemeralPostgresDB, error) {
 
 	Logger.Info("Connected to ephemeral PostgreSQL database successfully")
 
-	// Run migrations
-	if err := runPostgresMigrations(db); err != nil {
+	// Run migrations (not pglike - this is real PostgreSQL)
+	if err := runMigrations(ctx, db, false); err != nil {
 		pgt.Cleanup()
 		db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	// Create Bun DB wrapper for ORM operations
-	bunDB := bun.NewDB(db, pgdialect.New())
-
-	return &EphemeralPostgresDB{
-		PostgresDB: &PostgresDB{
-			db:         db,
-			bunDB:      bunDB,
-			isEmbedded: true, // Mark as ephemeral
-		},
-		server: pgt,
-	}, nil
-}
-
-// Close closes the database connection and cleans up the ephemeral server
-func (e *EphemeralPostgresDB) Close() error {
-	if e.PostgresDB != nil && e.PostgresDB.db != nil {
-		if err := e.PostgresDB.db.Close(); err != nil {
-			Logger.Warn("Failed to close database connection", "error", err)
-		}
-	}
-
-	if e.server != nil {
-		Logger.Info("Cleaning up ephemeral PostgreSQL server...")
-		e.server.Cleanup()
-		Logger.Info("Ephemeral PostgreSQL server cleaned up")
-	}
-
-	return nil
+	return &PGDB{db: db, isPglike: false}, nil
 }

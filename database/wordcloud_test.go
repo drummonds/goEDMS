@@ -92,7 +92,7 @@ func TestWordCloudIntegration(t *testing.T) {
 	Logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Setup ephemeral database for testing
-	postgresDB, err := SetupPostgresDatabase("")
+	postgresDB, err := SetupEphemeralPostgresDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup ephemeral database: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestWordCloudWithDocuments(t *testing.T) {
 	Logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Setup ephemeral database
-	postgresDB, err := SetupPostgresDatabase("")
+	postgresDB, err := SetupEphemeralPostgresDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup ephemeral database: %v", err)
 	}
