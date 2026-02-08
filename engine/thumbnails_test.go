@@ -12,8 +12,8 @@ func TestThumbnailGeneration(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name    string
-		file    string
+		name string
+		file string
 	}{
 		{"Empty PDF", "../testdocs/1-empty.pdf"},
 		{"Single page", "../testdocs/2-hello.pdf"},
