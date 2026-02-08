@@ -73,8 +73,8 @@ func NewRepository(cfg config.ServerConfig) *PGDB {
 			os.Exit(1)
 		}
 
-	case "sqlite":
-		Logger.Info("Initializing sqlite database via go-postgres (pglike)...", "type", dbType)
+	case "pglike":
+		Logger.Info("Initializing go-postgres (pglike) database...", "type", dbType)
 		dbName := cfg.DatabaseDbname
 		if dbName == "" {
 			dbName = "databases/godocs.db"
@@ -97,7 +97,7 @@ func NewRepository(cfg config.ServerConfig) *PGDB {
 
 	default:
 		Logger.Error("Unknown database type", "type", dbType)
-		Logger.Info("Supported database types: ephemeral, postgres, cockroachdb, sqlite")
+		Logger.Info("Supported database types: ephemeral, postgres, cockroachdb, pglike")
 		os.Exit(1)
 	}
 

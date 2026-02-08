@@ -5,7 +5,7 @@
 A lightweight Electronic Document Management System (EDMS) for home users, built entirely in Go. It has no
 user authentication.
 
-**Originally created by [deranjer/godocs](https://github.com/deranjer/goEDMS)** - This is a hard fork with significant modernization and new features.  I had to rename it as I posoined the cache and couldn't
+**Originally created by [deranjer/godocs](https://github.com/deranjer/goEDMS)** - This is a hard fork with significant modernization and new features.  I had to rename it as I poisoned the cache and couldn't
 get it load on gokrazy.  It is now being tamed and can host on gokrazy.
 
 
@@ -17,7 +17,7 @@ godocs is a self-hosted document management system designed for home users to sc
 
 If you have go installed: `go install github.com/drummonds/godocs`
 Then run godocs in the directory you want to use and it should start
-up with the right directories and using Sqlite as a database.
+up with the right directories and using pglike (SQLite via go-postgres) as a database.
 
 ### Key Design Principles
 - **Easy Setup**: Works out-of-the-box with ephemeral database for testing
@@ -43,7 +43,7 @@ up with the right directories and using Sqlite as a database.
 - [x] Word cloud visualization
 - [x] Document viewer with print support
 - [x] Step-based ingestion with job tracking
-- [x] OCR support with Tesseract
+- [x] OCR support with Tesseract (not yet on gokrazy)
 - [x] Duplicate detection (MD5 hashing)
 - [x] Multiple file format support (PDF, images, text)
 
@@ -51,10 +51,10 @@ up with the right directories and using Sqlite as a database.
 - [x] Deploy to gokrazy with remote db
 - [x] Deploy to gokrazy with local db
 - [ ] Backup system
-- [ ] Thumbnails
-- [ ] Working job system display
+- [x] Thumbnails
+- [x] Working job system display
 - [ ] Backup and restore functionality
-- [ ] Document tagging system
+- [x] Document tagging system
 - [ ] Advanced workflows (inbox, categorization, importance)
 - [ ] AI-powered document summaries
 - [ ] Document archival system
@@ -66,17 +66,27 @@ godocs supports multiple ways to configure the application:
 
 **Note:** The godocs binary is self-contained with all static assets (WebAssembly, CSS, JavaScript) embedded. You only need the single binary and a configuration file (or environment variables) to run.
 
-### 1. Development Mode (Ephemeral PostgreSQL)
+### 1. pglike Mode (Simplest - No External Database)
 
-The easiest way to get started for development:
+The easiest way to run godocs with no dependencies:
+
+```bash
+DATABASE_TYPE=pglike ./godocs
+```
+
+This uses [go-postgres](https://github.com/drummonds/go-postgres) which transparently translates PostgreSQL SQL to SQLite. All migrations and queries are written in standard PostgreSQL syntax — go-postgres handles the translation. The database is stored locally in a `databases/` directory. This mode supports all features except PostgreSQL full-text search (falls back to LIKE-based search).
+
+### 2. Ephemeral PostgreSQL (Testing)
+
+For development and testing with a real PostgreSQL instance:
 
 ```bash
 DATABASE_TYPE=ephemeral ./godocs
 ```
 
-This starts godocs with an ephemeral PostgreSQL database that is automatically created and destroyed when the application exits. Perfect for testing and development!
+This starts godocs with an ephemeral PostgreSQL database that is automatically created and destroyed when the application exits.
 
-### 2. Local PostgreSQL with .env File (Recommended)
+### 3. Local PostgreSQL with .env File (Recommended for Production)
 
 For production use with a persistent PostgreSQL database:
 
@@ -144,7 +154,7 @@ Database connection settings are loaded in this order (later overrides earlier):
 
 Database connection options can be set via environment variables:
 
-- `DATABASE_TYPE` - Database type (postgres, ephemeral, sqlite, cockroachdb)
+- `DATABASE_TYPE` - Database type (postgres, pglike, ephemeral, cockroachdb)
 - `DATABASE_HOST` - Database hostname (not needed for ephemeral)
 - `DATABASE_PORT` - Database port (not needed for ephemeral)
 - `DATABASE_NAME` - Database name (not needed for ephemeral)
@@ -230,17 +240,17 @@ Deploy to gokrazy with local db
 
 ### Prerequisites
 - Go 1.22 or later
-- PostgreSQL (for production) or use ephemeral database for testing
+- PostgreSQL (for production), or use pglike/ephemeral mode for development
 - [Task](https://taskfile.dev/installation/) (optional, for build automation)
 - Tesseract OCR (optional, for document OCR)
 
 ### Running godocs
 
-**Development Mode (Ephemeral Database):**
+**pglike Mode (No External Database):**
 ```bash
-DATABASE_TYPE=ephemeral ./godocs
+DATABASE_TYPE=pglike ./godocs
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:8001](http://localhost:8001) in your browser.
 
 **Production Mode:**
 ```bash
@@ -290,7 +300,7 @@ On a representative sample of docs on my laptop is running an ingestion speed ab
 
 - **Backend**: Go 1.22+ with Echo framework
 - **Frontend**: Go WebAssembly using [go-app](https://go-app.dev/) framework
-- **Database**: PostgreSQL with full-text search (tsvector)
+- **Database**: PostgreSQL with full-text search (tsvector), or SQLite via [go-postgres](https://github.com/drummonds/go-postgres)
 - **OCR**: Tesseract for image and scanned PDF processing
 - **PDF Processing**: Pure Go PDF rendering via PDFium WebAssembly (no CGo required)
 - **Job Tracking**: ULID-based job system with real-time progress

@@ -155,7 +155,7 @@ godocs
 
 # By default, it will:
 # - Start on http://localhost:8000
-# - Use SQLite database (in current directory)
+# - Use pglike database (in current directory)
 # - Create necessary directories (ingress, documents)
 ```
 

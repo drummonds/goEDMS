@@ -4,16 +4,15 @@ godocs now supports multiple database backends to provide flexibility for differ
 
 ## Supported Databases
 
-- **SQLite** - Simple, embedded database, great for single-user deployments
 - **PostgreSQL** (default) - Production-grade relational database with embedded option
-- **CockroachDB** - Distributed SQL database for high-availability deployments
+- **pglike** - Postgres like with sqlite back end
 
 ## Configuration
 
 Database settings are configured in .env or environment varibles.  See .env.example
 
 
-## SQLite (Default)
+## pglike (Default)
 
 **Features:**
 - No external dependencies
@@ -126,7 +125,7 @@ To migrate data between databases:
 
 ## Database Files and Locations
 
-### SQLite
+### pglike
 - Database: `databases/godocs.db`
 - WAL file: `databases/godocs.db-wal`
 - Shared memory: `databases/godocs.db-shm`
@@ -189,7 +188,7 @@ To migrate data between databases:
 
 ## Backup and Recovery
 
-### SQLite Backup
+### pglike Backup
 ```bash
 # Stop godocs first
 cp databases/godocs.db databases/godocs.db.backup

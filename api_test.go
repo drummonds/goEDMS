@@ -703,7 +703,7 @@ func TestGetAboutInfo(t *testing.T) {
 		}
 
 		// Database type should be one of the valid types
-		validDBTypes := []string{"postgres", "cockroachdb", "sqlite"}
+		validDBTypes := []string{"postgres", "pglike"}
 		validType := false
 		for _, valid := range validDBTypes {
 			if dbType == valid {

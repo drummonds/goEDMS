@@ -17,7 +17,7 @@ func TestPglikeDatabase(t *testing.T) {
 		}))
 	}
 
-	db := NewRepository(config.ServerConfig{DatabaseType: "sqlite", DatabaseDbname: ":memory:"})
+	db := NewRepository(config.ServerConfig{DatabaseType: "pglike", DatabaseDbname: ":memory:"})
 	defer db.Close()
 
 	t.Log("pglike SQLite database setup successfully")

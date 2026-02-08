@@ -3,99 +3,82 @@
 Workarounds discovered during migration from Bun ORM to `database/sql` + `go-postgres`.
 Each item, once implemented in go-postgres, would simplify the godocs codebase.
 
-## 1. SERIAL PRIMARY KEY duplication
+## Resolved
+
+### 1. SERIAL PRIMARY KEY duplication — Fixed in v0.2.1
 
 **Problem:** `SERIAL` is translated to `INTEGER PRIMARY KEY AUTOINCREMENT`, so
 `SERIAL PRIMARY KEY` becomes `INTEGER PRIMARY KEY AUTOINCREMENT PRIMARY KEY` — invalid SQLite.
 
-**Current workaround:** A `serialPK()` helper returns `"SERIAL"` for pglike and
-`"SERIAL PRIMARY KEY"` for real PostgreSQL, injected via `fmt.Sprintf`.
+**Resolution:** Fixed in go-postgres v0.2.1. The `serialPK()` helper has been removed
+from godocs; all migrations now use `SERIAL PRIMARY KEY` directly.
 
-**Suggested fix:** When go-postgres sees `SERIAL PRIMARY KEY`, strip the redundant
-`PRIMARY KEY` during translation since `AUTOINCREMENT` already implies it.
-
-**Files affected:** `database/pg_migrations.go` — all CREATE TABLE statements with SERIAL columns.
-
-## 2. DEFAULT CURRENT_TIMESTAMP not wrapped in parentheses
+### 2. DEFAULT CURRENT_TIMESTAMP not wrapped in parentheses — Fixed in v0.3.0
 
 **Problem:** `DEFAULT CURRENT_TIMESTAMP` is translated to
 `DEFAULT datetime('now')`, but SQLite requires `DEFAULT (datetime('now'))` (parentheses
 around function calls in DEFAULT clauses).
 
-**Current workaround:** Use `DEFAULT NOW()` instead, which go-postgres wraps correctly.
+**Resolution:** Fixed in go-postgres v0.3.0. The `DEFAULT NOW()` workaround has been
+removed from godocs; all migrations now use `DEFAULT CURRENT_TIMESTAMP` directly.
 
-**Suggested fix:** When translating `CURRENT_TIMESTAMP` in a DEFAULT clause, wrap the
-result in parentheses: `DEFAULT (datetime('now'))`.
-
-**Files affected:** `database/pg_migrations.go` — all TIMESTAMP columns use `DEFAULT NOW()`.
-
-## 3. time.Time not coerced on scan
+### 3. time.Time not coerced on scan — Fixed in v0.3.0
 
 **Problem:** SQLite stores timestamps as strings (e.g. `"2026-01-15 10:30:00 +0000 GMT"`).
 When scanning via `database/sql`, Go cannot automatically convert these strings to
 `time.Time`, causing `unsupported Scan, storing driver.Value type string into type *time.Time`.
 
-**Current workaround:** Custom `timeScanner` and `nullTimeScanner` types in
-`database/pg_scan.go` that implement `sql.Scanner` and parse multiple time string formats.
-Every scan function uses these instead of scanning directly into `time.Time`.
+**Resolution:** Fixed in go-postgres v0.3.0. The `timeScanner`/`nullTimeScanner` workaround
+can now be removed from `pg_scan.go` and all scan functions simplified to scan directly
+into `time.Time` fields.
 
-**Suggested fix:** Register a custom `time.Time` scanner in the go-postgres driver that
-automatically parses timestamp strings returned by SQLite into `time.Time` values. This
-would make `database/sql` scan directly into `time.Time` without any custom scanner.
+**Files affected:** `database/pg_scan.go` (can be removed),
+`database/pg_database.go`, `database/pg_tags.go`, `database/pg_search.go`.
 
-**Files affected:** `database/pg_scan.go` (entire file could be removed),
-`database/pg_database.go`, `database/pg_tags.go`, `database/pg_search.go` — all scan
-functions could revert to scanning directly into `time.Time` fields.
+### 4. NULLS FIRST / NULLS LAST in ORDER BY — Fixed in v0.3.0
 
-## 4. NULLS FIRST / NULLS LAST in ORDER BY
-
-**Problem:** PostgreSQL supports `ORDER BY col ASC NULLS FIRST` but go-postgres does not
+**Problem:** PostgreSQL supports `ORDER BY col ASC NULLS FIRST` but go-postgres did not
 translate this for SQLite.
 
-**Current workaround:** Use a CASE expression:
-```sql
-ORDER BY CASE WHEN tag_group IS NULL THEN 0 ELSE 1 END, tag_group ASC
-```
-
-**Suggested fix:** Translate `NULLS FIRST` to a CASE expression automatically, or use
-SQLite's built-in NULL ordering behavior (NULLs sort first by default in ASC order in
-SQLite, so `NULLS FIRST` with ASC could simply be stripped).
+**Resolution:** Fixed in go-postgres v0.3.0 for table-qualified columns and complex
+expressions. The CASE expression workaround in `pg_tags.go` can now be replaced with
+standard `NULLS FIRST` syntax.
 
 **Files affected:** `database/pg_tags.go` — `GetAllTags()` and `GetTagsForDocument()`.
 
-## 5. RETURNING clause support
+### 5. RETURNING clause support — Confirmed in v0.3.0
 
-**Problem:** `INSERT ... RETURNING id` may not work through pglike. PostgreSQL supports
-this natively; SQLite added `RETURNING` in 3.35.0 but go-postgres may not pass it through.
+**Problem:** `INSERT ... RETURNING id` may not work through pglike.
 
-**Current workaround:** Try `RETURNING` first, then fall back to a separate
-`INSERT` + `SELECT` if it fails.
-
-**Suggested fix:** Either pass `RETURNING` through to SQLite (if version >= 3.35.0) or
-translate to an equivalent `SELECT last_insert_rowid()` call.
+**Resolution:** Confirmed working in go-postgres v0.3.0 (native SQLite 3.35+ support).
+The try/fallback pattern in `pg_tags.go` and `pg_search.go` can be simplified to just
+use `RETURNING` directly.
 
 **Files affected:** `database/pg_tags.go` (`CreateTag`), `database/pg_search.go`
 (`CreateSavedSearch`).
 
-## 6. ALTER TABLE ADD COLUMN IF NOT EXISTS
+### 6. ALTER TABLE ADD COLUMN IF NOT EXISTS — Fixed in v0.3.0
 
 **Problem:** PostgreSQL supports `ALTER TABLE ADD COLUMN IF NOT EXISTS` but SQLite does
 not (the `IF NOT EXISTS` clause is not recognized for `ADD COLUMN`).
 
-**Current workaround:** Ignore errors from ALTER TABLE ADD COLUMN (log as warning).
-
-**Suggested fix:** Translate `ADD COLUMN IF NOT EXISTS` to first check
-`PRAGMA table_info(table)` for the column, then conditionally run `ADD COLUMN`.
+**Resolution:** Fixed in go-postgres v0.3.0. Translates to SQLite-compatible syntax.
+The error-ignoring workaround in migrations can now be cleaned up.
 
 **Files affected:** `database/pg_migrations.go` — migration 002 and 006.
 
+## Open
+
+No open issues remaining. All workarounds can be removed now that go-postgres v0.3.0
+addresses every known gap.
+
 ## Summary
 
-| # | Issue | Severity | Workaround complexity |
-|---|-------|----------|----------------------|
-| 1 | SERIAL PRIMARY KEY duplication | High | `serialPK()` helper + `fmt.Sprintf` in all DDL |
-| 2 | DEFAULT CURRENT_TIMESTAMP | Medium | Use `DEFAULT NOW()` everywhere |
-| 3 | time.Time not coerced on scan | High | 70-line pg_scan.go + every scan function changed |
-| 4 | NULLS FIRST/LAST | Low | CASE expression workaround |
-| 5 | RETURNING clause | Medium | Try/fallback pattern |
-| 6 | ALTER TABLE IF NOT EXISTS | Low | Ignore errors |
+| # | Issue | Status | Workaround |
+|---|-------|--------|------------|
+| 1 | SERIAL PRIMARY KEY duplication | **Resolved** (v0.2.1) | Removed |
+| 2 | DEFAULT CURRENT_TIMESTAMP | **Resolved** (v0.3.0) | Removed |
+| 3 | time.Time not coerced on scan | **Resolved** (v0.3.0) | Can remove `pg_scan.go` |
+| 4 | NULLS FIRST/LAST | **Resolved** (v0.3.0) | Can remove CASE workaround |
+| 5 | RETURNING clause | **Resolved** (v0.3.0) | Can remove try/fallback |
+| 6 | ALTER TABLE IF NOT EXISTS | **Resolved** (v0.3.0) | Can remove error ignoring |

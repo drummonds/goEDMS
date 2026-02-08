@@ -67,7 +67,7 @@ func setupTestEnvironment(t *testing.T) func() {
 	}
 
 	// Set environment variables for test
-	os.Setenv("DATABASE_TYPE", "sqlite")
+	os.Setenv("DATABASE_TYPE", "pglike")
 	os.Setenv("DATABASE_NAME", dbPath)
 	os.Setenv("INGRESS_PATH", ingressDir)
 	os.Setenv("DOCUMENT_PATH", docsDir)

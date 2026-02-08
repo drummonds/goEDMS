@@ -183,8 +183,8 @@ func (a *AboutPage) getDatabaseDisplay() string {
 		return "PostgreSQL"
 	case "cockroachdb":
 		return "CockroachDB"
-	case "sqlite":
-		return "SQLite"
+	case "pglike":
+		return "pglike (SQLite)"
 	default:
 		return a.aboutInfo.DatabaseType
 	}

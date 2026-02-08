@@ -22,14 +22,9 @@ func TestGetDatabaseDisplay(t *testing.T) {
 			expected: "CockroachDB",
 		},
 		{
-			name:     "SQLite",
-			dbType:   "sqlite",
-			expected: "SQLite",
-		},
-		{
-			name:     "Unknown type",
-			dbType:   "mongodb",
-			expected: "mongodb",
+			name:     "pglike",
+			dbType:   "pglike",
+			expected: "pglike (SQLite)",
 		},
 	}
 

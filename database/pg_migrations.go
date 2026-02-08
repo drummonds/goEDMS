@@ -6,16 +6,6 @@ import (
 	"fmt"
 )
 
-// serialPK returns the correct DDL for an auto-increment primary key column.
-// PostgreSQL requires explicit PRIMARY KEY with SERIAL; go-postgres adds it
-// automatically when translating SERIAL, so including both causes a duplicate error.
-func serialPK(isPglike bool) string {
-	if isPglike {
-		return "SERIAL" // go-postgres translates to INTEGER PRIMARY KEY AUTOINCREMENT
-	}
-	return "SERIAL PRIMARY KEY"
-}
-
 // runMigrations runs all database migrations using raw SQL.
 // All DDL is written in PostgreSQL syntax. For pglike (go-postgres/SQLite),
 // the driver translates automatically. PostgreSQL-specific features (tsvector,
@@ -25,7 +15,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version TEXT PRIMARY KEY,
-			applied_at TIMESTAMP DEFAULT NOW()
+			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
@@ -45,18 +35,6 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 			return err
 		}
 		appliedMap[version] = true
-	}
-
-	// Also check bun_schema_migrations if it exists (for migration from Bun)
-	bunRows, err := db.QueryContext(ctx, `SELECT version FROM bun_schema_migrations`)
-	if err == nil {
-		defer bunRows.Close()
-		for bunRows.Next() {
-			var version string
-			if err := bunRows.Scan(&version); err == nil {
-				appliedMap[version] = true
-			}
-		}
 	}
 
 	migrations := []struct {
@@ -99,21 +77,21 @@ func migrate001InitialSchema(ctx context.Context, db *sql.DB, isPglike bool) err
 	Logger.Info("Running migration 001: Create initial schema")
 
 	// Create documents table - PostgreSQL syntax, go-postgres translates SERIAL for SQLite
-	_, err := db.ExecContext(ctx, fmt.Sprintf(`
+	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS documents (
-			id %s,
+			id SERIAL PRIMARY KEY,
 			name TEXT NOT NULL,
 			path TEXT NOT NULL UNIQUE,
-			ingress_time TIMESTAMP NOT NULL DEFAULT NOW(),
+			ingress_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			folder TEXT NOT NULL,
 			hash TEXT NOT NULL,
 			ulid TEXT NOT NULL UNIQUE,
 			document_type TEXT NOT NULL,
 			full_text TEXT,
 			url TEXT,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)`, serialPK(isPglike)))
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create documents table: %w", err)
 	}
@@ -154,8 +132,8 @@ func migrate001InitialSchema(ctx context.Context, db *sql.DB, isPglike bool) err
 			ingress_interval INTEGER NOT NULL DEFAULT 10,
 			new_document_number INTEGER NOT NULL DEFAULT 5,
 			server_api_url TEXT DEFAULT '',
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create server_config table: %w", err)
@@ -241,7 +219,7 @@ func migrate003AddWordCloud(ctx context.Context, db *sql.DB, isPglike bool) erro
 		CREATE TABLE IF NOT EXISTS word_frequencies (
 			word TEXT PRIMARY KEY,
 			frequency INTEGER DEFAULT 1,
-			last_updated TIMESTAMP DEFAULT NOW()
+			last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create word_frequencies table: %w", err)
@@ -264,8 +242,8 @@ func migrate003AddWordCloud(ctx context.Context, db *sql.DB, isPglike bool) erro
 			total_documents_processed INTEGER DEFAULT 0,
 			total_words_indexed INTEGER DEFAULT 0,
 			version INTEGER DEFAULT 1,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create word_cloud_metadata table: %w", err)
@@ -296,8 +274,8 @@ func migrate004CreateJobsTable(ctx context.Context, db *sql.DB, isPglike bool) e
 			message TEXT DEFAULT '',
 			error TEXT,
 			result TEXT,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			started_at TIMESTAMP,
 			completed_at TIMESTAMP
 		)`)
@@ -332,15 +310,15 @@ func migrate005AddTaggingSystem(ctx context.Context, db *sql.DB, isPglike bool) 
 	Logger.Info("Running migration 005: Add tagging system")
 
 	// Create tags table
-	_, err := db.ExecContext(ctx, fmt.Sprintf(`
+	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS tags (
-			id %s,
+			id SERIAL PRIMARY KEY,
 			name TEXT NOT NULL UNIQUE,
 			color TEXT DEFAULT '#3498db',
 			description TEXT,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)`, serialPK(isPglike)))
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create tags table: %w", err)
 	}
@@ -350,7 +328,7 @@ func migrate005AddTaggingSystem(ctx context.Context, db *sql.DB, isPglike bool) 
 		CREATE TABLE IF NOT EXISTS document_tags (
 			document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
 			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (document_id, tag_id)
 		)`)
 	if err != nil {
@@ -358,50 +336,50 @@ func migrate005AddTaggingSystem(ctx context.Context, db *sql.DB, isPglike bool) 
 	}
 
 	// Create dimensions table
-	_, err = db.ExecContext(ctx, fmt.Sprintf(`
+	_, err = db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS dimensions (
-			id %s,
+			id SERIAL PRIMARY KEY,
 			name TEXT NOT NULL UNIQUE,
 			display_name TEXT NOT NULL,
 			description TEXT,
 			dimension_type TEXT NOT NULL DEFAULT 'single',
 			is_required BOOLEAN NOT NULL DEFAULT false,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)`, serialPK(isPglike)))
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create dimensions table: %w", err)
 	}
 
 	// Create dimension_values table
-	_, err = db.ExecContext(ctx, fmt.Sprintf(`
+	_, err = db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS dimension_values (
-			id %s,
+			id SERIAL PRIMARY KEY,
 			dimension_id INTEGER NOT NULL REFERENCES dimensions(id) ON DELETE CASCADE,
 			value TEXT NOT NULL,
 			display_name TEXT NOT NULL,
 			description TEXT,
 			color TEXT DEFAULT '#95a5a6',
 			sort_order INTEGER NOT NULL DEFAULT 0,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(dimension_id, value)
-		)`, serialPK(isPglike)))
+		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create dimension_values table: %w", err)
 	}
 
 	// Create document_dimensions table
-	_, err = db.ExecContext(ctx, fmt.Sprintf(`
+	_, err = db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS document_dimensions (
-			id %s,
+			id SERIAL PRIMARY KEY,
 			document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
 			dimension_id INTEGER NOT NULL REFERENCES dimensions(id) ON DELETE CASCADE,
 			dimension_value_id INTEGER NOT NULL REFERENCES dimension_values(id) ON DELETE CASCADE,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(document_id, dimension_id)
-		)`, serialPK(isPglike)))
+		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create document_dimensions table: %w", err)
 	}
@@ -600,18 +578,18 @@ func migrate006UnifyTagsDimensions(ctx context.Context, db *sql.DB, isPglike boo
 func migrate007CreateSavedSearches(ctx context.Context, db *sql.DB, isPglike bool) error {
 	Logger.Info("Running migration 007: Create saved searches table")
 
-	_, err := db.ExecContext(ctx, fmt.Sprintf(`
+	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS saved_searches (
-			id %s,
+			id SERIAL PRIMARY KEY,
 			name TEXT NOT NULL UNIQUE,
 			description TEXT DEFAULT '',
 			query TEXT NOT NULL,
 			icon TEXT DEFAULT '',
 			sort_order INTEGER DEFAULT 0,
 			is_system BOOLEAN DEFAULT FALSE,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		)`, serialPK(isPglike)))
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`)
 	if err != nil {
 		return fmt.Errorf("failed to create saved_searches table: %w", err)
 	}
