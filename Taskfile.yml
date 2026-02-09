@@ -233,6 +233,23 @@ tasks:
       - task: build
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
 
+  demo:
+    desc: Run app with pglike database and generated test documents
+    cmds:
+      - go run cmd/testgen/main.go
+      - >-
+        DATABASE_TYPE=pglike
+        DATABASE_NAME=testdocs/demo.db
+        DOCUMENT_PATH=testdocs
+        LOG_OUTPUT=stdout
+        go run .
+
+  demo:clean:
+    desc: Remove generated demo data
+    cmds:
+      - rm -rf testdocs/
+      - echo "Demo data cleaned"
+
   check:
     desc: Run all checks (fmt, vet, test)
     cmds:
