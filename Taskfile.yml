@@ -3,7 +3,6 @@ version: "3"
 vars:
   BINARY_NAME: godocs
   BUILD_DIR: ./build
-  FRONTEND_DIR: ./public
   SWAGGER_UI_VERSION: "5.11.0"
 
 tasks:
@@ -19,15 +18,8 @@ tasks:
 
   # Development tasks
   dev:
-    desc: Run the application locally (backend only)
+    desc: Run the application locally
     cmds:
-      - go run .
-
-  dev:full:
-    desc: Run the full application (rebuild WASM and start backend)
-    deps: [build:wasm]
-    cmds:
-      - echo "Starting backend with WASM frontend..."
       - go run .
 
   # Test tasks
@@ -56,12 +48,12 @@ tasks:
   # Build tasks
   build:
     desc: Build the application
-    deps: [swagger:download, build:wasm, openapi]
+    deps: [swagger:download, openapi]
     vars:
       VERSION:
         sh: git describe --tags --always 2>/dev/null || echo "dev"
     cmds:
-      - "echo 'Building backend...'"
+      - "echo 'Building godocs...'"
       - mkdir -p {{.BUILD_DIR}}
       - "go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} -ldflags=\"-X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}'\" ."
       - "echo 'Build complete! Binary at {{.BUILD_DIR}}/{{.BINARY_NAME}} (version {{.VERSION}})'"
@@ -76,36 +68,6 @@ tasks:
       - "go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} -ldflags=\"-X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}'\" ."
       - "echo 'Backend build complete! Version: {{.VERSION}}'"
 
-  build:wasm:
-    desc: Build the WebAssembly application default version
-    vars:
-      VERSION:
-        sh: git describe --tags --always 2>/dev/null || echo "dev"
-    cmds:
-      - task: build:wasm_version:"{{.VERSION}}"
-
-  build:wasm_version:*:
-    desc: Build the WebAssembly application showing version eg build:wasm_version:v0.26.0
-    vars:
-      VERSION: '{{index .MATCH 0}}'
-      BUILD_DATE:
-        sh: date -u +"%Y-%m-%d"
-    cmds:
-      - "echo 'Building WebAssembly application (version {{.VERSION}})...'"
-      - mkdir -p web
-      - mkdir -p public/built
-      - >-
-        GOOS=js GOARCH=wasm go build
-        -ldflags="-X 'github.com/drummonds/godocs/webapp.Version={{.VERSION}}'
-        -X 'github.com/drummonds/godocs/webapp.BuildDate={{.BUILD_DATE}}'"
-        -o web/app.wasm ./cmd/webapp
-      - "echo 'Copying wasm_exec.js to web/ and public/built/...'"
-      - "cp /usr/local/go/lib/wasm/wasm_exec.js web/wasm_exec.js || cp $(go env GOROOT)/misc/wasm/wasm_exec.js web/wasm_exec.js"
-      - cp web/wasm_exec.js public/built/wasm_exec.js
-      - "echo 'WebAssembly build complete! Version: {{.VERSION}}'"
-      - ls -lh web/
-      - ls -lh public/built/wasm_exec.js
-
   # Cleanup tasks
   clean:
     desc: Clean build artifacts
@@ -115,11 +77,9 @@ tasks:
       - echo "Cleaned build artifacts"
 
   clean:all:
-    desc: Clean all generated files including WASM and Swagger UI
+    desc: Clean all generated files including Swagger UI
     cmds:
       - task: clean
-      - rm -rf web/
-      - rm -f public/built/wasm_exec.js
       - rm -rf static/swagger-ui/
       - go clean -cache
       - echo "Cleaned all generated files"
@@ -134,7 +94,6 @@ tasks:
       - task: build
       - task: check
       - git add .
-      - task: build:wasm_version:{{.TAG}}
       - git commit -am "{{.BUILD}}"
       - git tag "{{.TAG}}"
       - git push origin "{{.TAG}}"

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Tags - godocs{% endblock %}
+
+{% block content %}
+<h1 class="title">Tag Manager</h1>
+
+{% if error %}
+<div class="notification is-danger">{{ error }}</div>
+{% endif %}
+
+<div class="box">
+    <h2 class="subtitle">Create New Tag</h2>
+    <form method="POST" action="/tags">
+        <div class="columns">
+            <div class="column is-3">
+                <div class="field">
+                    <label class="label">Name</label>
+                    <div class="control">
+                        <input class="input" type="text" name="name" placeholder="Tag name" required>
+                    </div>
+                </div>
+            </div>
+            <div class="column is-2">
+                <div class="field">
+                    <label class="label">Color</label>
+                    <div class="control">
+                        <input class="input" type="color" name="color" value="#3273dc">
+                    </div>
+                </div>
+            </div>
+            <div class="column is-3">
+                <div class="field">
+                    <label class="label">Group (optional)</label>
+                    <div class="control">
+                        <input class="input" type="text" name="tag_group" placeholder="e.g. Category">
+                    </div>
+                </div>
+            </div>
+            <div class="column is-3">
+                <div class="field">
+                    <label class="label">Description (optional)</label>
+                    <div class="control">
+                        <input class="input" type="text" name="description" placeholder="Description">
+                    </div>
+                </div>
+            </div>
+            <div class="column is-1">
+                <div class="field">
+                    <label class="label">&nbsp;</label>
+                    <div class="control">
+                        <button class="button is-primary" type="submit">Create</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if tags %}
+<table class="table is-fullwidth is-hoverable">
+    <thead>
+        <tr>
+            <th>Color</th>
+            <th>Name</th>
+            <th>Group</th>
+            <th>Description</th>
+            <th>Documents</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tag in tags %}
+        <tr>
+            <td>
+                <span class="tag" style="background-color: {{ tag.Color }}; color: white;">&nbsp;&nbsp;&nbsp;</span>
+            </td>
+            <td>{{ tag.Name }}</td>
+            <td>{{ tag.TagGroup|default:"" }}</td>
+            <td>{{ tag.Description }}</td>
+            <td>{{ tag.UsageCount }}</td>
+            <td>
+                <div class="buttons are-small">
+                    <a class="button is-info is-outlined" href="/tags/{{ tag.ID }}/edit">Edit</a>
+                    <form method="POST" action="/tags/{{ tag.ID }}/delete" style="display:inline;">
+                        <button class="button is-danger is-outlined" type="submit" onclick="return confirm('Delete tag &quot;{{ tag.Name }}&quot;? This will remove it from all documents.')">Delete</button>
+                    </form>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="notification is-info is-light">
+    No tags have been created yet. Use the form above to create your first tag.
+</div>
+{% endif %}
+{% endblock %}

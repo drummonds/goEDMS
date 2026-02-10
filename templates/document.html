@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - {{ doc.Name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+    <ul>
+        <li><a href="/">Documents</a></li>
+        <li class="is-active"><a href="#" aria-current="page">{{ doc.Name }}</a></li>
+    </ul>
+</nav>
+
+<div class="columns">
+    <div class="column is-one-third">
+        {% if has_thumbnail %}
+        <figure class="image">
+            <img src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}" style="max-width:100%;">
+        </figure>
+        {% else %}
+        <div class="thumbnail-placeholder" style="height:300px; font-size:3rem;">
+            <span>{{ doc.DocumentType }}</span>
+        </div>
+        {% endif %}
+
+        <div class="mt-4">
+            <a href="/document/view/{{ doc.ULID }}" class="button is-primary is-fullwidth">
+                View / Download
+            </a>
+        </div>
+    </div>
+
+    <div class="column">
+        <h1 class="title is-4">{{ doc.Name }}</h1>
+
+        <table class="table is-fullwidth">
+            <tbody>
+                <tr><th>Type</th><td><span class="tag is-info">{{ doc.DocumentType }}</span></td></tr>
+                <tr><th>Folder</th><td>{{ doc.Folder }}</td></tr>
+                <tr><th>Ingested</th><td>{{ doc.IngressTime }}</td></tr>
+                <tr><th>ULID</th><td><code>{{ doc.ULID }}</code></td></tr>
+            </tbody>
+        </table>
+
+        {% if tags %}
+        <div class="mb-4">
+            <h2 class="subtitle is-6">Tags</h2>
+            <div class="tags">
+                {% for tag in tags %}
+                <span class="tag is-medium" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if text_excerpt %}
+        <div class="mb-4">
+            <h2 class="subtitle is-6">Text Content</h2>
+            <div class="box" style="max-height: 300px; overflow-y: auto;">
+                <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ text_excerpt }}</pre>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

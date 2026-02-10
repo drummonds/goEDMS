@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Tag - godocs{% endblock %}
+
+{% block content %}
+<h1 class="title">Edit Tag</h1>
+
+{% if error %}
+<div class="notification is-danger">{{ error }}</div>
+{% endif %}
+
+<div class="box">
+    <form method="POST" action="/tags/{{ tag.ID }}">
+        <div class="field">
+            <label class="label">Name</label>
+            <div class="control">
+                <input class="input" type="text" name="name" value="{{ tag.Name }}" required>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="label">Color</label>
+            <div class="control">
+                <input class="input" type="color" name="color" value="{{ tag.Color }}" style="max-width: 100px;">
+            </div>
+            <p class="help">Current: <span class="tag" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Color }}</span></p>
+        </div>
+
+        <div class="field">
+            <label class="label">Description</label>
+            <div class="control">
+                <input class="input" type="text" name="description" value="{{ tag.Description }}">
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="label">Tag Group</label>
+            <div class="control">
+                <input class="input" type="text" name="tag_group" value="{{ tag_group_value }}">
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="label">Sort Order</label>
+            <div class="control">
+                <input class="input" type="number" name="sort_order" value="{{ tag.SortOrder }}" style="max-width: 100px;">
+            </div>
+        </div>
+
+        <div class="field is-grouped">
+            <div class="control">
+                <button class="button is-primary" type="submit">Save</button>
+            </div>
+            <div class="control">
+                <a class="button is-light" href="/tags">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

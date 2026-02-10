@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - About{% endblock %}
+
+{% block content %}
+<h1 class="title">About godocs</h1>
+<p class="subtitle">System Information</p>
+
+<div class="columns">
+    <div class="column is-half">
+        <div class="box">
+            <h2 class="title is-5">Application</h2>
+            <table class="table is-fullwidth">
+                <tbody>
+                    <tr><th>Version</th><td>{{ app_version }}</td></tr>
+                    <tr><th>Schema Version</th><td>{{ schema_version }}</td></tr>
+                    <tr><th>Log Level</th><td>{{ log_level }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="box">
+            <h2 class="title is-5">OCR</h2>
+            <table class="table is-fullwidth">
+                <tbody>
+                    <tr>
+                        <th>Status</th>
+                        <td>
+                            {% if ocr_configured %}
+                            <span class="tag is-success">Enabled</span>
+                            {% else %}
+                            <span class="tag is-warning">Disabled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if ocr_configured %}
+                    <tr><th>Path</th><td><code>{{ ocr_path }}</code></td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="column is-half">
+        <div class="box">
+            <h2 class="title is-5">Database</h2>
+            <table class="table is-fullwidth">
+                <tbody>
+                    <tr><th>Type</th><td>{{ database_type }}</td></tr>
+                    <tr><th>Host</th><td>{{ database_host }}</td></tr>
+                    <tr><th>Port</th><td>{{ database_port }}</td></tr>
+                    <tr><th>Name</th><td>{{ database_name }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="box">
+            <h2 class="title is-5">Storage</h2>
+            <table class="table is-fullwidth">
+                <tbody>
+                    <tr><th>Document Path</th><td><code>{{ document_path }}</code></td></tr>
+                    <tr><th>Ingress Path</th><td><code>{{ ingress_path }}</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="box">
+            <h2 class="title is-5">Links</h2>
+            <a href="/api/docs" class="button is-link is-outlined">API Documentation</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 
 	config "github.com/drummonds/godocs/config"
 	database "github.com/drummonds/godocs/database"
@@ -67,11 +66,9 @@ func main() {
 	flag.Parse()
 
 	fmt.Println("\n" + strings.Repeat("=", 50))
-	fmt.Println("🔧  godocs Backend API Server")
+	fmt.Println("godocs Backend API Server")
 	fmt.Println(strings.Repeat("=", 50))
-	fmt.Println("• API endpoints under /api/*")
-	fmt.Println("• Static files (WASM, CSS) served here")
-	fmt.Println("• CORS enabled for frontend access")
+	fmt.Println("API endpoints under /api/*")
 	fmt.Println(strings.Repeat("=", 50) + "\n")
 
 	serverConfig, logger := config.SetupServer()
@@ -130,14 +127,6 @@ func main() {
 	serverHandler.InitializeSchedules(repo) //initialize all the cron jobs
 	serverHandler.StartupChecks()           //Run all the sanity checks
 	Logger.Info("Backend services initialized")
-
-	// CORS configuration - allow frontend from port 8001
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:8001", "http://127.0.0.1:8001"}, // Frontend origins
-		AllowMethods:     []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodPatch},
-		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
-		AllowCredentials: true,
-	}))
 
 	// Request logging middleware - logs 404s at warning level, others at debug level
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -220,33 +209,8 @@ func main() {
 		})
 	})
 
-	// Static file routes - serve WASM and other assets
-	Logger.Info("Setting up static file routes...")
-
-	// Serve wasm_exec.js
-	e.GET("/wasm_exec.js", func(c echo.Context) error {
-		return c.File("web/wasm_exec.js")
-	})
-
-	// Serve static assets
-	e.Static("/web", "web")
-	e.File("/webapp/webapp.css", "webapp/webapp.css")
-	e.File("/webapp/wordcloud.css", "webapp/wordcloud.css")
+	// Static file routes
 	e.File("/favicon.ico", "public/built/favicon.ico")
-
-	// Serve configuration for WASM app
-	e.GET("/config.js", func(c echo.Context) error {
-		configJS := fmt.Sprintf(`
-// godocs Backend Configuration
-window.godocsConfig = {
-    apiURL: "http://localhost:%s",
-    newDocumentCount: %d
-};
-console.log("godocs Config loaded:", window.godocsConfig);
-`, serverConfig.ListenAddrPort, serverConfig.NewDocumentNumber)
-		c.Response().Header().Set("Content-Type", "application/javascript")
-		return c.String(http.StatusOK, configJS)
-	})
 
 	// Override port if specified via flag
 	if *port != "8000" {
@@ -256,10 +220,9 @@ console.log("godocs Config loaded:", window.godocsConfig);
 	// Start server
 	addr := fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)
 	Logger.Info("Starting Backend Server", "address", addr)
-	fmt.Printf("\n✅  Backend Server running on %s\n", addr)
-	fmt.Printf("📡  API endpoints: http://%s/api/\n", addr)
-	fmt.Printf("📦  Static files: http://%s/web/\n", addr)
-	fmt.Printf("🏥  Health check: http://%s/api/health\n\n", addr)
+	fmt.Printf("\nBackend Server running on %s\n", addr)
+	fmt.Printf("API endpoints: http://%s/api/\n", addr)
+	fmt.Printf("Health check: http://%s/api/health\n\n", addr)
 
 	if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
 		Logger.Error("Server failed to start", "error", err)

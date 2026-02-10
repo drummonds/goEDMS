@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - Search{% endblock %}
+
+{% block content %}
+<h1 class="title">Search Documents</h1>
+
+<form method="GET" action="/search" class="mb-5">
+    <div class="field has-addons">
+        <div class="control is-expanded">
+            <input class="input is-medium" type="text" name="q" value="{{ query }}"
+                   placeholder="Search documents... (use #tag to filter by tag)" autofocus>
+        </div>
+        <div class="control">
+            <button class="button is-primary is-medium" type="submit">Search</button>
+        </div>
+    </div>
+</form>
+
+{% if query %}
+    {% if documents %}
+    <p class="subtitle">{{ total_count }} result{{ total_count|pluralize }} for "{{ query }}"</p>
+    <div class="columns is-multiline">
+        {% for doc in documents %}
+        {% include "partials/document_card.html" %}
+        {% endfor %}
+    </div>
+
+    {% include "partials/pagination.html" %}
+    {% else %}
+    <div class="notification is-warning is-light">
+        <p>No documents found matching "{{ query }}".</p>
+    </div>
+    {% endif %}
+{% endif %}
+{% endblock %}

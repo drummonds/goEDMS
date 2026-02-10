@@ -993,6 +993,30 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 	})
 }
 
+// RunCleanupAsync creates a cleanup job and runs it in a background goroutine.
+func (sh *ServerHandler) RunCleanupAsync() (*database.Job, error) {
+	job, err := sh.DB.CreateJob(database.JobTypeCleanup, "Starting database cleanup")
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		sh.cleanupJobFuncWithTracking(sh.DB, job.ID)
+	}()
+	return job, nil
+}
+
+// RunIngestionAsync creates an ingestion job and runs it in a background goroutine.
+func (sh *ServerHandler) RunIngestionAsync() (*database.Job, error) {
+	job, err := sh.DB.CreateJob(database.JobTypeIngestion, "Starting document ingestion")
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		sh.ingressJobFuncWithTracking(sh.ServerConfig, sh.DB, job.ID)
+	}()
+	return job, nil
+}
+
 // findOrphanedDocuments scans the document storage directory and finds files
 // that are not present in the database
 func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.Document) ([]string, error) {

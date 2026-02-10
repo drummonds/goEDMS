@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - godocs{% endblock %}
+
+{% block extra_head %}
+{% if has_active %}<meta http-equiv="refresh" content="3">{% endif %}
+{% endblock %}
+
+{% block content %}
+<h1 class="title">Jobs Manager</h1>
+
+{% if error %}
+<div class="notification is-danger">{{ error }}</div>
+{% endif %}
+
+<div class="box">
+    <h2 class="subtitle">Actions</h2>
+    <div class="buttons">
+        <form method="POST" action="/jobs/clean" style="display:inline;">
+            <button class="button is-warning" type="submit" {% if has_active %}disabled{% endif %}>
+                Run Database Clean
+            </button>
+        </form>
+        <form method="POST" action="/jobs/ingest" style="display:inline;">
+            <button class="button is-info" type="submit" {% if has_active %}disabled{% endif %}>
+                Run Ingestion
+            </button>
+        </form>
+    </div>
+    {% if has_active %}
+    <p class="help">Buttons are disabled while jobs are running. Page refreshes automatically.</p>
+    {% endif %}
+</div>
+
+{% if jobs %}
+<table class="table is-fullwidth is-hoverable">
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Message</th>
+            <th>Progress</th>
+            <th>Started</th>
+            <th>Completed</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for job in jobs %}
+        <tr>
+            <td>
+                <span class="tag {% if job.Type == "cleanup" %}is-warning{% elif job.Type == "ingestion" %}is-info{% elif job.Type == "wordcloud" %}is-success{% else %}is-light{% endif %}">
+                    {{ job.Type }}
+                </span>
+            </td>
+            <td>
+                <span class="tag {% if job.Status == "completed" %}is-success{% elif job.Status == "running" %}is-link{% elif job.Status == "failed" %}is-danger{% elif job.Status == "pending" %}is-light{% else %}is-warning{% endif %}">
+                    {{ job.Status }}
+                </span>
+            </td>
+            <td>
+                {{ job.Message }}
+                {% if job.Error %}<br><small class="has-text-danger">{{ job.Error }}</small>{% endif %}
+                {% if job.CurrentStep %}<br><small class="has-text-grey">{{ job.CurrentStep }}</small>{% endif %}
+            </td>
+            <td>
+                {% if job.Status == "running" and job.Progress > 0 %}
+                <progress class="progress is-small is-link" value="{{ job.Progress }}" max="100">{{ job.Progress }}%</progress>
+                {% elif job.Status == "completed" %}
+                <span class="has-text-success">Done</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if job.StartedAtFmt %}{{ job.StartedAtFmt }}{% else %}—{% endif %}
+            </td>
+            <td>
+                {% if job.CompletedAtFmt %}{{ job.CompletedAtFmt }}{% else %}—{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="notification is-info is-light">
+    No jobs have been run yet. Use the buttons above to trigger a database clean or ingestion.
+</div>
+{% endif %}
+{% endblock %}

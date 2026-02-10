@@ -1,0 +1,31 @@
+<div class="column is-one-third-desktop is-half-tablet">
+    <div class="card document-card">
+        <div class="card-image">
+            {% if doc.HasThumbnail %}
+            <figure class="image">
+                <img class="thumbnail-img" src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}">
+            </figure>
+            {% else %}
+            <div class="thumbnail-placeholder">
+                <span>{{ doc.DocumentType }}</span>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-content">
+            <p class="title is-6 mb-2">
+                <a href="/document/{{ doc.ULID }}">{{ doc.Name }}</a>
+            </p>
+            <p class="subtitle is-7 has-text-grey mb-2">{{ doc.Folder }}</p>
+            <div class="tags">
+                <span class="tag doc-type-badge is-info is-light">{{ doc.DocumentType }}</span>
+                {% for tag in doc.Tags %}
+                <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <footer class="card-footer">
+            <a href="/document/{{ doc.ULID }}" class="card-footer-item">View</a>
+            <a href="/document/view/{{ doc.ULID }}" class="card-footer-item">Download</a>
+        </footer>
+    </div>
+</div>

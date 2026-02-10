@@ -2,6 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.38.0 2026-02-10
+
+- removing wasm front end for simiplicity
+
+
 ## 0.37.3 2026-02-08
 
 - Switching to drummonds/go-postgres for pglike wrapper over sqlite.

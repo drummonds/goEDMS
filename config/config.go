@@ -46,12 +46,10 @@ type ServerConfig struct {
 	FrontEndConfig
 }
 
-// FrontEndConfig stores all of the frontend settings
+// FrontEndConfig stores frontend-related settings (persisted in database)
 type FrontEndConfig struct {
 	NewDocumentNumber int
 	ServerAPIURL      string
-	FrontendPort      string
-	FrontendAddr      string
 }
 
 // LoadEnvFile loads environment variables from a file (silently ignores if not found)
@@ -203,11 +201,9 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 		logger.Info("Using relative URLs for API calls (frontend will use same host it was served from)")
 	}
 
-	// Frontend configuration
+	// Frontend configuration (persisted in database)
 	frontEndConfigLive.NewDocumentNumber = getEnvInt("NEW_DOCUMENT_COUNT", 5)
 	frontEndConfigLive.ServerAPIURL = getEnv("SERVER_API_URL", "")
-	frontEndConfigLive.FrontendPort = getEnv("FRONTEND_PORT", "8001")
-	frontEndConfigLive.FrontendAddr = getEnv("FRONTEND_ADDR", "localhost")
 	serverConfigLive.FrontEndConfig = frontEndConfigLive
 
 	// Notifications
@@ -216,31 +212,6 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	logger.Info("About to setup database", "type", serverConfigLive.DatabaseType)
 
 	return serverConfigLive, logger
-}
-
-// SetupFrontend loads configuration for frontend-only server
-func SetupFrontend() (FrontEndConfig, *slog.Logger) {
-	// Load .env file (silently ignore if doesn't exist)
-	// Try production location first, then local development files
-	_ = godotenv.Load("/etc/godocs.env")
-	_ = godotenv.Load(".env")
-	_ = godotenv.Load("config.env")
-	_ = godotenv.Load("frontend.env")
-
-	logger := setupLogging()
-	Logger = logger
-
-	frontendConfig := FrontEndConfig{}
-
-	// Frontend configuration
-	frontendConfig.NewDocumentNumber = getEnvInt("NEW_DOCUMENT_COUNT", 5)
-	frontendConfig.ServerAPIURL = getEnv("SERVER_API_URL", "http://localhost:8000")
-
-	logger.Info("Frontend configuration loaded",
-		"apiURL", frontendConfig.ServerAPIURL,
-		"newDocumentCount", frontendConfig.NewDocumentNumber)
-
-	return frontendConfig, logger
 }
 
 // setupLogging configures the application logger
