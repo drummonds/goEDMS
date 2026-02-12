@@ -214,6 +214,8 @@ func main() {
 	// --- HTML page routes (SSR) ---
 	e.GET("/", HandleHomePage(tr))
 	e.GET("/search", HandleSearchPage(tr))
+	e.POST("/search/saved", HandleCreateSavedSearch(tr))
+	e.POST("/search/saved/:id/delete", HandleDeleteSavedSearch(tr))
 	e.GET("/document/:ulid", HandleDocumentPage(tr))
 	e.GET("/about", HandleAboutPage(tr))
 

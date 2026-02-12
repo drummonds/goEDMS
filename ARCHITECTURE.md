@@ -17,26 +17,11 @@ This architecture follows the Backend-for-Frontend (BFF) pattern, allowing indep
 │                        Combined Mode                         │
 │                     ./godocs (port 8000)                     │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  Frontend WASM App + Backend API (same server)       │   │
+│  │  Frontend HTTP + Backend API (same server)       │   │
 │  │  - All routes on one port                            │   │
-│  │  - Backend compatibility mode                        │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────┐
-│                       Separated Mode                         │
-│                                                              │
-│  ┌──────────────────┐              ┌──────────────────────┐ │
-│  │   Frontend       │    HTTP      │      Backend         │ │
-│  │   (port 3000)    │─────────────>│    (port 8000)       │ │
-│  │                  │   /api/*     │                      │ │
-│  │  - WASM App      │              │  - Database          │ │
-│  │  - Static Files  │              │  - Business Logic    │ │
-│  │  - API Proxy     │              │  - File Storage      │ │
-│  │                  │              │  - OCR/Processing    │ │
-│  └──────────────────┘              └──────────────────────┘ │
-│   ./godocs-frontend                  ./godocs-backend       │
-└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Deployment Modes

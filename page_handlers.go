@@ -66,6 +66,14 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"base_url": "/search",
 		}
 
+		// Load saved searches
+		savedSearches, err := tr.db.GetAllSavedSearches()
+		if err != nil {
+			Logger.Error("Failed to load saved searches", "error", err)
+			savedSearches = []database.SavedSearch{}
+		}
+		ctx["saved_searches"] = savedSearches
+
 		if query != "" {
 			page := 1
 			if p := c.QueryParam("page"); p != "" {
@@ -95,6 +103,55 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 		}
 
 		return tr.Render(c, "search.html", ctx)
+	}
+}
+
+// HandleCreateSavedSearch handles creating a new saved search from the search page
+func HandleCreateSavedSearch(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		name := c.FormValue("name")
+		query := c.FormValue("query")
+
+		if name == "" || query == "" {
+			return c.Redirect(http.StatusSeeOther, "/search")
+		}
+
+		now := time.Now()
+		search := &database.SavedSearch{
+			Name:      name,
+			Query:     query,
+			Icon:      c.FormValue("icon"),
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+
+		if err := tr.db.CreateSavedSearch(search); err != nil {
+			Logger.Error("Failed to create saved search", "error", err)
+		}
+
+		return c.Redirect(http.StatusSeeOther, "/search")
+	}
+}
+
+// HandleDeleteSavedSearch handles deleting a saved search
+func HandleDeleteSavedSearch(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/search")
+		}
+
+		// Don't allow deleting system searches
+		search, err := tr.db.GetSavedSearchByID(id)
+		if err != nil || search == nil || search.IsSystem {
+			return c.Redirect(http.StatusSeeOther, "/search")
+		}
+
+		if err := tr.db.DeleteSavedSearch(id); err != nil {
+			Logger.Error("Failed to delete saved search", "id", id, "error", err)
+		}
+
+		return c.Redirect(http.StatusSeeOther, "/search")
 	}
 }
 

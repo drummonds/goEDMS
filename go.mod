@@ -5,12 +5,12 @@ go 1.25.3
 require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/drummonds/go-postgres v0.3.0
-	github.com/drummonds/go-thumbnails v0.1.0
+	github.com/drummonds/go-thumbnails v0.4.1
 	github.com/drummonds/lofigui v0.0.0-20260207092432-1622d8cdb0a6
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/jung-kurt/gofpdf v1.16.2
-	github.com/klippa-app/go-pdfium v1.17.2
+	github.com/klippa-app/go-pdfium v1.17.3
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/lib/pq v1.11.2
@@ -49,7 +49,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/exp v0.0.0-20260211191109-2735e65f0518 // indirect
+	golang.org/x/exp v0.0.0-20260212183809-81e46e3db34a // indirect
 	golang.org/x/image v0.36.0 // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.50.0 // indirect

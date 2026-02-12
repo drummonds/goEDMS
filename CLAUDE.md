@@ -4,26 +4,24 @@
 Document management system with Go backend, WebAssembly frontend (go-app), and PostgreSQL.
 
 ## Key Commands
+
 ```bash
 task build              # Build backend binary
-task build:wasm         # Build WASM frontend
 task test               # Run all tests
 task swagger:download   # Download Swagger UI assets
 ./godocs                # Run the server (reads .env)
 ```
 
 ## Project Structure
+
 ```
-cmd/webapp/        # WASM frontend entry point
-webapp/            # Frontend components (go-app)
-webapp/webapp.css  # All frontend styles
 internal/          # Shared internal packages
 engine/            # Core document processing
 static/            # Served static files (Swagger UI)
-web/               # Built WASM output (app.wasm)
 ```
 
 ## Document File Structure
+
 Each document in the system consists of a root file and optional companion files:
 
 ```
