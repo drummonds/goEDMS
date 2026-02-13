@@ -80,12 +80,40 @@ func TestThumbnailSupported(t *testing.T) {
 		{"document.docx", false},
 		{"document.txt", false},
 		{"document.rtf", false},
+		// Thumbnail files should not be considered supported
+		{"document.tn_256.png", false},
+		{"/path/to/document.tn_256.png", false},
+		{"photo.tn_128.png", false},
+		{"scan.tn_512.png", false},
 	}
 
 	for _, tt := range tests {
 		result := thumbnailSupported(tt.path)
 		if result != tt.expected {
 			t.Errorf("thumbnailSupported(%q) = %v, want %v", tt.path, result, tt.expected)
+		}
+	}
+}
+
+func TestIsThumbnailFile(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{"document.tn_256.png", true},
+		{"/path/to/document.tn_256.png", true},
+		{"photo.tn_128.png", true},
+		{"scan.tn_512.png", true},
+		{"document.pdf", false},
+		{"photo.png", false},
+		{"file.tn_256.jpg", false}, // wrong extension
+		{"document.txt", false},
+	}
+
+	for _, tt := range tests {
+		result := isThumbnailFile(tt.path)
+		if result != tt.expected {
+			t.Errorf("isThumbnailFile(%q) = %v, want %v", tt.path, result, tt.expected)
 		}
 	}
 }

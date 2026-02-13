@@ -176,6 +176,35 @@ func (p *PGDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
 	return docs, count, err
 }
 
+// GetTaggedDocuments returns paginated documents that have at least one tag
+func (p *PGDB) GetTaggedDocuments(page, pageSize int) ([]Document, int, error) {
+	ctx := context.Background()
+	offset := (page - 1) * pageSize
+
+	var count int
+	err := p.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM documents d
+		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`).Scan(&count)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count tagged documents: %w", err)
+	}
+
+	rows, err := p.db.QueryContext(ctx, `
+		SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid,
+		       d.document_type, d.full_text, d.url
+		FROM documents d
+		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)
+		ORDER BY d.ingress_time DESC
+		LIMIT $1 OFFSET $2`, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get tagged documents: %w", err)
+	}
+	defer rows.Close()
+
+	docs, err := scanDocumentRows(rows)
+	return docs, count, err
+}
+
 // ExecuteSearch executes a parsed search query and returns paginated results
 func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Document, int, error) {
 	ctx := context.Background()
@@ -186,6 +215,9 @@ func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Docume
 	}
 	if parsed.IsUntagged {
 		return p.GetUntaggedDocuments(page, pageSize)
+	}
+	if parsed.IsTagged {
+		return p.GetTaggedDocuments(page, pageSize)
 	}
 
 	// Build dynamic query with parameterized placeholders

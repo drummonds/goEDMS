@@ -259,9 +259,9 @@ func TestPglikeDatabase(t *testing.T) {
 			t.Fatalf("Failed to get saved searches: %v", err)
 		}
 
-		// Should have 2 default searches from migration 007
-		if len(searches) < 2 {
-			t.Errorf("Expected at least 2 default saved searches, got %d", len(searches))
+		// Should have 3 default searches from migrations 007 + 008
+		if len(searches) < 3 {
+			t.Errorf("Expected at least 3 default saved searches, got %d", len(searches))
 		}
 	})
 }

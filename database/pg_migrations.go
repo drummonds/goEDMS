@@ -49,6 +49,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 		{"005", "add_tagging_system", migrate005AddTaggingSystem},
 		{"006", "unify_tags_dimensions", migrate006UnifyTagsDimensions},
 		{"007", "create_saved_searches", migrate007CreateSavedSearches},
+		{"008", "add_tagged_saved_search", migrate008AddTaggedSavedSearch},
 	}
 
 	for _, m := range migrations {
@@ -419,8 +420,8 @@ func migrate005AddTaggingSystem(ctx context.Context, db *sql.DB, isPglike bool) 
 		sortOrder                              int
 	}{
 		"person": {
-			{"husband", "Husband", "Documents belonging to husband", "#3498db", 1},
-			{"wife", "Wife", "Documents belonging to wife", "#e91e63", 2},
+			{"parent1", "Parent 1", "Documents belonging to parent 1", "#3498db", 1},
+			{"parent2", "Parent 2", "Documents belonging to parent 2", "#e91e63", 2},
 			{"child1", "Child 1", "Documents for first child", "#9c27b0", 3},
 			{"child2", "Child 2", "Documents for second child", "#673ab7", 4},
 			{"child3", "Child 3", "Documents for third child", "#2196f3", 5},
@@ -615,5 +616,21 @@ func migrate007CreateSavedSearches(ctx context.Context, db *sql.DB, isPglike boo
 	}
 
 	Logger.Info("Migration 007 completed successfully")
+	return nil
+}
+
+// Migration 008: Add Tagged saved search
+func migrate008AddTaggedSavedSearch(ctx context.Context, db *sql.DB, isPglike bool) error {
+	Logger.Info("Running migration 008: Add Tagged saved search")
+
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO saved_searches (name, description, query, icon, sort_order, is_system)
+		VALUES ('Tagged', 'Documents with at least one tag', '!tagged', '🏷️', 2, TRUE)
+		ON CONFLICT (name) DO NOTHING`)
+	if err != nil {
+		return fmt.Errorf("failed to insert Tagged saved search: %w", err)
+	}
+
+	Logger.Info("Migration 008 completed successfully")
 	return nil
 }

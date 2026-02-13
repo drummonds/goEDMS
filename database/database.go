@@ -100,6 +100,7 @@ type Repository interface {
 	// Search execution methods
 	GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int, error)
 	GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
+	GetTaggedDocuments(page, pageSize int) ([]Document, int, error)
 	ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Document, int, error)
 }
 

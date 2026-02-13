@@ -1,6 +1,6 @@
 <div class="column is-half-desktop is-full-tablet">
     <div class="card document-card">
-        <div class="card-inner">
+        <div class="card-top-row">
             <div class="card-thumbnail">
                 {% if doc.HasThumbnail %}
                 <figure class="image thumbnail-figure">
@@ -12,22 +12,22 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="card-right-content">
-                <div class="buttons are-small mb-2">
-                    <a href="/document/{{ doc.ULID }}" class="button is-link is-outlined">View</a>
-                    <a href="/document/view/{{ doc.ULID }}" class="button is-info is-outlined">Download</a>
-                    <a href="/document/{{ doc.ULID }}/edit" class="button is-warning is-outlined">Edit</a>
-                </div>
-                <p class="title is-6 mb-2">
-                    <a href="/document/{{ doc.ULID }}">{{ doc.Name }}</a>
-                </p>
-                <p class="subtitle is-7 has-text-grey mb-3">{{ doc.Folder }}</p>
-                <div class="tags mb-3">
-                    <span class="tag doc-type-badge is-info is-light">{{ doc.DocumentType }}</span>
-                    {% for tag in doc.Tags %}
-                    <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Name }}</span>
-                    {% endfor %}
-                </div>
+            <div class="card-top-buttons">
+                <a href="/document/{{ doc.ULID }}" class="button is-small is-link is-outlined" title="View document">&#128065;</a>
+                <a href="/document/view/{{ doc.ULID }}" class="button is-small is-info is-outlined" title="Download file">&#11015;</a>
+                <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit tags">&#9998;</a>
+            </div>
+        </div>
+        <div class="card-bottom-content">
+            <p class="title is-6 mb-1">
+                <a href="/document/{{ doc.ULID }}">{{ doc.Name }}</a>
+            </p>
+            <div class="is-flex is-align-items-center is-flex-wrap-wrap" style="gap: 0.25rem;">
+                <span class="is-size-7 has-text-grey">{{ doc.Folder }}</span>
+                <span class="tag doc-type-badge is-info is-light">{{ doc.DocumentType }}</span>
+                {% for tag in doc.Tags %}
+                <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Name }}</span>
+                {% endfor %}
             </div>
         </div>
     </div>

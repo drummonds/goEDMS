@@ -25,6 +25,7 @@ type ParsedSearch struct {
 	IncludeTags []string // Tags to include (prefixed with #)
 	ExcludeTags []string // Tags to exclude (prefixed with ~)
 	IsUntagged  bool     // Special: show only untagged documents
+	IsTagged    bool     // Special: show only tagged documents
 	IsAllDocs   bool     // Special: show all documents
 }
 
@@ -65,6 +66,10 @@ func ParseSearchQuery(query string) *ParsedSearch {
 	}
 	if query == "!untagged" {
 		result.IsUntagged = true
+		return result
+	}
+	if query == "!tagged" {
+		result.IsTagged = true
 		return result
 	}
 

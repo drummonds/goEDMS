@@ -28,7 +28,7 @@ func shouldSkipFileForIngestion(filePath string) bool {
 	fileName := filepath.Base(filePath)
 
 	// Skip thumbnail files (e.g., document.tn_256.png)
-	if strings.HasSuffix(fileName, ".tn_256.png") {
+	if isThumbnailFile(filePath) {
 		return true
 	}
 
