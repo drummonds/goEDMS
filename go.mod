@@ -2,6 +2,8 @@ module github.com/drummonds/godocs
 
 go 1.25.3
 
+retract v1.37.4 // Accidentally published; use v0.38.x instead
+
 require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/drummonds/go-postgres v0.3.0
