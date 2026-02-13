@@ -194,6 +194,101 @@ func HandleDocumentPage(tr *TemplateRenderer) echo.HandlerFunc {
 	}
 }
 
+// HandleDocumentEditPage renders the document edit page for tag management
+func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ulidStr := c.Param("ulid")
+
+		document, httpStatus, err := database.FetchDocument(ulidStr, tr.db)
+		if err != nil {
+			if httpStatus == http.StatusNotFound {
+				return tr.RenderWithStatus(c, "404.html", http.StatusNotFound, nil)
+			}
+			Logger.Error("Failed to fetch document", "ulid", ulidStr, "error", err)
+			return tr.RenderWithStatus(c, "404.html", http.StatusNotFound, nil)
+		}
+
+		hasThumbnail := checkThumbnailExists(document.Path)
+
+		tags, err := tr.db.GetTagsForDocument(document.ID)
+		if err != nil {
+			Logger.Error("Failed to fetch tags for document", "error", err)
+			tags = []database.Tag{}
+		}
+
+		allTags, err := tr.db.GetAllTags()
+		if err != nil {
+			Logger.Error("Failed to fetch all tags", "error", err)
+			allTags = []database.Tag{}
+		}
+
+		// Filter out tags already on the document
+		tagSet := make(map[int]bool, len(tags))
+		for _, t := range tags {
+			tagSet[t.ID] = true
+		}
+		availableTags := make([]database.Tag, 0, len(allTags))
+		for _, t := range allTags {
+			if !tagSet[t.ID] {
+				availableTags = append(availableTags, t)
+			}
+		}
+
+		return tr.Render(c, "document_edit.html", pongo2.Context{
+			"doc":            document,
+			"has_thumbnail":  hasThumbnail,
+			"tags":           tags,
+			"available_tags": availableTags,
+		})
+	}
+}
+
+// HandleDocumentAddTag adds a tag to a document
+func HandleDocumentAddTag(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ulidStr := c.Param("ulid")
+
+		document, _, err := database.FetchDocument(ulidStr, tr.db)
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/")
+		}
+
+		tagID, err := strconv.Atoi(c.FormValue("tag_id"))
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+
+		if err := tr.db.AddTagToDocument(document.ID, tagID); err != nil {
+			Logger.Error("Failed to add tag to document", "docID", document.ID, "tagID", tagID, "error", err)
+		}
+
+		return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+	}
+}
+
+// HandleDocumentRemoveTag removes a tag from a document
+func HandleDocumentRemoveTag(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ulidStr := c.Param("ulid")
+
+		document, _, err := database.FetchDocument(ulidStr, tr.db)
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/")
+		}
+
+		tagID, err := strconv.Atoi(c.Param("tagId"))
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+
+		if err := tr.db.RemoveTagFromDocument(document.ID, tagID); err != nil {
+			Logger.Error("Failed to remove tag from document", "docID", document.ID, "tagID", tagID, "error", err)
+		}
+
+		return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+	}
+}
+
 // HandleAboutPage renders the about/system info page
 func HandleAboutPage(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -209,6 +304,20 @@ func HandleAboutPage(tr *TemplateRenderer) echo.HandlerFunc {
 			logLevel = "debug"
 		}
 
+		// Gather statistics
+		documentCount := 0
+		if _, total, err := tr.db.GetNewestDocumentsWithPagination(1, 1); err == nil {
+			documentCount = total
+		}
+		tagCount := 0
+		if tags, err := tr.db.GetAllTags(); err == nil {
+			tagCount = len(tags)
+		}
+		untaggedCount := 0
+		if _, total, err := tr.db.GetUntaggedDocuments(1, 1); err == nil {
+			untaggedCount = total
+		}
+
 		return tr.Render(c, "about.html", pongo2.Context{
 			"app_version":    build.GetVersion(),
 			"schema_version": schemaVersion,
@@ -221,6 +330,9 @@ func HandleAboutPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"database_name":  tr.config.DatabaseDbname,
 			"document_path":  tr.config.DocumentPath,
 			"ingress_path":   tr.config.IngressPath,
+			"document_count": documentCount,
+			"tag_count":      tagCount,
+			"untagged_count": untaggedCount,
 		})
 	}
 }

@@ -43,6 +43,17 @@
 
     <div class="column is-half">
         <div class="box">
+            <h2 class="title is-5">Statistics</h2>
+            <table class="table is-fullwidth">
+                <tbody>
+                    <tr><th>Documents</th><td>{{ document_count }}</td></tr>
+                    <tr><th>Tags</th><td>{{ tag_count }}</td></tr>
+                    <tr><th>Untagged Documents</th><td>{{ untagged_count }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="box">
             <h2 class="title is-5">Database</h2>
             <table class="table is-fullwidth">
                 <tbody>

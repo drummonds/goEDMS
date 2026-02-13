@@ -1,7 +1,7 @@
 <div class="column is-half-desktop is-full-tablet">
     <div class="card document-card">
         <div class="columns is-gapless is-mobile">
-            <div class="column is-5">
+            <div class="column is-8">
                 {% if doc.HasThumbnail %}
                 <figure class="image thumbnail-figure">
                     <img class="thumbnail-img" src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}">
@@ -12,7 +12,7 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="column is-7">
+            <div class="column is-4">
                 <div class="card-right-content">
                     <p class="title is-6 mb-2">
                         <a href="/document/{{ doc.ULID }}">{{ doc.Name }}</a>

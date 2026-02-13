@@ -217,6 +217,9 @@ func main() {
 	e.POST("/search/saved", HandleCreateSavedSearch(tr))
 	e.POST("/search/saved/:id/delete", HandleDeleteSavedSearch(tr))
 	e.GET("/document/:ulid", HandleDocumentPage(tr))
+	e.GET("/document/:ulid/edit", HandleDocumentEditPage(tr))
+	e.POST("/document/:ulid/tags", HandleDocumentAddTag(tr))
+	e.POST("/document/:ulid/tags/:tagId/remove", HandleDocumentRemoveTag(tr))
 	e.GET("/about", HandleAboutPage(tr))
 
 	// Tag management routes

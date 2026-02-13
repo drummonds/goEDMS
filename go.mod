@@ -11,7 +11,7 @@ retract (
 require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/drummonds/go-postgres v0.3.0
-	github.com/drummonds/go-thumbnails v0.5.0
+	github.com/drummonds/go-thumbnails v0.6.1
 	github.com/drummonds/lofigui v0.0.0-20260207092432-1622d8cdb0a6
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/joho/godotenv v1.5.1

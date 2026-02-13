@@ -20,6 +20,10 @@ github.com/drummonds/go-thumbnails v0.4.1 h1:YJdFMnnn3NiqdFt9um+9KxlUfj+iUErqonw
 github.com/drummonds/go-thumbnails v0.4.1/go.mod h1:frk0Hnb9dYDjiAGIiyHHNR1clbcw5hB9fgrPxBtpo7M=
 github.com/drummonds/go-thumbnails v0.5.0 h1:hSXrwZfBDfvRu7s4SQQQskXAQ/4Ty4tF4SXtAQ3+ECk=
 github.com/drummonds/go-thumbnails v0.5.0/go.mod h1:frk0Hnb9dYDjiAGIiyHHNR1clbcw5hB9fgrPxBtpo7M=
+github.com/drummonds/go-thumbnails v0.6.0 h1:/yhpucfPsmfNq4prYau3VHe+nivX53EQdsQE2hev2Js=
+github.com/drummonds/go-thumbnails v0.6.0/go.mod h1:frk0Hnb9dYDjiAGIiyHHNR1clbcw5hB9fgrPxBtpo7M=
+github.com/drummonds/go-thumbnails v0.6.1 h1:qj3t6y9sKdrzqKOZ/clg7VsHpvEgMDNx/ojhllutBEM=
+github.com/drummonds/go-thumbnails v0.6.1/go.mod h1:frk0Hnb9dYDjiAGIiyHHNR1clbcw5hB9fgrPxBtpo7M=
 github.com/drummonds/lofigui v0.0.0-20260207092432-1622d8cdb0a6 h1:PgH13BKG4rHpu4GsaMgOjfqE0GKbENySWSiy+ElK0Ck=
 github.com/drummonds/lofigui v0.0.0-20260207092432-1622d8cdb0a6/go.mod h1:3qaBXCJf+dzy7kXH4rB2QVpRcTJ8u2G8rnj4/UAutF0=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
