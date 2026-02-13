@@ -1,31 +1,35 @@
-<div class="column is-one-third-desktop is-half-tablet">
+<div class="column is-half-desktop is-full-tablet">
     <div class="card document-card">
-        <div class="card-image">
-            {% if doc.HasThumbnail %}
-            <figure class="image">
-                <img class="thumbnail-img" src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}">
-            </figure>
-            {% else %}
-            <div class="thumbnail-placeholder">
-                <span>{{ doc.DocumentType }}</span>
+        <div class="columns is-gapless is-mobile">
+            <div class="column is-5">
+                {% if doc.HasThumbnail %}
+                <figure class="image thumbnail-figure">
+                    <img class="thumbnail-img" src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}">
+                </figure>
+                {% else %}
+                <div class="thumbnail-placeholder">
+                    <span>{{ doc.DocumentType }}</span>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-        </div>
-        <div class="card-content">
-            <p class="title is-6 mb-2">
-                <a href="/document/{{ doc.ULID }}">{{ doc.Name }}</a>
-            </p>
-            <p class="subtitle is-7 has-text-grey mb-2">{{ doc.Folder }}</p>
-            <div class="tags">
-                <span class="tag doc-type-badge is-info is-light">{{ doc.DocumentType }}</span>
-                {% for tag in doc.Tags %}
-                <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Name }}</span>
-                {% endfor %}
+            <div class="column is-7">
+                <div class="card-right-content">
+                    <p class="title is-6 mb-2">
+                        <a href="/document/{{ doc.ULID }}">{{ doc.Name }}</a>
+                    </p>
+                    <p class="subtitle is-7 has-text-grey mb-3">{{ doc.Folder }}</p>
+                    <div class="tags mb-3">
+                        <span class="tag doc-type-badge is-info is-light">{{ doc.DocumentType }}</span>
+                        {% for tag in doc.Tags %}
+                        <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Name }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="buttons are-small">
+                        <a href="/document/{{ doc.ULID }}" class="button is-link is-outlined">View</a>
+                        <a href="/document/view/{{ doc.ULID }}" class="button is-info is-outlined">Download</a>
+                    </div>
+                </div>
             </div>
         </div>
-        <footer class="card-footer">
-            <a href="/document/{{ doc.ULID }}" class="card-footer-item">View</a>
-            <a href="/document/view/{{ doc.ULID }}" class="card-footer-item">Download</a>
-        </footer>
     </div>
 </div>

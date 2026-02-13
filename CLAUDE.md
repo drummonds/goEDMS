@@ -27,7 +27,7 @@ Each document in the system consists of a root file and optional companion files
 ```
 document.pdf           # Root document (primary file)
 document.txt           # Sidecar: extracted text content (optional)
-document.tn_64.png     # Sidecar: thumbnail image (optional, for PDFs)
+document.tn_256.png    # Sidecar: thumbnail image (optional, for PDFs)
 document.tags.json     # Sidecar: metadata including tags (optional)
 ```
 
@@ -37,7 +37,7 @@ document.tags.json     # Sidecar: metadata including tags (optional)
 - `.txt` is ONLY a root document if no other source file exists with the same base name
 - Use `.text` extension for primary text files to avoid ambiguity with sidecar `.txt` files
 - `.txt` as sidecar: contains extracted/OCR'd text from the root document
-- `.tn_64.png`: thumbnail generated from PDF first page
+- `.tn_256.png`: uniform thumbnail generated from first page with page-count watermark
 - `.tags.json`: JSON file with tags and metadata
 
 **Clean Database behavior:**

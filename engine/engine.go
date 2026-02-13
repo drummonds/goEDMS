@@ -23,12 +23,12 @@ import (
 )
 
 // shouldSkipFileForIngestion checks if a file should be skipped during ingestion
-// Returns true for auxiliary files like thumbnails (.tn_64.png) and sidecar text files
+// Returns true for auxiliary files like thumbnails (.tn_256.png) and sidecar text files
 func shouldSkipFileForIngestion(filePath string) bool {
 	fileName := filepath.Base(filePath)
 
-	// Skip thumbnail files (e.g., document.tn_64.png)
-	if strings.HasSuffix(fileName, ".tn_64.png") {
+	// Skip thumbnail files (e.g., document.tn_256.png)
+	if strings.HasSuffix(fileName, ".tn_256.png") {
 		return true
 	}
 

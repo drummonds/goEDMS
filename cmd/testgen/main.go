@@ -41,20 +41,20 @@ func main() {
 		}
 
 		// Generate thumbnail
-		outputPath := thumbnails.DefaultThumbnailPath(gen.path, 64)
-		if err := thumbnails.GenerateAndSave(gen.path, outputPath, 64); err != nil {
+		outputPath := thumbnails.DefaultThumbnailPath(gen.path, 256)
+		if err := thumbnails.GenerateStyledAndSave(gen.path, outputPath, 256, thumbnails.StyleUniform); err != nil {
 			fmt.Printf("Warning: Failed to generate thumbnail for %s: %v\n", gen.name, err)
 		}
 	}
 
 	fmt.Println("\n✓ Test document generation complete!")
 	fmt.Println("\nGenerated files:")
-	fmt.Println("  testdocs/1-empty.pdf (and .txt, .tn_64.png)")
-	fmt.Println("  testdocs/2-hello.pdf (and .txt, .tn_64.png)")
-	fmt.Println("  testdocs/3-diagram.pdf (and .txt, .tn_64.png)")
-	fmt.Println("  testdocs/4-longtext.pdf (and .txt, .tn_64.png)")
-	fmt.Println("  testdocs/5-twopage.pdf (and .txt, .tn_64.png)")
-	fmt.Println("  testdocs/6-fivepage.pdf (and .txt, .tn_64.png)")
+	fmt.Println("  testdocs/1-empty.pdf (and .txt, .tn_256.png)")
+	fmt.Println("  testdocs/2-hello.pdf (and .txt, .tn_256.png)")
+	fmt.Println("  testdocs/3-diagram.pdf (and .txt, .tn_256.png)")
+	fmt.Println("  testdocs/4-longtext.pdf (and .txt, .tn_256.png)")
+	fmt.Println("  testdocs/5-twopage.pdf (and .txt, .tn_256.png)")
+	fmt.Println("  testdocs/6-fivepage.pdf (and .txt, .tn_256.png)")
 }
 
 // generateEmptyPDF creates an empty PDF with no content

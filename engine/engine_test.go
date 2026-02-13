@@ -366,7 +366,7 @@ func TestShouldSkipFileForIngestion(t *testing.T) {
 		},
 		{
 			name:     "Thumbnail file should be skipped",
-			filePath: "/path/to/document.tn_64.png",
+			filePath: "/path/to/document.tn_256.png",
 			want:     true,
 		},
 		{
@@ -381,7 +381,7 @@ func TestShouldSkipFileForIngestion(t *testing.T) {
 		},
 		{
 			name:     "Thumbnail in nested directory should be skipped",
-			filePath: "/documents/folder/subfolder/report.tn_64.png",
+			filePath: "/documents/folder/subfolder/report.tn_256.png",
 			want:     true,
 		},
 		{

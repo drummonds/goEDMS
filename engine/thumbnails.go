@@ -24,11 +24,11 @@ func thumbnailSupported(path string) bool {
 // getThumbnailPath returns the path to the thumbnail file for a document
 func getThumbnailPath(docPath string) string {
 	ext := filepath.Ext(docPath)
-	return docPath[:len(docPath)-len(ext)] + ".tn_64.png"
+	return docPath[:len(docPath)-len(ext)] + ".tn_256.png"
 }
 
 // saveThumbnailFile generates and saves a thumbnail for a document
 func saveThumbnailFile(docPath string) error {
 	outputPath := getThumbnailPath(docPath)
-	return thumbnails.GenerateAndSave(docPath, outputPath, 64)
+	return thumbnails.GenerateStyledAndSave(docPath, outputPath, 256, thumbnails.StyleUniform)
 }

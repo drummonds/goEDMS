@@ -1054,7 +1054,7 @@ func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.D
 		}
 
 		// Skip thumbnail files
-		if strings.HasSuffix(path, ".tn_64.png") {
+		if strings.HasSuffix(path, ".tn_256.png") {
 			return nil
 		}
 
@@ -1146,7 +1146,7 @@ func (serverHandler *ServerHandler) cleanOrphanedSidecars() int {
 	deletedCount := 0
 
 	// Sidecar patterns to check
-	sidecarSuffixes := []string{".txt", ".tags.json", ".tn_64.png"}
+	sidecarSuffixes := []string{".txt", ".tags.json", ".tn_256.png"}
 
 	err := filepath.Walk(documentPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -1170,9 +1170,9 @@ func (serverHandler *ServerHandler) cleanOrphanedSidecars() int {
 					// For .txt and .tags.json, the base is the path without the extension
 					ext := filepath.Ext(path)
 					basePath = path[:len(path)-len(ext)]
-				} else if suffix == ".tn_64.png" {
-					// For thumbnails, remove .tn_64.png suffix
-					basePath = path[:len(path)-len(".tn_64.png")]
+				} else if suffix == ".tn_256.png" {
+					// For thumbnails, remove .tn_256.png suffix
+					basePath = path[:len(path)-len(".tn_256.png")]
 				}
 
 				// Check if any root document exists

@@ -459,7 +459,7 @@ func checkThumbnailExists(docPath string) bool {
 	if ext == "" {
 		return false
 	}
-	thumbnailPath := docPath[:len(docPath)-len(ext)] + ".tn_64.png"
+	thumbnailPath := docPath[:len(docPath)-len(ext)] + ".tn_256.png"
 	_, err := os.Stat(thumbnailPath)
 	return err == nil
 }

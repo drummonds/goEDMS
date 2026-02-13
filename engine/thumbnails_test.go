@@ -50,10 +50,10 @@ func TestGetThumbnailPath(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"/path/to/document.pdf", "/path/to/document.tn_64.png"},
-		{"/path/to/file.PDF", "/path/to/file.tn_64.png"},
-		{"document.pdf", "document.tn_64.png"},
-		{"/nested/path/invoice.pdf", "/nested/path/invoice.tn_64.png"},
+		{"/path/to/document.pdf", "/path/to/document.tn_256.png"},
+		{"/path/to/file.PDF", "/path/to/file.tn_256.png"},
+		{"document.pdf", "document.tn_256.png"},
+		{"/nested/path/invoice.pdf", "/nested/path/invoice.tn_256.png"},
 	}
 
 	for _, tt := range tests {
