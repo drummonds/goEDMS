@@ -2,7 +2,11 @@ module github.com/drummonds/godocs
 
 go 1.25.3
 
-retract v1.37.4 // Accidentally published; use v0.38.x instead
+retract (
+	v1.37.6 // Contains only retractions; use v0.38.x instead
+	v1.37.5 // Contains only retractions; use v0.38.x instead
+	v1.37.4 // Accidentally published; use v0.38.x instead
+)
 
 require (
 	github.com/disintegration/imaging v1.6.2
