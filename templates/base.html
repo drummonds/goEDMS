@@ -8,20 +8,22 @@
     <link rel="icon" href="/favicon.ico">
     {{ refresh|safe }}
     <style>
-        .document-card { transition: box-shadow 0.2s; overflow: hidden; }
+        .document-card { max-width: 320px; transition: box-shadow 0.2s; overflow: hidden; }
         .document-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .card-top-row { display: flex; }
-        .card-thumbnail { width: 256px; flex-shrink: 0; }
-        .thumbnail-figure { height: 100%; }
-        .thumbnail-img { width: 100%; height: 100%; object-fit: cover; background: #f5f5f5; display: block; }
+        .card-thumbnail { overflow: hidden; }
+        .thumbnail-img { width: 100%; max-height: 200px; object-fit: cover; background: #f5f5f5; display: block; }
         .thumbnail-placeholder {
-            width: 256px; height: 180px; background: #f0f0f0;
+            width: 100%; height: 150px; background: #f0f0f0;
             display: flex; align-items: center; justify-content: center;
             color: #999; font-size: 2rem;
         }
-        .card-top-buttons { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem; }
-        .card-bottom-content { padding: 0.5rem 0.75rem; }
-        .tag-chip { font-size: 0.75rem; }
+        .card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; padding: 0.4rem 0.5rem; }
+        .card-bottom-content { padding: 0.25rem 0.75rem 0.5rem; }
+        .tag-chip {
+            font-size: 0.7rem; display: inline-block;
+            max-width: 5.5ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            vertical-align: middle; line-height: 1.8;
+        }
         .doc-type-badge { text-transform: uppercase; font-size: 0.65rem; font-weight: 700; }
         .content-area { min-height: calc(100vh - 160px); }
     </style>
