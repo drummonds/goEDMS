@@ -104,6 +104,20 @@ type Repository interface {
 	GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
 	GetTaggedDocuments(page, pageSize int) ([]Document, int, error)
 	ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Document, int, error)
+	// Story methods
+	CreateStory(story *Story) error
+	GetStoryByID(id int) (*Story, error)
+	GetAllStories() ([]Story, error)
+	GetStoriesWithMeta() ([]StoryWithMeta, error)
+	UpdateStory(story *Story) error
+	DeleteStory(id int) error
+	GetStoryByTagID(tagID int) (*Story, error)
+	GetStoryTags(storyID int) ([]Tag, error)
+	AddStoryTag(storyID int, tagID int) error
+	RemoveStoryTag(storyID int, tagID int) error
+	AddDocumentToStory(documentID int, storyID int) error
+	RemoveDocumentFromStory(documentID int, storyID int) error
+	GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, error)
 }
 
 // FetchConfigFromDB pulls the server config from the database

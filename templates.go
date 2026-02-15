@@ -133,6 +133,8 @@ func getActivePage(path string) string {
 		return "about"
 	case path == "/tags" || strings.HasPrefix(path, "/tags/"):
 		return "tags"
+	case path == "/stories" || strings.HasPrefix(path, "/stories/"):
+		return "stories"
 	case path == "/jobs" || strings.HasPrefix(path, "/jobs/"):
 		return "jobs"
 	default:

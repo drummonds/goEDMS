@@ -231,6 +231,18 @@ func main() {
 	e.POST("/tags/:id", HandleUpdateTag(tr))
 	e.POST("/tags/:id/delete", HandleDeleteTag(tr))
 
+	// Story management routes
+	e.GET("/stories", HandleStoriesPage(tr))
+	e.GET("/stories/new", HandleNewStoryPage(tr))
+	e.POST("/stories", HandleCreateStory(tr))
+	e.GET("/stories/:id/edit", HandleEditStoryPage(tr))
+	e.POST("/stories/:id", HandleUpdateStory(tr))
+	e.POST("/stories/:id/delete", HandleDeleteStory(tr))
+	e.POST("/stories/:id/tags", HandleAddStoryTag(tr))
+	e.POST("/stories/:id/tags/:tagId/remove", HandleRemoveStoryTag(tr))
+	e.POST("/stories/:id/documents", HandleAddDocumentToStory(tr))
+	e.POST("/stories/:id/documents/:ulid/remove", HandleRemoveDocumentFromStory(tr))
+
 	// Jobs management routes
 	e.GET("/jobs", HandleJobsPage(tr))
 	e.POST("/jobs/clean", HandleTriggerClean(tr))

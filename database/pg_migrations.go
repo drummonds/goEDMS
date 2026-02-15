@@ -51,6 +51,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 		{"007", "create_saved_searches", migrate007CreateSavedSearches},
 		{"008", "add_tagged_saved_search", migrate008AddTaggedSavedSearch},
 		{"009", "add_document_date", migrate009AddDocumentDate},
+		{"010", "add_stories", migrate010AddStories},
 	}
 
 	for _, m := range migrations {
@@ -653,5 +654,49 @@ func migrate009AddDocumentDate(ctx context.Context, db *sql.DB, isPglike bool) e
 	}
 
 	Logger.Info("Migration 009 completed successfully")
+	return nil
+}
+
+// Migration 010: Add stories and story_tags tables
+func migrate010AddStories(ctx context.Context, db *sql.DB, isPglike bool) error {
+	Logger.Info("Running migration 010: Add stories tables")
+
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS stories (
+			id SERIAL PRIMARY KEY,
+			title TEXT NOT NULL,
+			description TEXT DEFAULT '',
+			start_date DATE,
+			end_date DATE,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(tag_id)
+		)`)
+	if err != nil {
+		return fmt.Errorf("failed to create stories table: %w", err)
+	}
+
+	indexes := []string{
+		"CREATE INDEX IF NOT EXISTS idx_stories_tag_id ON stories(tag_id)",
+		"CREATE INDEX IF NOT EXISTS idx_stories_start_date ON stories(start_date)",
+	}
+	for _, idx := range indexes {
+		if _, err := db.ExecContext(ctx, idx); err != nil {
+			return fmt.Errorf("failed to create index: %w", err)
+		}
+	}
+
+	_, err = db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS story_tags (
+			story_id INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			PRIMARY KEY (story_id, tag_id)
+		)`)
+	if err != nil {
+		return fmt.Errorf("failed to create story_tags table: %w", err)
+	}
+
+	Logger.Info("Migration 010 completed successfully")
 	return nil
 }

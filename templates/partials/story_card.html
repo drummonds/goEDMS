@@ -1,0 +1,34 @@
+<div class="column is-one-third-desktop is-half-tablet">
+    <div class="card" style="border-left: 4px solid {{ s.Tag.Color }};">
+        <div class="card-content">
+            <div class="level is-mobile">
+                <div class="level-left">
+                    <div class="level-item">
+                        <a class="title is-5" href="/search?q=%23{{ s.Tag.Name }}">{{ s.Title }}</a>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="level-item">
+                        <a href="/stories/{{ s.ID }}/edit" class="button is-small is-warning is-outlined" title="Edit story">&#9998;</a>
+                    </div>
+                </div>
+            </div>
+            {% if s.StartDate or s.EndDate %}
+            <p class="is-size-7 has-text-grey mb-2">
+                {% if s.StartDate %}{{ s.StartDate|date:"2006-01-02" }}{% endif %}
+                {% if s.StartDate and s.EndDate %} &ndash; {% endif %}
+                {% if s.EndDate %}{{ s.EndDate|date:"2006-01-02" }}{% endif %}
+            </p>
+            {% endif %}
+            <p class="is-size-7">
+                <span class="tag is-light">{{ s.DocumentCount }} doc{{ s.DocumentCount|pluralize }}</span>
+                {% for t in s.AssociatedTags %}
+                <span class="tag" style="background-color: {{ t.Color }}; color: white;">{{ t.Name }}</span>
+                {% endfor %}
+            </p>
+            {% if s.Description %}
+            <p class="is-size-7 has-text-grey mt-1">{{ s.Description|truncatewords:15 }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

@@ -20,7 +20,8 @@ type DocumentWithMeta struct {
 	Tags         []database.Tag
 }
 
-// HandleHomePage renders the home page with paginated documents
+// HandleHomePage renders the home page with paginated documents.
+// Default view is "collapsed" (stories + unstoried docs). Use ?view=flat for all docs.
 func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		page := 1
@@ -30,29 +31,62 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 			}
 		}
 		pageSize := 20
-
-		documents, totalCount, err := tr.db.GetNewestDocumentsWithPagination(page, pageSize)
-		if err != nil {
-			Logger.Error("Failed to fetch documents for home page", "error", err)
-			documents = []database.Document{}
-			totalCount = 0
+		view := c.QueryParam("view")
+		if view == "" {
+			view = "collapsed"
 		}
 
-		// Enrich documents with thumbnails and tags
-		docsWithMeta := enrichDocuments(documents, tr.db)
+		ctx := pongo2.Context{
+			"view": view,
+		}
 
-		totalPages := (totalCount + pageSize - 1) / pageSize
+		if view == "flat" {
+			documents, totalCount, err := tr.db.GetNewestDocumentsWithPagination(page, pageSize)
+			if err != nil {
+				Logger.Error("Failed to fetch documents for home page", "error", err)
+				documents = []database.Document{}
+				totalCount = 0
+			}
+			docsWithMeta := enrichDocuments(documents, tr.db)
+			totalPages := (totalCount + pageSize - 1) / pageSize
 
-		return tr.Render(c, "home.html", pongo2.Context{
-			"documents":    docsWithMeta,
-			"page":         page,
-			"page_size":    pageSize,
-			"total_count":  totalCount,
-			"total_pages":  totalPages,
-			"has_next":     page < totalPages,
-			"has_previous": page > 1,
-			"base_url":     "/",
-		})
+			ctx["documents"] = docsWithMeta
+			ctx["page"] = page
+			ctx["page_size"] = pageSize
+			ctx["total_count"] = totalCount
+			ctx["total_pages"] = totalPages
+			ctx["has_next"] = page < totalPages
+			ctx["has_previous"] = page > 1
+			ctx["base_url"] = "/?view=flat"
+		} else {
+			// Collapsed view: stories + unstoried documents
+			stories, err := tr.db.GetStoriesWithMeta()
+			if err != nil {
+				Logger.Error("Failed to fetch stories", "error", err)
+				stories = []database.StoryWithMeta{}
+			}
+			ctx["stories"] = stories
+
+			documents, totalCount, err := tr.db.GetDocumentsWithoutStory(page, pageSize)
+			if err != nil {
+				Logger.Error("Failed to fetch unstoried documents", "error", err)
+				documents = []database.Document{}
+				totalCount = 0
+			}
+			docsWithMeta := enrichDocuments(documents, tr.db)
+			totalPages := (totalCount + pageSize - 1) / pageSize
+
+			ctx["documents"] = docsWithMeta
+			ctx["page"] = page
+			ctx["page_size"] = pageSize
+			ctx["total_count"] = totalCount
+			ctx["total_pages"] = totalPages
+			ctx["has_next"] = page < totalPages
+			ctx["has_previous"] = page > 1
+			ctx["base_url"] = "/?view=collapsed"
+		}
+
+		return tr.Render(c, "home.html", ctx)
 	}
 }
 

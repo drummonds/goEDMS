@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - New Story{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+    <ul>
+        <li><a href="/stories">Stories</a></li>
+        <li class="is-active"><a href="#" aria-current="page">New</a></li>
+    </ul>
+</nav>
+
+<h1 class="title">New Story</h1>
+
+<form method="POST" action="/stories">
+    <div class="field">
+        <label class="label">Title</label>
+        <div class="control">
+            <input class="input" type="text" name="title" required placeholder="e.g. House Purchase">
+        </div>
+        <p class="help">A tag will be created automatically (spaces become hyphens)</p>
+    </div>
+
+    <div class="field">
+        <label class="label">Description</label>
+        <div class="control">
+            <textarea class="textarea" name="description" rows="3" placeholder="What is this story about?"></textarea>
+        </div>
+    </div>
+
+    <div class="columns">
+        <div class="column">
+            <div class="field">
+                <label class="label">Start Date</label>
+                <div class="control">
+                    <input class="input" type="date" name="start_date">
+                </div>
+            </div>
+        </div>
+        <div class="column">
+            <div class="field">
+                <label class="label">End Date</label>
+                <div class="control">
+                    <input class="input" type="date" name="end_date">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="field is-grouped">
+        <div class="control">
+            <button class="button is-primary" type="submit">Create Story</button>
+        </div>
+        <div class="control">
+            <a class="button is-light" href="/stories">Cancel</a>
+        </div>
+    </div>
+</form>
+{% endblock %}

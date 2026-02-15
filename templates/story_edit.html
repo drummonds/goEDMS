@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - Edit Story{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+    <ul>
+        <li><a href="/stories">Stories</a></li>
+        <li class="is-active"><a href="#" aria-current="page">{{ story.Title }}</a></li>
+    </ul>
+</nav>
+
+<h1 class="title">Edit Story</h1>
+
+<div class="columns">
+    <div class="column is-two-thirds">
+        <form method="POST" action="/stories/{{ story.ID }}">
+            <div class="field">
+                <label class="label">Title</label>
+                <div class="control">
+                    <input class="input" type="text" name="title" value="{{ story.Title }}" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">Description</label>
+                <div class="control">
+                    <textarea class="textarea" name="description" rows="3">{{ story.Description }}</textarea>
+                </div>
+            </div>
+
+            <div class="columns">
+                <div class="column">
+                    <div class="field">
+                        <label class="label">Start Date</label>
+                        <div class="control">
+                            <input class="input" type="date" name="start_date" value="{{ start_date }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="field">
+                        <label class="label">End Date</label>
+                        <div class="control">
+                            <input class="input" type="date" name="end_date" value="{{ end_date }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="column is-narrow">
+                    <div class="field">
+                        <label class="label">Color</label>
+                        <div class="control">
+                            <input class="input" type="color" name="color" value="{{ tag_color }}" style="height: 40px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field is-grouped">
+                <div class="control">
+                    <button class="button is-primary" type="submit">Save</button>
+                </div>
+                <div class="control">
+                    <a class="button is-light" href="/stories">Back</a>
+                </div>
+            </div>
+        </form>
+
+        <hr>
+
+        <form method="POST" action="/stories/{{ story.ID }}/delete" onsubmit="return confirm('Delete this story? Documents will keep their other tags.');">
+            <button class="button is-danger is-outlined is-small" type="submit">Delete Story</button>
+        </form>
+    </div>
+
+    <div class="column is-one-third">
+        <div class="box">
+            <h2 class="subtitle is-5">Associated Tags</h2>
+            <p class="is-size-7 has-text-grey mb-3">Tags applied to documents when they join this story.</p>
+
+            {% for t in assoc_tags %}
+            <div class="level is-mobile mb-1">
+                <div class="level-left">
+                    <span class="tag" style="background-color: {{ t.Color }}; color: white;">{{ t.Name }}</span>
+                </div>
+                <div class="level-right">
+                    <form method="POST" action="/stories/{{ story.ID }}/tags/{{ t.ID }}/remove" style="display:inline;">
+                        <button class="delete is-small" type="submit" title="Remove"></button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if available_tags %}
+            <form method="POST" action="/stories/{{ story.ID }}/tags" class="mt-3">
+                <div class="field has-addons">
+                    <div class="control is-expanded">
+                        <div class="select is-small is-fullwidth">
+                            <select name="tag_id" required>
+                                <option value="">Add tag...</option>
+                                {% for t in available_tags %}
+                                <option value="{{ t.ID }}">{{ t.Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="control">
+                        <button class="button is-small is-info" type="submit">Add</button>
+                    </div>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="box">
+            <h2 class="subtitle is-5">Documents <span class="tag is-light">{{ document_count }}</span></h2>
+
+            {% for doc in documents %}
+            <div class="level is-mobile mb-1">
+                <div class="level-left">
+                    <a href="/document/{{ doc.ULID }}" class="is-size-7">{{ doc.Name|truncatechars:30 }}</a>
+                </div>
+                <div class="level-right">
+                    <form method="POST" action="/stories/{{ story.ID }}/documents/{{ doc.ULID }}/remove" style="display:inline;">
+                        <button class="delete is-small" type="submit" title="Remove from story"></button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+
+            <form method="POST" action="/stories/{{ story.ID }}/documents" class="mt-3">
+                <div class="field has-addons">
+                    <div class="control is-expanded">
+                        <input class="input is-small" type="text" name="ulid" placeholder="Document ULID" required>
+                    </div>
+                    <div class="control">
+                        <button class="button is-small is-info" type="submit">Add</button>
+                    </div>
+                </div>
+                <p class="help">Enter the document ULID to add it to this story.</p>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

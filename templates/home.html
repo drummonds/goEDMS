@@ -3,20 +3,63 @@
 {% block title %}godocs - Documents{% endblock %}
 
 {% block content %}
-<h1 class="title">Documents</h1>
-<p class="subtitle">{{ total_count }} document{{ total_count|pluralize }} in the system</p>
-
-{% if documents %}
-<div class="columns is-multiline">
-    {% for doc in documents %}
-    {% include "partials/document_card.html" %}
-    {% endfor %}
+<div class="level">
+    <div class="level-left">
+        <div class="level-item">
+            <h1 class="title">Documents</h1>
+        </div>
+    </div>
+    <div class="level-right">
+        <div class="level-item">
+            <div class="buttons has-addons">
+                <a class="button is-small{% if view == "collapsed" %} is-primary{% endif %}" href="/?view=collapsed">Stories</a>
+                <a class="button is-small{% if view == "flat" %} is-primary{% endif %}" href="/?view=flat">All</a>
+            </div>
+        </div>
+    </div>
 </div>
 
-{% include "partials/pagination.html" %}
+{% if view == "collapsed" %}
+    {% if stories %}
+    <h2 class="subtitle is-5">Stories</h2>
+    <div class="columns is-multiline">
+        {% for s in stories %}
+        {% include "partials/story_card.html" %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <h2 class="subtitle is-5 mt-5">Unstoried Documents
+        <span class="tag is-light">{{ total_count }}</span>
+    </h2>
+
+    {% if documents %}
+    <div class="columns is-multiline">
+        {% for doc in documents %}
+        {% include "partials/document_card.html" %}
+        {% endfor %}
+    </div>
+    {% include "partials/pagination.html" %}
+    {% else %}
+    <div class="notification is-info is-light">
+        <p>No unstoried documents.</p>
+    </div>
+    {% endif %}
+
 {% else %}
-<div class="notification is-info is-light">
-    <p>No documents found. Add documents to the ingress folder to get started.</p>
-</div>
+    <p class="subtitle">{{ total_count }} document{{ total_count|pluralize }} in the system</p>
+
+    {% if documents %}
+    <div class="columns is-multiline">
+        {% for doc in documents %}
+        {% include "partials/document_card.html" %}
+        {% endfor %}
+    </div>
+    {% include "partials/pagination.html" %}
+    {% else %}
+    <div class="notification is-info is-light">
+        <p>No documents found. Add documents to the ingress folder to get started.</p>
+    </div>
+    {% endif %}
 {% endif %}
 {% endblock %}
