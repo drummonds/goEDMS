@@ -19,16 +19,17 @@ import (
 
 // Document is all of the document information stored in the database
 type Document struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	Path         string    `json:"path"` // full path to the file
-	IngressTime  time.Time `json:"ingress_time"`
-	Folder       string    `json:"folder"`
-	Hash         string    `json:"hash"`
-	ULID         ulid.ULID `json:"ulid"`          // Have a smaller (than hash) id that can be used in URL's, hopefully speed things up
-	DocumentType string    `json:"document_type"` // type of document (pdf, txt, etc)
-	FullText     string    `json:"full_text"`
-	URL          string    `json:"url"`
+	ID           int        `json:"id"`
+	Name         string     `json:"name"`
+	Path         string     `json:"path"` // full path to the file
+	IngressTime  time.Time  `json:"ingress_time"`
+	Folder       string     `json:"folder"`
+	Hash         string     `json:"hash"`
+	ULID         ulid.ULID  `json:"ulid"`          // Have a smaller (than hash) id that can be used in URL's, hopefully speed things up
+	DocumentType string     `json:"document_type"` // type of document (pdf, txt, etc)
+	FullText     string     `json:"full_text"`
+	URL          string     `json:"url"`
+	DocumentDate *time.Time `json:"document_date,omitempty"` // user-assigned document date (e.g. invoice date)
 }
 
 // Logger is global since we will need it everywhere
@@ -49,6 +50,7 @@ type Repository interface {
 	DeleteDocument(ulid string) error
 	UpdateDocumentURL(ulid string, url string) error
 	UpdateDocumentFolder(ulid string, folder string) error
+	UpdateDocumentDate(ulid string, date *time.Time) error
 	SaveConfig(config *config.ServerConfig) error
 	GetConfig() (*config.ServerConfig, error)
 	SearchDocuments(searchTerm string) ([]Document, error)
@@ -232,6 +234,12 @@ func UpdateDocumentField(docULIDSt string, field string, newValue interface{}, d
 			err = db.UpdateDocumentFolder(docULIDSt, folder)
 		} else {
 			return http.StatusBadRequest, errors.New("Folder value must be a string")
+		}
+	case "DocumentDate":
+		if date, ok := newValue.(*time.Time); ok {
+			err = db.UpdateDocumentDate(docULIDSt, date)
+		} else {
+			return http.StatusBadRequest, errors.New("DocumentDate value must be a *time.Time")
 		}
 	default:
 		return http.StatusBadRequest, errors.New("unsupported field update: " + field)

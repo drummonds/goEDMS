@@ -21,12 +21,14 @@ type SavedSearch struct {
 
 // ParsedSearch represents a parsed search query
 type ParsedSearch struct {
-	TextTerms   string   // Free text to search for
-	IncludeTags []string // Tags to include (prefixed with #)
-	ExcludeTags []string // Tags to exclude (prefixed with ~)
-	IsUntagged  bool     // Special: show only untagged documents
-	IsTagged    bool     // Special: show only tagged documents
-	IsAllDocs   bool     // Special: show all documents
+	TextTerms   string     // Free text to search for
+	IncludeTags []string   // Tags to include (prefixed with #)
+	ExcludeTags []string   // Tags to exclude (prefixed with ~)
+	IsUntagged  bool       // Special: show only untagged documents
+	IsTagged    bool       // Special: show only tagged documents
+	IsAllDocs   bool       // Special: show all documents
+	AfterDate   *time.Time // Filter: document_date >= this (inclusive)
+	BeforeDate  *time.Time // Filter: document_date <= this (inclusive)
 }
 
 // SearchResult extends Document with search-related info
@@ -37,6 +39,9 @@ type SearchResult struct {
 
 // tagPattern matches #tagname or ~tagname (allowing alphanumeric, dash, underscore)
 var tagPattern = regexp.MustCompile(`([#~])([a-zA-Z0-9_\-]+)`)
+
+// datePattern matches before:YYYY-MM-DD or after:YYYY-MM-DD
+var datePattern = regexp.MustCompile(`(before|after):(\d{4}-\d{2}-\d{2})`)
 
 // ParseSearchQuery parses a unified search query string
 // Syntax:
@@ -72,6 +77,29 @@ func ParseSearchQuery(query string) *ParsedSearch {
 		result.IsTagged = true
 		return result
 	}
+
+	// Find date filters
+	dateMatches := datePattern.FindAllStringSubmatch(query, -1)
+	for _, match := range dateMatches {
+		keyword := match[1]
+		dateStr := match[2]
+		parsed, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			continue // ignore invalid dates
+		}
+		switch keyword {
+		case "after":
+			// Start of day (inclusive)
+			t := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, time.UTC)
+			result.AfterDate = &t
+		case "before":
+			// End of day (inclusive)
+			t := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 59, 0, time.UTC)
+			result.BeforeDate = &t
+		}
+	}
+	// Remove date patterns from query
+	query = datePattern.ReplaceAllString(query, "")
 
 	// Find all tag references
 	matches := tagPattern.FindAllStringSubmatch(query, -1)

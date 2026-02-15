@@ -133,15 +133,17 @@ func scanDocument(row interface{ Scan(dest ...any) error }) (*Document, error) {
 	doc := &Document{}
 	var ulidStr string
 	var ingressTime timeScanner
+	var docDate nullTimeScanner
 	err := row.Scan(
 		&doc.ID, &doc.Name, &doc.Path, &ingressTime,
 		&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
-		&doc.FullText, &doc.URL,
+		&doc.FullText, &doc.URL, &docDate,
 	)
 	if err != nil {
 		return nil, err
 	}
 	doc.IngressTime = ingressTime.Time
+	doc.DocumentDate = docDate.Time
 	doc.ULID, err = ulid.Parse(ulidStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ULID: %w", err)
@@ -162,15 +164,15 @@ func scanDocumentRows(rows *sql.Rows) ([]Document, error) {
 	return docs, rows.Err()
 }
 
-const docColumns = `id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url`
+const docColumns = `id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date`
 
 // SaveDocument saves or updates a document
 func (p *PGDB) SaveDocument(doc *Document) error {
 	ctx := context.Background()
 
 	_, err := p.db.ExecContext(ctx, `
-		INSERT INTO documents (name, path, ingress_time, folder, hash, ulid, document_type, full_text, url)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO documents (name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (path) DO UPDATE SET
 			name = EXCLUDED.name,
 			ingress_time = EXCLUDED.ingress_time,
@@ -180,9 +182,10 @@ func (p *PGDB) SaveDocument(doc *Document) error {
 			document_type = EXCLUDED.document_type,
 			full_text = EXCLUDED.full_text,
 			url = EXCLUDED.url,
+			document_date = EXCLUDED.document_date,
 			updated_at = CURRENT_TIMESTAMP
 	`, doc.Name, doc.Path, doc.IngressTime, doc.Folder, doc.Hash,
-		doc.ULID.String(), doc.DocumentType, doc.FullText, doc.URL)
+		doc.ULID.String(), doc.DocumentType, doc.FullText, doc.URL, doc.DocumentDate)
 	if err != nil {
 		return err
 	}
@@ -293,6 +296,13 @@ func (p *PGDB) UpdateDocumentURL(ulidStr string, url string) error {
 func (p *PGDB) UpdateDocumentFolder(ulidStr string, folder string) error {
 	_, err := p.db.ExecContext(context.Background(),
 		`UPDATE documents SET folder = $1, updated_at = CURRENT_TIMESTAMP WHERE ulid = $2`, folder, ulidStr)
+	return err
+}
+
+// UpdateDocumentDate updates the document_date field of a document
+func (p *PGDB) UpdateDocumentDate(ulidStr string, date *time.Time) error {
+	_, err := p.db.ExecContext(context.Background(),
+		`UPDATE documents SET document_date = $1, updated_at = CURRENT_TIMESTAMP WHERE ulid = $2`, date, ulidStr)
 	return err
 }
 

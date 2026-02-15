@@ -50,6 +50,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 		{"006", "unify_tags_dimensions", migrate006UnifyTagsDimensions},
 		{"007", "create_saved_searches", migrate007CreateSavedSearches},
 		{"008", "add_tagged_saved_search", migrate008AddTaggedSavedSearch},
+		{"009", "add_document_date", migrate009AddDocumentDate},
 	}
 
 	for _, m := range migrations {
@@ -632,5 +633,25 @@ func migrate008AddTaggedSavedSearch(ctx context.Context, db *sql.DB, isPglike bo
 	}
 
 	Logger.Info("Migration 008 completed successfully")
+	return nil
+}
+
+// Migration 009: Add document_date column
+func migrate009AddDocumentDate(ctx context.Context, db *sql.DB, isPglike bool) error {
+	Logger.Info("Running migration 009: Add document_date column")
+
+	_, err := db.ExecContext(ctx,
+		`ALTER TABLE documents ADD COLUMN document_date TIMESTAMP`)
+	if err != nil {
+		Logger.Warn("Could not add document_date column (might already exist)", "error", err)
+	}
+
+	_, err = db.ExecContext(ctx,
+		`CREATE INDEX IF NOT EXISTS idx_documents_document_date ON documents(document_date)`)
+	if err != nil {
+		return fmt.Errorf("failed to create document_date index: %w", err)
+	}
+
+	Logger.Info("Migration 009 completed successfully")
 	return nil
 }

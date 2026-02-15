@@ -31,10 +31,13 @@
     <div class="field has-addons">
         <div class="control is-expanded">
             <input class="input is-medium" type="text" name="q" value="{{ query }}"
-                   placeholder="Search documents... (#tag to filter, !untagged for inbox, !tagged for tagged)" autofocus>
+                   placeholder="Search documents... (#tag ~exclude before:YYYY-MM-DD after:YYYY-MM-DD)" autofocus>
         </div>
         <div class="control">
             <button class="button is-primary is-medium" type="submit">Search</button>
+        </div>
+        <div class="control">
+            <a class="button is-medium is-light" href="/search/help" title="Search syntax help">?</a>
         </div>
     </div>
 </form>

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - Search Help{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+    <ul>
+        <li><a href="/search">Search</a></li>
+        <li class="is-active"><a href="#" aria-current="page">Help</a></li>
+    </ul>
+</nav>
+
+<h1 class="title">Search Syntax</h1>
+
+<table class="table is-fullwidth is-striped">
+    <thead>
+        <tr><th>Syntax</th><th>Description</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><code>text</code></td><td>Full-text search across document name and content</td><td><code>invoice january</code></td></tr>
+        <tr><td><code>#tag</code></td><td>Include documents with this tag (AND logic for multiple)</td><td><code>#Invoice #2024</code></td></tr>
+        <tr><td><code>~tag</code></td><td>Exclude documents with this tag</td><td><code>~Draft</code></td></tr>
+        <tr><td><code>after:YYYY-MM-DD</code></td><td>Documents with document date on or after this date</td><td><code>after:2024-01-01</code></td></tr>
+        <tr><td><code>before:YYYY-MM-DD</code></td><td>Documents with document date on or before this date</td><td><code>before:2024-12-31</code></td></tr>
+        <tr><td><code>!untagged</code></td><td>Show only documents without any tags</td><td><code>!untagged</code></td></tr>
+        <tr><td><code>!tagged</code></td><td>Show only documents with at least one tag</td><td><code>!tagged</code></td></tr>
+        <tr><td><code>*</code></td><td>Show all documents</td><td><code>*</code></td></tr>
+    </tbody>
+</table>
+
+<h2 class="subtitle is-5 mt-5">Examples</h2>
+
+<table class="table is-fullwidth">
+    <tbody>
+        <tr><td><code>cancer #Invoice</code></td><td>Text search for "cancer" in documents tagged Invoice</td></tr>
+        <tr><td><code>#Invoice ~Draft</code></td><td>Invoices that are not drafts</td></tr>
+        <tr><td><code>after:2024-01-01 before:2024-12-31</code></td><td>Documents dated within 2024</td></tr>
+        <tr><td><code>#Invoice after:2024-06-01</code></td><td>Invoices dated from June 2024 onwards</td></tr>
+        <tr><td><code>receipt before:2023-12-31</code></td><td>Text search "receipt" with document date before 2024</td></tr>
+    </tbody>
+</table>
+
+<div class="notification is-info is-light mt-5">
+    <p>Date filters (<code>before:</code> / <code>after:</code>) apply to the <strong>document date</strong> field, not the ingestion date. Documents without a document date set will be excluded from date-filtered searches.</p>
+</div>
+
+<a href="/search" class="button is-link mt-4">Back to Search</a>
+{% endblock %}

@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.41.0 2026-02-15
+
+- Editable document date and dae searchable
+
 ## 0.39.0 2026-02-13
 
 - Improving thumbnail appearance

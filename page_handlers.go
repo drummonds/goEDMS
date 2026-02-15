@@ -185,11 +185,18 @@ func HandleDocumentPage(tr *TemplateRenderer) echo.HandlerFunc {
 			textExcerpt = textExcerpt[:2000] + "..."
 		}
 
+		// Format document date for display
+		documentDate := ""
+		if document.DocumentDate != nil {
+			documentDate = document.DocumentDate.Format("2006-01-02")
+		}
+
 		return tr.Render(c, "document.html", pongo2.Context{
 			"doc":           document,
 			"has_thumbnail": hasThumbnail,
 			"tags":          tags,
 			"text_excerpt":  textExcerpt,
+			"document_date": documentDate,
 		})
 	}
 }
@@ -234,11 +241,18 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			}
 		}
 
+		// Format document date for HTML date input
+		documentDateValue := ""
+		if document.DocumentDate != nil {
+			documentDateValue = document.DocumentDate.Format("2006-01-02")
+		}
+
 		return tr.Render(c, "document_edit.html", pongo2.Context{
-			"doc":            document,
-			"has_thumbnail":  hasThumbnail,
-			"tags":           tags,
-			"available_tags": availableTags,
+			"doc":                 document,
+			"has_thumbnail":       hasThumbnail,
+			"tags":                tags,
+			"available_tags":      availableTags,
+			"document_date_value": documentDateValue,
 		})
 	}
 }
@@ -286,6 +300,44 @@ func HandleDocumentRemoveTag(tr *TemplateRenderer) echo.HandlerFunc {
 		}
 
 		return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+	}
+}
+
+// HandleDocumentUpdateDate handles setting or clearing the document date
+func HandleDocumentUpdateDate(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ulidStr := c.Param("ulid")
+
+		if c.FormValue("clear") == "1" {
+			if err := tr.db.UpdateDocumentDate(ulidStr, nil); err != nil {
+				Logger.Error("Failed to clear document date", "ulid", ulidStr, "error", err)
+			}
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+
+		dateStr := c.FormValue("document_date")
+		if dateStr == "" {
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+
+		parsed, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			Logger.Error("Failed to parse document date", "date", dateStr, "error", err)
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+
+		if err := tr.db.UpdateDocumentDate(ulidStr, &parsed); err != nil {
+			Logger.Error("Failed to update document date", "ulid", ulidStr, "error", err)
+		}
+
+		return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+	}
+}
+
+// HandleSearchHelpPage renders the search syntax help page
+func HandleSearchHelpPage(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		return tr.Render(c, "search_help.html", nil)
 	}
 }
 

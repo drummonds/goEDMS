@@ -132,7 +132,7 @@ func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int
 
 	rows, err := p.db.QueryContext(ctx, `
 		SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid,
-		       d.document_type, d.full_text, d.url
+		       d.document_type, d.full_text, d.url, d.document_date
 		FROM documents d
 		INNER JOIN document_tags dt ON dt.document_id = d.id
 		WHERE dt.tag_id = $1
@@ -162,7 +162,7 @@ func (p *PGDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
 
 	rows, err := p.db.QueryContext(ctx, `
 		SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid,
-		       d.document_type, d.full_text, d.url
+		       d.document_type, d.full_text, d.url, d.document_date
 		FROM documents d
 		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)
 		ORDER BY d.ingress_time DESC
@@ -191,7 +191,7 @@ func (p *PGDB) GetTaggedDocuments(page, pageSize int) ([]Document, int, error) {
 
 	rows, err := p.db.QueryContext(ctx, `
 		SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid,
-		       d.document_type, d.full_text, d.url
+		       d.document_type, d.full_text, d.url, d.document_date
 		FROM documents d
 		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)
 		ORDER BY d.ingress_time DESC
@@ -270,6 +270,20 @@ func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Docume
 		}
 	}
 
+	// Add date range filters
+	if parsed.AfterDate != nil {
+		conditions = append(conditions,
+			fmt.Sprintf("d.document_date >= $%d", argIdx))
+		args = append(args, *parsed.AfterDate)
+		argIdx++
+	}
+	if parsed.BeforeDate != nil {
+		conditions = append(conditions,
+			fmt.Sprintf("d.document_date <= $%d", argIdx))
+		args = append(args, *parsed.BeforeDate)
+		argIdx++
+	}
+
 	// Build WHERE clause
 	whereClause := ""
 	if len(conditions) > 0 {
@@ -287,7 +301,7 @@ func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Docume
 	// Get results
 	selectSQL := fmt.Sprintf(`
 		SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid,
-		       d.document_type, d.full_text, d.url
+		       d.document_type, d.full_text, d.url, d.document_date
 		FROM documents d %s %s
 		ORDER BY d.ingress_time DESC
 		LIMIT $%d OFFSET $%d`, joinClause, whereClause, argIdx, argIdx+1)

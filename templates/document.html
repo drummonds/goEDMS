@@ -39,6 +39,7 @@
             <tbody>
                 <tr><th>Type</th><td><span class="tag is-info">{{ doc.DocumentType }}</span></td></tr>
                 <tr><th>Folder</th><td>{{ doc.Folder }}</td></tr>
+                <tr><th>Document Date</th><td>{% if document_date %}{{ document_date }}{% else %}<span class="has-text-grey-light">Not set</span>{% endif %}</td></tr>
                 <tr><th>Ingested</th><td>{{ doc.IngressTime }}</td></tr>
                 <tr><th>ULID</th><td><code>{{ doc.ULID }}</code></td></tr>
             </tbody>

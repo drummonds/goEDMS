@@ -2174,6 +2174,10 @@ const docTemplate = `{
         "database.Document": {
             "type": "object",
             "properties": {
+                "document_date": {
+                    "description": "user-assigned document date (e.g. invoice date)",
+                    "type": "string"
+                },
                 "document_type": {
                     "description": "type of document (pdf, txt, etc)",
                     "type": "string"

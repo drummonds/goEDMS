@@ -8,6 +8,71 @@ import (
 	"time"
 )
 
+func TestParseSearchQuery(t *testing.T) {
+	t.Run("AfterDate", func(t *testing.T) {
+		result := ParseSearchQuery("after:2024-01-15")
+		if result.AfterDate == nil {
+			t.Fatal("Expected AfterDate to be set")
+		}
+		expected := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+		if !result.AfterDate.Equal(expected) {
+			t.Errorf("Expected AfterDate %v, got %v", expected, *result.AfterDate)
+		}
+		if result.TextTerms != "" {
+			t.Errorf("Expected empty text terms, got %q", result.TextTerms)
+		}
+	})
+
+	t.Run("BeforeDate", func(t *testing.T) {
+		result := ParseSearchQuery("before:2024-12-31")
+		if result.BeforeDate == nil {
+			t.Fatal("Expected BeforeDate to be set")
+		}
+		expected := time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC)
+		if !result.BeforeDate.Equal(expected) {
+			t.Errorf("Expected BeforeDate %v, got %v", expected, *result.BeforeDate)
+		}
+	})
+
+	t.Run("DateRange", func(t *testing.T) {
+		result := ParseSearchQuery("after:2024-01-01 before:2024-12-31")
+		if result.AfterDate == nil || result.BeforeDate == nil {
+			t.Fatal("Expected both dates to be set")
+		}
+		if result.TextTerms != "" {
+			t.Errorf("Expected empty text terms, got %q", result.TextTerms)
+		}
+	})
+
+	t.Run("DateWithTextAndTags", func(t *testing.T) {
+		result := ParseSearchQuery("invoice #Finance after:2024-06-01")
+		if result.AfterDate == nil {
+			t.Fatal("Expected AfterDate to be set")
+		}
+		if result.TextTerms != "invoice" {
+			t.Errorf("Expected text 'invoice', got %q", result.TextTerms)
+		}
+		if len(result.IncludeTags) != 1 || result.IncludeTags[0] != "Finance" {
+			t.Errorf("Expected include tag Finance, got %v", result.IncludeTags)
+		}
+	})
+
+	t.Run("InvalidDate", func(t *testing.T) {
+		result := ParseSearchQuery("after:2024-13-45")
+		if result.AfterDate != nil {
+			t.Error("Expected invalid date to be ignored")
+		}
+	})
+
+	t.Run("InvalidDateFormat", func(t *testing.T) {
+		result := ParseSearchQuery("after:not-a-date")
+		if result.AfterDate != nil {
+			t.Error("Expected non-date string to be ignored")
+		}
+		// "after:not-a-date" won't match the regex, so it stays as text
+	})
+}
+
 func TestPostgresFullTextSearch(t *testing.T) {
 	// Initialize logger
 	Logger = slog.New(slog.NewTextHandler(os.Stdout, nil))

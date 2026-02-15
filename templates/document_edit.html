@@ -34,6 +34,23 @@
         <h1 class="title is-4">{{ doc.Name }}</h1>
 
         <div class="mb-5">
+            <h2 class="subtitle is-5">Document Date</h2>
+            <form method="POST" action="/document/{{ doc.ULID }}/date">
+                <div class="field has-addons">
+                    <div class="control is-expanded">
+                        <input class="input" type="date" name="document_date" value="{{ document_date_value }}">
+                    </div>
+                    <div class="control">
+                        <button type="submit" class="button is-primary">Set</button>
+                    </div>
+                    <div class="control">
+                        <button type="submit" name="clear" value="1" class="button is-light">Clear</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="mb-5">
             <h2 class="subtitle is-5">Current Tags</h2>
             {% if tags %}
             <div class="tags are-medium">
