@@ -30,6 +30,21 @@ type Document struct {
 	FullText     string     `json:"full_text"`
 	URL          string     `json:"url"`
 	DocumentDate *time.Time `json:"document_date,omitempty"` // user-assigned document date (e.g. invoice date)
+	CreatedDate  *time.Time `json:"created_date,omitempty"`  // original creation date from source
+	UpdatedDate  *time.Time `json:"updated_date,omitempty"`  // original modification date from source
+	Author       string     `json:"author,omitempty"`        // note author
+	SourceURL    string     `json:"source_url,omitempty"`    // original source URL
+	Source       string     `json:"source,omitempty"`        // source system (e.g. "evernote")
+}
+
+// DocumentMetadataUpdate holds optional fields for bulk metadata update via API.
+// Pointer fields are omitted from the update when nil.
+type DocumentMetadataUpdate struct {
+	CreatedDate *time.Time `json:"created_date,omitempty"`
+	UpdatedDate *time.Time `json:"updated_date,omitempty"`
+	Author      *string    `json:"author,omitempty"`
+	SourceURL   *string    `json:"source_url,omitempty"`
+	Source      *string    `json:"source,omitempty"`
 }
 
 // Logger is global since we will need it everywhere
@@ -120,6 +135,7 @@ type Repository interface {
 	AddDocumentToStory(documentID int, storyID int) error
 	RemoveDocumentFromStory(documentID int, storyID int) error
 	GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, error)
+	UpdateDocumentMetadata(ulid string, meta DocumentMetadataUpdate) error
 }
 
 // FetchConfigFromDB pulls the server config from the database

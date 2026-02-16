@@ -50,6 +50,21 @@
             </form>
         </div>
 
+        {% if doc.Author or doc.Source or doc.SourceURL or created_date or updated_date %}
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Import Metadata</h2>
+            <table class="table is-fullwidth is-narrow">
+                <tbody>
+                    {% if doc.Author %}<tr><th>Author</th><td>{{ doc.Author }}</td></tr>{% endif %}
+                    {% if doc.Source %}<tr><th>Source</th><td>{{ doc.Source }}</td></tr>{% endif %}
+                    {% if doc.SourceURL %}<tr><th>Source URL</th><td><a href="{{ doc.SourceURL }}">{{ doc.SourceURL }}</a></td></tr>{% endif %}
+                    {% if created_date %}<tr><th>Created</th><td>{{ created_date }}</td></tr>{% endif %}
+                    {% if updated_date %}<tr><th>Updated</th><td>{{ updated_date }}</td></tr>{% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
         <div class="mb-5">
             <h2 class="subtitle is-5">Current Tags</h2>
             {% if tags %}

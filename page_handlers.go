@@ -225,12 +225,23 @@ func HandleDocumentPage(tr *TemplateRenderer) echo.HandlerFunc {
 			documentDate = document.DocumentDate.Format("2006-01-02")
 		}
 
+		createdDate := ""
+		if document.CreatedDate != nil {
+			createdDate = document.CreatedDate.Format("2006-01-02 15:04")
+		}
+		updatedDate := ""
+		if document.UpdatedDate != nil {
+			updatedDate = document.UpdatedDate.Format("2006-01-02 15:04")
+		}
+
 		return tr.Render(c, "document.html", pongo2.Context{
 			"doc":           document,
 			"has_thumbnail": hasThumbnail,
 			"tags":          tags,
 			"text_excerpt":  textExcerpt,
 			"document_date": documentDate,
+			"created_date":  createdDate,
+			"updated_date":  updatedDate,
 		})
 	}
 }
@@ -281,12 +292,23 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			documentDateValue = document.DocumentDate.Format("2006-01-02")
 		}
 
+		createdDate := ""
+		if document.CreatedDate != nil {
+			createdDate = document.CreatedDate.Format("2006-01-02 15:04")
+		}
+		updatedDate := ""
+		if document.UpdatedDate != nil {
+			updatedDate = document.UpdatedDate.Format("2006-01-02 15:04")
+		}
+
 		return tr.Render(c, "document_edit.html", pongo2.Context{
 			"doc":                 document,
 			"has_thumbnail":       hasThumbnail,
 			"tags":                tags,
 			"available_tags":      availableTags,
 			"document_date_value": documentDateValue,
+			"created_date":        createdDate,
+			"updated_date":        updatedDate,
 		})
 	}
 }
@@ -456,8 +478,15 @@ func HandleTagsPage(tr *TemplateRenderer) echo.HandlerFunc {
 			}
 		}
 
+		groups, err := tr.db.GetTagGroups()
+		if err != nil {
+			Logger.Error("Failed to fetch tag groups", "error", err)
+			groups = []string{}
+		}
+
 		return tr.Render(c, "tags.html", pongo2.Context{
-			"tags": tagsWithUsage,
+			"tags":       tagsWithUsage,
+			"tag_groups": groups,
 		})
 	}
 }
@@ -507,9 +536,16 @@ func HandleEditTagPage(tr *TemplateRenderer) echo.HandlerFunc {
 			tagGroupValue = *tag.TagGroup
 		}
 
+		groups, err := tr.db.GetTagGroups()
+		if err != nil {
+			Logger.Error("Failed to fetch tag groups", "error", err)
+			groups = []string{}
+		}
+
 		return tr.Render(c, "tag_edit.html", pongo2.Context{
 			"tag":             tag,
 			"tag_group_value": tagGroupValue,
+			"tag_groups":      groups,
 		})
 	}
 }

@@ -42,6 +42,11 @@
                 <tr><th>Document Date</th><td>{% if document_date %}{{ document_date }}{% else %}<span class="has-text-grey-light">Not set</span>{% endif %}</td></tr>
                 <tr><th>Ingested</th><td>{{ doc.IngressTime }}</td></tr>
                 <tr><th>ULID</th><td><code>{{ doc.ULID }}</code></td></tr>
+                {% if doc.Author %}<tr><th>Author</th><td>{{ doc.Author }}</td></tr>{% endif %}
+                {% if doc.Source %}<tr><th>Source</th><td>{{ doc.Source }}</td></tr>{% endif %}
+                {% if doc.SourceURL %}<tr><th>Source URL</th><td><a href="{{ doc.SourceURL }}">{{ doc.SourceURL }}</a></td></tr>{% endif %}
+                {% if created_date %}<tr><th>Created</th><td>{{ created_date }}</td></tr>{% endif %}
+                {% if updated_date %}<tr><th>Updated</th><td>{{ updated_date }}</td></tr>{% endif %}
             </tbody>
         </table>
 

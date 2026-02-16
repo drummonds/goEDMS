@@ -52,6 +52,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 		{"008", "add_tagged_saved_search", migrate008AddTaggedSavedSearch},
 		{"009", "add_document_date", migrate009AddDocumentDate},
 		{"010", "add_stories", migrate010AddStories},
+		{"011", "add_document_metadata", migrate011AddDocumentMetadata},
 	}
 
 	for _, m := range migrations {
@@ -698,5 +699,27 @@ func migrate010AddStories(ctx context.Context, db *sql.DB, isPglike bool) error 
 	}
 
 	Logger.Info("Migration 010 completed successfully")
+	return nil
+}
+
+// Migration 011: Add document metadata columns for remote import (e.g. Evernote)
+func migrate011AddDocumentMetadata(ctx context.Context, db *sql.DB, isPglike bool) error {
+	Logger.Info("Running migration 011: Add document metadata columns")
+
+	columns := []string{
+		`ALTER TABLE documents ADD COLUMN created_date TIMESTAMP`,
+		`ALTER TABLE documents ADD COLUMN updated_date TIMESTAMP`,
+		`ALTER TABLE documents ADD COLUMN author TEXT DEFAULT ''`,
+		`ALTER TABLE documents ADD COLUMN source_url TEXT DEFAULT ''`,
+		`ALTER TABLE documents ADD COLUMN source TEXT DEFAULT ''`,
+	}
+	for _, col := range columns {
+		_, err := db.ExecContext(ctx, col)
+		if err != nil {
+			Logger.Warn("Could not add column (might already exist)", "sql", col, "error", err)
+		}
+	}
+
+	Logger.Info("Migration 011 completed successfully")
 	return nil
 }

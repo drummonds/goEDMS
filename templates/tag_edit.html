@@ -36,7 +36,12 @@
         <div class="field">
             <label class="label">Tag Group</label>
             <div class="control">
-                <input class="input" type="text" name="tag_group" value="{{ tag_group_value }}">
+                <input class="input" type="text" name="tag_group" value="{{ tag_group_value }}" list="tag-groups" placeholder="Select or type a group">
+                <datalist id="tag-groups">
+                    {% for g in tag_groups %}
+                    <option value="{{ g }}">
+                    {% endfor %}
+                </datalist>
             </div>
         </div>
 

@@ -133,17 +133,20 @@ func scanDocument(row interface{ Scan(dest ...any) error }) (*Document, error) {
 	doc := &Document{}
 	var ulidStr string
 	var ingressTime timeScanner
-	var docDate nullTimeScanner
+	var docDate, createdDate, updatedDate nullTimeScanner
 	err := row.Scan(
 		&doc.ID, &doc.Name, &doc.Path, &ingressTime,
 		&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
 		&doc.FullText, &doc.URL, &docDate,
+		&createdDate, &updatedDate, &doc.Author, &doc.SourceURL, &doc.Source,
 	)
 	if err != nil {
 		return nil, err
 	}
 	doc.IngressTime = ingressTime.Time
 	doc.DocumentDate = docDate.Time
+	doc.CreatedDate = createdDate.Time
+	doc.UpdatedDate = updatedDate.Time
 	doc.ULID, err = ulid.Parse(ulidStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ULID: %w", err)
@@ -164,15 +167,18 @@ func scanDocumentRows(rows *sql.Rows) ([]Document, error) {
 	return docs, rows.Err()
 }
 
-const docColumns = `id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date`
+const docColumns = `id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date, created_date, updated_date, author, source_url, source`
+
+const docColumnsAliased = `d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url, d.document_date, d.created_date, d.updated_date, d.author, d.source_url, d.source`
 
 // SaveDocument saves or updates a document
 func (p *PGDB) SaveDocument(doc *Document) error {
 	ctx := context.Background()
 
 	_, err := p.db.ExecContext(ctx, `
-		INSERT INTO documents (name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO documents (name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date,
+			created_date, updated_date, author, source_url, source)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		ON CONFLICT (path) DO UPDATE SET
 			name = EXCLUDED.name,
 			ingress_time = EXCLUDED.ingress_time,
@@ -183,9 +189,15 @@ func (p *PGDB) SaveDocument(doc *Document) error {
 			full_text = EXCLUDED.full_text,
 			url = EXCLUDED.url,
 			document_date = EXCLUDED.document_date,
+			created_date = EXCLUDED.created_date,
+			updated_date = EXCLUDED.updated_date,
+			author = EXCLUDED.author,
+			source_url = EXCLUDED.source_url,
+			source = EXCLUDED.source,
 			updated_at = CURRENT_TIMESTAMP
 	`, doc.Name, doc.Path, doc.IngressTime, doc.Folder, doc.Hash,
-		doc.ULID.String(), doc.DocumentType, doc.FullText, doc.URL, doc.DocumentDate)
+		doc.ULID.String(), doc.DocumentType, doc.FullText, doc.URL, doc.DocumentDate,
+		doc.CreatedDate, doc.UpdatedDate, doc.Author, doc.SourceURL, doc.Source)
 	if err != nil {
 		return err
 	}
@@ -318,6 +330,52 @@ func (p *PGDB) UpdateDocumentDate(ulidStr string, date *time.Time) error {
 func (p *PGDB) UpdateDocumentFullText(ulidStr string, text string) error {
 	_, err := p.db.ExecContext(context.Background(),
 		`UPDATE documents SET full_text = $1, updated_at = CURRENT_TIMESTAMP WHERE ulid = $2`, text, ulidStr)
+	return err
+}
+
+// UpdateDocumentMetadata updates multiple metadata fields in a single query.
+// Only non-nil fields in the update struct are applied.
+func (p *PGDB) UpdateDocumentMetadata(ulidStr string, meta DocumentMetadataUpdate) error {
+	var setClauses []string
+	var args []interface{}
+	argIdx := 1
+
+	if meta.CreatedDate != nil {
+		setClauses = append(setClauses, fmt.Sprintf("created_date = $%d", argIdx))
+		args = append(args, *meta.CreatedDate)
+		argIdx++
+	}
+	if meta.UpdatedDate != nil {
+		setClauses = append(setClauses, fmt.Sprintf("updated_date = $%d", argIdx))
+		args = append(args, *meta.UpdatedDate)
+		argIdx++
+	}
+	if meta.Author != nil {
+		setClauses = append(setClauses, fmt.Sprintf("author = $%d", argIdx))
+		args = append(args, *meta.Author)
+		argIdx++
+	}
+	if meta.SourceURL != nil {
+		setClauses = append(setClauses, fmt.Sprintf("source_url = $%d", argIdx))
+		args = append(args, *meta.SourceURL)
+		argIdx++
+	}
+	if meta.Source != nil {
+		setClauses = append(setClauses, fmt.Sprintf("source = $%d", argIdx))
+		args = append(args, *meta.Source)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return nil // nothing to update
+	}
+
+	setClauses = append(setClauses, "updated_at = CURRENT_TIMESTAMP")
+	query := fmt.Sprintf("UPDATE documents SET %s WHERE ulid = $%d",
+		strings.Join(setClauses, ", "), argIdx)
+	args = append(args, ulidStr)
+
+	_, err := p.db.ExecContext(context.Background(), query, args...)
 	return err
 }
 

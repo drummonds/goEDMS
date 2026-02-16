@@ -47,6 +47,12 @@ definitions:
     type: object
   database.Document:
     properties:
+      author:
+        description: note author
+        type: string
+      created_date:
+        description: original creation date from source
+        type: string
       document_date:
         description: user-assigned document date (e.g. invoice date)
         type: string
@@ -68,12 +74,21 @@ definitions:
       path:
         description: full path to the file
         type: string
+      source:
+        description: source system (e.g. "evernote")
+        type: string
+      source_url:
+        description: original source URL
+        type: string
       ulid:
         description: Have a smaller (than hash) id that can be used in URL's, hopefully
           speed things up
         items:
           type: integer
         type: array
+      updated_date:
+        description: original modification date from source
+        type: string
       url:
         type: string
     type: object

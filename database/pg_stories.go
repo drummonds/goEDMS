@@ -300,8 +300,7 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, er
 
 	// Fetch
 	rows, err := p.db.QueryContext(ctx, `
-		SELECT d.id, d.name, d.path, d.ingress_time, d.folder, d.hash,
-		       d.ulid, d.document_type, d.full_text, d.url, d.document_date
+		SELECT `+docColumnsAliased+`
 		FROM documents d
 		WHERE NOT EXISTS (
 			SELECT 1 FROM document_tags dt
@@ -315,22 +314,8 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, er
 	}
 	defer rows.Close()
 
-	var docs []Document
-	for rows.Next() {
-		var doc Document
-		var ingressTime timeScanner
-		var docDate nullTimeScanner
-		err := rows.Scan(&doc.ID, &doc.Name, &doc.Path, &ingressTime, &doc.Folder,
-			&doc.Hash, &doc.ULID, &doc.DocumentType, &doc.FullText, &doc.URL, &docDate)
-		if err != nil {
-			return nil, 0, err
-		}
-		doc.IngressTime = ingressTime.Time
-		doc.DocumentDate = docDate.Time
-		docs = append(docs, doc)
-	}
-
-	return docs, totalCount, rows.Err()
+	docs, err := scanDocumentRows(rows)
+	return docs, totalCount, err
 }
 
 // scanStory scans a single row into a Story.

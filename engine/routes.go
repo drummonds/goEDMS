@@ -1344,6 +1344,20 @@ func (serverHandler *ServerHandler) UpdateDocumentText(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
 }
 
+// UpdateDocumentMetadata updates import metadata fields (author, source, dates, etc.)
+func (serverHandler *ServerHandler) UpdateDocumentMetadata(c echo.Context) error {
+	ulidStr := c.Param("id")
+	var meta database.DocumentMetadataUpdate
+	if err := c.Bind(&meta); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+	if err := serverHandler.DB.UpdateDocumentMetadata(ulidStr, meta); err != nil {
+		Logger.Error("UpdateDocumentMetadata failed", "ulid", ulidStr, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
+}
+
 // UpdateDocumentDate updates the document date of a document
 func (serverHandler *ServerHandler) UpdateDocumentDate(c echo.Context) error {
 	ulidStr := c.Param("id")

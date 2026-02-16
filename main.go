@@ -165,6 +165,7 @@ func main() {
 	e.POST("/api/document/:id/thumbnail/regenerate", serverHandler.RegenerateThumbnail)
 	e.PUT("/api/document/:id/text", serverHandler.UpdateDocumentText)
 	e.PUT("/api/document/:id/date", serverHandler.UpdateDocumentDate)
+	e.PUT("/api/document/:id/metadata", serverHandler.UpdateDocumentMetadata)
 	e.DELETE("/api/document/*", serverHandler.DeleteFile)
 	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
 	e.POST("/api/document/upload", serverHandler.UploadDocuments)

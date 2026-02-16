@@ -33,7 +33,12 @@
                 <div class="field">
                     <label class="label">Group (optional)</label>
                     <div class="control">
-                        <input class="input" type="text" name="tag_group" placeholder="e.g. Category">
+                        <input class="input" type="text" name="tag_group" list="tag-groups" placeholder="Select or type">
+                        <datalist id="tag-groups">
+                            {% for g in tag_groups %}
+                            <option value="{{ g }}">
+                            {% endfor %}
+                        </datalist>
                     </div>
                 </div>
             </div>
@@ -78,7 +83,7 @@
             <td>{{ tag.Name }}</td>
             <td>{{ tag.TagGroup|default:"" }}</td>
             <td>{{ tag.Description }}</td>
-            <td>{{ tag.UsageCount }}</td>
+            <td>{% if tag.UsageCount > 0 %}<a href="/search?q=%23{{ tag.Name }}">{{ tag.UsageCount }}</a>{% else %}0{% endif %}</td>
             <td>
                 <div class="buttons are-small">
                     <a class="button is-info is-outlined" href="/tags/{{ tag.ID }}/edit">Edit</a>

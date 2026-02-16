@@ -2,6 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.43.0 2026-02-16
+
+- Adding more fields to make more compatible with Evernote import
+- impoving display of tags
+
 ## 0.42.2 2026-02-16
 
 - improving error logging
