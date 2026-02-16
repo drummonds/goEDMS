@@ -2408,6 +2408,9 @@ const docTemplate = `{
         "engine.DocumentStatus": {
             "type": "object",
             "properties": {
+                "documentDate": {
+                    "type": "string"
+                },
                 "documentType": {
                     "type": "string"
                 },

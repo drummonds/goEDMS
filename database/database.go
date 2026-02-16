@@ -49,8 +49,10 @@ type Repository interface {
 	GetDocumentsByFolder(folder string) ([]Document, error)
 	DeleteDocument(ulid string) error
 	UpdateDocumentURL(ulid string, url string) error
+	UpdateDocumentPath(ulid string, path string, folder string) error
 	UpdateDocumentFolder(ulid string, folder string) error
 	UpdateDocumentDate(ulid string, date *time.Time) error
+	UpdateDocumentFullText(ulid string, text string) error
 	SaveConfig(config *config.ServerConfig) error
 	GetConfig() (*config.ServerConfig, error)
 	SearchDocuments(searchTerm string) ([]Document, error)
@@ -254,6 +256,12 @@ func UpdateDocumentField(docULIDSt string, field string, newValue interface{}, d
 			err = db.UpdateDocumentDate(docULIDSt, date)
 		} else {
 			return http.StatusBadRequest, errors.New("DocumentDate value must be a *time.Time")
+		}
+	case "FullText":
+		if text, ok := newValue.(string); ok {
+			err = db.UpdateDocumentFullText(docULIDSt, text)
+		} else {
+			return http.StatusBadRequest, errors.New("FullText value must be a string")
 		}
 	default:
 		return http.StatusBadRequest, errors.New("unsupported field update: " + field)

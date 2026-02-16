@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -68,30 +69,45 @@ func NewTemplateRenderer(app *lofigui.App, db database.Repository, cfg config.Se
 	}
 }
 
-// Render renders a template with merged lofigui state and page-specific data
+// Render renders a template with merged lofigui state and page-specific data.
+// Templates are rendered to a buffer first so errors produce proper HTTP 500
+// responses instead of partial HTML with a 200 status.
 func (tr *TemplateRenderer) Render(c echo.Context, name string, extra pongo2.Context) error {
-	tpl, err := tr.templateSet.FromCache(name)
-	if err != nil {
-		return err
-	}
-
-	ctx := tr.buildContext(c, extra)
-	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
-	c.Response().WriteHeader(http.StatusOK)
-	return tpl.ExecuteWriter(ctx, c.Response().Writer)
+	return tr.renderToResponse(c, name, http.StatusOK, extra)
 }
 
 // RenderWithStatus renders a template with a specific HTTP status code
 func (tr *TemplateRenderer) RenderWithStatus(c echo.Context, name string, status int, extra pongo2.Context) error {
+	return tr.renderToResponse(c, name, status, extra)
+}
+
+// renderToResponse renders a template to a buffer, then writes the response.
+// If template execution fails, an error is returned before headers are sent,
+// allowing the error handler to return a proper error page.
+func (tr *TemplateRenderer) renderToResponse(c echo.Context, name string, status int, extra pongo2.Context) error {
 	tpl, err := tr.templateSet.FromCache(name)
 	if err != nil {
-		return err
+		Logger.Error("Template not found", "template", name, "error", err)
+		return fmt.Errorf("template %q: %w", name, err)
 	}
 
 	ctx := tr.buildContext(c, extra)
+
+	// Render to buffer first to catch template execution errors
+	var buf bytes.Buffer
+	if err := tpl.ExecuteWriter(ctx, &buf); err != nil {
+		Logger.Error("Template execution failed",
+			"template", name,
+			"error", err,
+			"path", c.Request().URL.Path,
+		)
+		return fmt.Errorf("template %q execution: %w", name, err)
+	}
+
 	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Response().WriteHeader(status)
-	return tpl.ExecuteWriter(ctx, c.Response().Writer)
+	_, err = buf.WriteTo(c.Response().Writer)
+	return err
 }
 
 // buildContext creates the template context with app state and page data.

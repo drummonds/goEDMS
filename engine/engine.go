@@ -396,27 +396,58 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	orphanedSidecarsDeleted = serverHandler.cleanOrphanedSidecars()
 	Logger.Info("Orphaned sidecar cleanup complete", "deleted", orphanedSidecarsDeleted)
 
-	// Step 6: Migrate stormid to id in .tags.json files (legacy cleanup)
-	db.UpdateJobProgress(jobID, 85, "Migrating legacy JSON fields")
+	// Step 6: Migrate flat documents to nested directory structure
+	db.UpdateJobProgress(jobID, 83, "Migrating documents to nested paths")
+	nestedMigratedCount := 0
+	Logger.Info("Checking for documents needing nested path migration")
+	// Re-fetch documents (some may have been rescanned/deleted above)
+	freshDocsPtr, err := database.FetchAllDocuments(db)
+	if err == nil && freshDocsPtr != nil {
+		documentRoot := serverHandler.ServerConfig.DocumentPath
+		for _, doc := range *freshDocsPtr {
+			expectedPath, expectedFolder := ComputeNestedPath(doc.ID, doc.Name, documentRoot)
+			if doc.Path == expectedPath {
+				continue
+			}
+			// File exists at old location — move it
+			if _, statErr := os.Stat(doc.Path); statErr != nil {
+				continue // file doesn't exist, nothing to move
+			}
+			if err := moveFileAndSidecars(doc.Path, expectedPath); err != nil {
+				Logger.Error("Failed to migrate document to nested path", "id", doc.ID, "from", doc.Path, "to", expectedPath, "error", err)
+				continue
+			}
+			if err := db.UpdateDocumentPath(doc.ULID.String(), expectedPath, expectedFolder); err != nil {
+				Logger.Error("Failed to update DB after nested migration", "id", doc.ID, "error", err)
+				continue
+			}
+			nestedMigratedCount++
+			Logger.Info("Migrated document to nested path", "id", doc.ID, "from", doc.Path, "to", expectedPath)
+		}
+	}
+	Logger.Info("Nested path migration complete", "migrated", nestedMigratedCount)
+
+	// Step 7: Migrate stormid to id in .tags.json files (legacy cleanup)
+	db.UpdateJobProgress(jobID, 87, "Migrating legacy JSON fields")
 	jsonMigratedCount := 0
 	Logger.Info("Checking for legacy stormid fields in .tags.json files")
 	jsonMigratedCount = serverHandler.migrateStormIDInTagsFiles()
 	Logger.Info("JSON field migration complete", "migrated", jsonMigratedCount)
 
-	// Step 7: Recalculate word cloud
-	db.UpdateJobProgress(jobID, 90, "Recalculating word cloud")
+	// Step 8: Recalculate word cloud
+	db.UpdateJobProgress(jobID, 92, "Recalculating word cloud")
 	Logger.Info("Recalculating word cloud after database cleanup")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
 		Logger.Error("Word cloud recalculation failed after cleanup", "error", err)
 	}
 
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "jsonFilesMigrated": %d}`, totalDocs, deletedCount, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, jsonMigratedCount)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "nestedMigrated": %d, "jsonFilesMigrated": %d}`, totalDocs, deletedCount, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, nestedMigratedCount, jsonMigratedCount)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
 
-	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted, "jsonFilesMigrated", jsonMigratedCount)
+	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted, "nestedMigrated", nestedMigratedCount, "jsonFilesMigrated", jsonMigratedCount)
 }
 
 // ingressDocumentWithError is like ingressDocument but returns errors instead of just logging

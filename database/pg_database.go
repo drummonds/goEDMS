@@ -292,6 +292,14 @@ func (p *PGDB) UpdateDocumentURL(ulidStr string, url string) error {
 	return err
 }
 
+// UpdateDocumentPath updates the path and folder fields of a document
+func (p *PGDB) UpdateDocumentPath(ulidStr string, path string, folder string) error {
+	_, err := p.db.ExecContext(context.Background(),
+		`UPDATE documents SET path = $1, folder = $2, updated_at = CURRENT_TIMESTAMP WHERE ulid = $3`,
+		path, folder, ulidStr)
+	return err
+}
+
 // UpdateDocumentFolder updates the Folder field of a document
 func (p *PGDB) UpdateDocumentFolder(ulidStr string, folder string) error {
 	_, err := p.db.ExecContext(context.Background(),
@@ -303,6 +311,13 @@ func (p *PGDB) UpdateDocumentFolder(ulidStr string, folder string) error {
 func (p *PGDB) UpdateDocumentDate(ulidStr string, date *time.Time) error {
 	_, err := p.db.ExecContext(context.Background(),
 		`UPDATE documents SET document_date = $1, updated_at = CURRENT_TIMESTAMP WHERE ulid = $2`, date, ulidStr)
+	return err
+}
+
+// UpdateDocumentFullText updates the full_text field of a document
+func (p *PGDB) UpdateDocumentFullText(ulidStr string, text string) error {
+	_, err := p.db.ExecContext(context.Background(),
+		`UPDATE documents SET full_text = $1, updated_at = CURRENT_TIMESTAMP WHERE ulid = $2`, text, ulidStr)
 	return err
 }
 

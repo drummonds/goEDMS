@@ -378,6 +378,7 @@ type DocumentStatus struct {
 	IngressTime   string `json:"ingressTime"`
 	FileExists    bool   `json:"fileExists"`
 	FileSizeBytes int64  `json:"fileSizeBytes,omitempty"`
+	DocumentDate  string `json:"documentDate,omitempty"`
 }
 
 // GetDocumentStatus returns status information about a document
@@ -408,6 +409,11 @@ func (serverHandler *ServerHandler) GetDocumentStatus(context echo.Context) erro
 		TextLength:   len(document.FullText),
 		ViewURL:      "/document/view/" + document.ULID.String(),
 		IngressTime:  document.IngressTime.Format("2006-01-02 15:04:05"),
+	}
+
+	// Set document date if available
+	if document.DocumentDate != nil {
+		status.DocumentDate = document.DocumentDate.Format("2006-01-02")
 	}
 
 	// Check if text is available
@@ -1320,4 +1326,40 @@ func (serverHandler *ServerHandler) LogFromFrontend(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"status": "logged",
 	})
+}
+
+// UpdateDocumentText updates the full text of a document
+func (serverHandler *ServerHandler) UpdateDocumentText(c echo.Context) error {
+	ulidStr := c.Param("id")
+	var req struct {
+		Text string `json:"text"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+	if err := serverHandler.DB.UpdateDocumentFullText(ulidStr, req.Text); err != nil {
+		Logger.Error("UpdateDocumentText failed", "ulid", ulidStr, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
+}
+
+// UpdateDocumentDate updates the document date of a document
+func (serverHandler *ServerHandler) UpdateDocumentDate(c echo.Context) error {
+	ulidStr := c.Param("id")
+	var req struct {
+		Date string `json:"date"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+	parsed, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "date must be YYYY-MM-DD format"})
+	}
+	if err := serverHandler.DB.UpdateDocumentDate(ulidStr, &parsed); err != nil {
+		Logger.Error("UpdateDocumentDate failed", "ulid", ulidStr, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
 }

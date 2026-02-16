@@ -644,7 +644,10 @@ func enrichDocuments(docs []database.Document, db database.Repository) []Documen
 			HasThumbnail: checkThumbnailExists(doc.Path),
 		}
 		tags, err := db.GetTagsForDocument(doc.ID)
-		if err == nil {
+		if err != nil {
+			Logger.Error("Failed to fetch tags for document in enrichDocuments",
+				"docID", doc.ID, "docName", doc.Name, "error", err)
+		} else {
 			result[i].Tags = tags
 		}
 	}

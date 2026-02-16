@@ -79,7 +79,10 @@ func HandleEditStoryPage(tr *TemplateRenderer) echo.HandlerFunc {
 			return c.Redirect(http.StatusSeeOther, "/stories")
 		}
 
-		tag, _ := tr.db.GetTagByID(story.TagID)
+		tag, err := tr.db.GetTagByID(story.TagID)
+		if err != nil {
+			Logger.Error("Failed to fetch tag for story", "tagID", story.TagID, "error", err)
+		}
 		assocTags, err := tr.db.GetStoryTags(id)
 		if err != nil {
 			assocTags = []database.Tag{}
@@ -169,10 +172,14 @@ func HandleUpdateStory(tr *TemplateRenderer) echo.HandlerFunc {
 
 		// Update tag color if provided
 		if color := c.FormValue("color"); color != "" {
-			tag, _ := tr.db.GetTagByID(story.TagID)
-			if tag != nil {
+			tag, err := tr.db.GetTagByID(story.TagID)
+			if err != nil {
+				Logger.Error("Failed to fetch tag for story color update", "tagID", story.TagID, "error", err)
+			} else if tag != nil {
 				tag.Color = color
-				tr.db.UpdateTag(tag)
+				if err := tr.db.UpdateTag(tag); err != nil {
+					Logger.Error("Failed to update story tag color", "tagID", tag.ID, "error", err)
+				}
 			}
 		}
 

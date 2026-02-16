@@ -125,7 +125,9 @@ func (serverHandler *ServerHandler) checkDuplicate(fileHash string, fileName str
 	return true, document
 }
 
-// createInitialDocument creates a minimal document record with hash
+// createInitialDocument creates a document record using two-phase save:
+// 1. Save with a temporary ULID-based path to get the auto-increment DB ID
+// 2. Compute the nested path from the ID, then update path+folder in DB
 func (serverHandler *ServerHandler) createInitialDocument(filePath string, fileHash string, db database.Repository) (*database.Document, error) {
 	serverConfig, err := database.FetchConfigFromDB(db)
 	if err != nil {
@@ -138,8 +140,10 @@ func (serverHandler *ServerHandler) createInitialDocument(filePath string, fileH
 		return nil, fmt.Errorf("cannot generate ULID: %w", err)
 	}
 
+	fileName := filepath.Base(filePath)
+
 	doc := &database.Document{
-		Name:         filepath.Base(filePath),
+		Name:         fileName,
 		Hash:         fileHash,
 		IngressTime:  newTime,
 		ULID:         newULID,
@@ -147,27 +151,24 @@ func (serverHandler *ServerHandler) createInitialDocument(filePath string, fileH
 		FullText:     "", // Will be populated in step 3
 	}
 
-	// Calculate destination path
-	if serverConfig.IngressPreserve {
-		basePath := serverConfig.IngressPath
-		newFileNameRoot := serverConfig.DocumentPath
-		relativePath, err := filepath.Rel(basePath, filePath)
-		if err != nil {
-			return nil, err
-		}
-		newFilePath := filepath.Join(newFileNameRoot, relativePath)
-		doc.Path = filepath.ToSlash(newFilePath)
-		doc.Folder = filepath.Dir(newFilePath)
-	} else {
-		documentPath := filepath.ToSlash(serverConfig.DocumentPath + "/" + serverConfig.NewDocumentFolderRel + "/" + filepath.Base(filePath))
-		doc.Path = documentPath
-		documentFolder := filepath.ToSlash(serverConfig.DocumentPath + "/" + serverConfig.NewDocumentFolderRel)
-		doc.Folder = documentFolder
-	}
+	// Phase 1: Save with temporary ULID-based path to get the DB ID
+	tempPath := "__temp__/" + newULID.String() + "/" + fileName
+	doc.Path = tempPath
+	doc.Folder = "__temp__/" + newULID.String()
 
-	// Save initial document record
 	if err := db.SaveDocument(doc); err != nil {
 		return nil, fmt.Errorf("unable to save document: %w", err)
+	}
+
+	// Phase 2: Compute nested path from the DB ID and update
+	nestedPath, nestedFolder := ComputeNestedPath(doc.ID, fileName, serverConfig.DocumentPath)
+	doc.Path = nestedPath
+	doc.Folder = nestedFolder
+
+	if err := db.UpdateDocumentPath(doc.ULID.String(), doc.Path, doc.Folder); err != nil {
+		// Rollback: delete the temp record
+		db.DeleteDocument(doc.ULID.String())
+		return nil, fmt.Errorf("unable to update document path: %w", err)
 	}
 
 	return doc, nil
@@ -356,6 +357,55 @@ func saveSidecarTxtFile(docPath, text string) error {
 	return nil
 }
 
+// moveFileAndSidecars moves a document file and any associated sidecars
+// (.txt, .tn_256.png, .tags.json) from src to dst.
+func moveFileAndSidecars(srcPath, dstPath string) error {
+	if err := os.MkdirAll(filepath.Dir(dstPath), os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Move the main file
+	if err := os.Rename(srcPath, dstPath); err != nil {
+		// Fallback: copy + delete (cross-device moves)
+		data, err2 := os.ReadFile(srcPath)
+		if err2 != nil {
+			return fmt.Errorf("failed to read source file: %w", err2)
+		}
+		if err2 := os.WriteFile(dstPath, data, os.ModePerm); err2 != nil {
+			return fmt.Errorf("failed to write destination file: %w", err2)
+		}
+		os.Remove(srcPath)
+	}
+
+	// Move sidecars if they exist
+	sidecarFns := []func(string) string{
+		getSidecarTxtPath,
+		getThumbnailPath,
+		getTagsSidecarPath,
+	}
+	for _, fn := range sidecarFns {
+		srcSidecar := fn(srcPath)
+		if _, err := os.Stat(srcSidecar); err == nil {
+			dstSidecar := fn(dstPath)
+			if err := os.Rename(srcSidecar, dstSidecar); err != nil {
+				// Fallback: copy + delete
+				data, err2 := os.ReadFile(srcSidecar)
+				if err2 != nil {
+					Logger.Warn("Failed to read sidecar for move", "src", srcSidecar, "error", err2)
+					continue
+				}
+				if err2 := os.WriteFile(dstSidecar, data, 0644); err2 != nil {
+					Logger.Warn("Failed to write sidecar for move", "dst", dstSidecar, "error", err2)
+					continue
+				}
+				os.Remove(srcSidecar)
+			}
+		}
+	}
+
+	return nil
+}
+
 // RescanOrphanedDocument imports a file that exists on disk but not in the database.
 // Unlike regular ingestion, this does NOT move the file - it imports it in-place.
 // Returns the file's hash for duplicate tracking.
@@ -382,7 +432,12 @@ func (serverHandler *ServerHandler) RescanOrphanedDocument(filePath string, db d
 		return fileHash, fmt.Errorf("duplicate: same content as %s", existingPath)
 	}
 
-	// Step 4: Create database record with current path (no moving)
+	// Step 4: Create database record with temp path, then compute nested path
+	serverConfig, err := database.FetchConfigFromDB(db)
+	if err != nil {
+		return fileHash, fmt.Errorf("unable to fetch config: %w", err)
+	}
+
 	newTime := time.Now()
 	newULID, err := database.CalculateUUID(newTime)
 	if err != nil {
@@ -391,8 +446,6 @@ func (serverHandler *ServerHandler) RescanOrphanedDocument(filePath string, db d
 
 	doc := &database.Document{
 		Name:         fileName,
-		Path:         filePath,
-		Folder:       filepath.Dir(filePath),
 		Hash:         fileHash,
 		IngressTime:  newTime,
 		ULID:         newULID,
@@ -400,14 +453,43 @@ func (serverHandler *ServerHandler) RescanOrphanedDocument(filePath string, db d
 		FullText:     "", // Will be populated below
 	}
 
-	// Save initial document record
+	// Phase 1: Save with temporary path to get the DB ID
+	tempPath := "__temp__/" + newULID.String() + "/" + fileName
+	doc.Path = tempPath
+	doc.Folder = "__temp__/" + newULID.String()
+
 	if err := db.SaveDocument(doc); err != nil {
 		return fileHash, fmt.Errorf("failed to save document: %w", err)
 	}
-	Logger.Info("Rescan: Created database record", "ulid", doc.ULID.String(), "path", filePath)
+
+	// Phase 2: Compute nested path from DB ID
+	nestedPath, nestedFolder := ComputeNestedPath(doc.ID, fileName, serverConfig.DocumentPath)
+	doc.Path = nestedPath
+	doc.Folder = nestedFolder
+
+	if err := db.UpdateDocumentPath(doc.ULID.String(), doc.Path, doc.Folder); err != nil {
+		db.DeleteDocument(doc.ULID.String())
+		return fileHash, fmt.Errorf("failed to update document path: %w", err)
+	}
+
+	// Phase 3: Move file to nested path
+	if err := os.MkdirAll(filepath.Dir(doc.Path), os.ModePerm); err != nil {
+		db.DeleteDocument(doc.ULID.String())
+		return fileHash, fmt.Errorf("failed to create nested directory: %w", err)
+	}
+
+	// Move the file (and sidecars) to the nested location
+	if filePath != doc.Path {
+		if err := moveFileAndSidecars(filePath, doc.Path); err != nil {
+			db.DeleteDocument(doc.ULID.String())
+			return fileHash, fmt.Errorf("failed to move file to nested path: %w", err)
+		}
+	}
+
+	Logger.Info("Rescan: Created database record", "ulid", doc.ULID.String(), "path", doc.Path)
 
 	// Step 5: Extract text
-	fullText, err := serverHandler.extractText(filePath)
+	fullText, err := serverHandler.extractText(doc.Path)
 	if err != nil {
 		Logger.Warn("Rescan: Text extraction failed, storing document without text", "error", err, "fileName", fileName)
 		fullText = ""

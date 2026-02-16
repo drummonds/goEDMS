@@ -99,7 +99,21 @@ func main() {
 			err := next(c)
 			latency := time.Since(start)
 
-			if res.Status == http.StatusNotFound && strings.HasPrefix(req.URL.Path, "/api/") {
+			if err != nil {
+				Logger.Error("Request handler error",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"error", err,
+					"latency", latency.String(),
+				)
+			} else if res.Status >= 500 {
+				Logger.Error("HTTP 5xx response",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"status", res.Status,
+					"latency", latency.String(),
+				)
+			} else if res.Status == http.StatusNotFound && strings.HasPrefix(req.URL.Path, "/api/") {
 				Logger.Warn("API endpoint not found",
 					"method", req.Method,
 					"path", req.URL.Path,
@@ -149,6 +163,8 @@ func main() {
 	e.GET("/api/document/:id/status", serverHandler.GetDocumentStatus)
 	e.GET("/api/document/:id/text", serverHandler.GetDocumentText)
 	e.POST("/api/document/:id/thumbnail/regenerate", serverHandler.RegenerateThumbnail)
+	e.PUT("/api/document/:id/text", serverHandler.UpdateDocumentText)
+	e.PUT("/api/document/:id/date", serverHandler.UpdateDocumentDate)
 	e.DELETE("/api/document/*", serverHandler.DeleteFile)
 	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
 	e.POST("/api/document/upload", serverHandler.UploadDocuments)
@@ -272,26 +288,41 @@ func main() {
 func createHTTPErrorHandler(e *echo.Echo, tr *TemplateRenderer) echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
 		code := http.StatusInternalServerError
+		message := "Internal Server Error"
 		if he, ok := err.(*echo.HTTPError); ok {
 			code = he.Code
+			if msg, ok := he.Message.(string); ok {
+				message = msg
+			}
+		} else {
+			message = err.Error()
 		}
 
-		if code == http.StatusNotFound {
-			// Return JSON for API endpoints
-			if strings.HasPrefix(c.Request().URL.Path, "/api/") {
-				Logger.Warn("API endpoint not found",
-					"method", c.Request().Method,
-					"path", c.Request().URL.Path,
-					"ip", c.RealIP())
-				c.JSON(http.StatusNotFound, map[string]string{
-					"error":   "Not Found",
-					"message": "The requested API endpoint does not exist",
-					"path":    c.Request().URL.Path,
-				})
-				return
-			}
+		// Log all errors
+		Logger.Error("HTTP error",
+			"status", code,
+			"error", err,
+			"method", c.Request().Method,
+			"path", c.Request().URL.Path,
+		)
 
-			// Render 404 template for HTML requests
+		// Don't try to write if response is already committed
+		if c.Response().Committed {
+			return
+		}
+
+		// Return JSON for API endpoints
+		if strings.HasPrefix(c.Request().URL.Path, "/api/") {
+			c.JSON(code, map[string]interface{}{
+				"error":   http.StatusText(code),
+				"message": message,
+				"path":    c.Request().URL.Path,
+			})
+			return
+		}
+
+		// Render appropriate template for HTML requests
+		if code == http.StatusNotFound {
 			if renderErr := tr.RenderWithStatus(c, "404.html", http.StatusNotFound, nil); renderErr != nil {
 				Logger.Error("Failed to render 404 template", "error", renderErr)
 				c.HTML(http.StatusNotFound, "<h1>404 - Not Found</h1>")
@@ -299,6 +330,9 @@ func createHTTPErrorHandler(e *echo.Echo, tr *TemplateRenderer) echo.HTTPErrorHa
 			return
 		}
 
-		e.DefaultHTTPErrorHandler(err, c)
+		// For all other errors, show a simple error page with details
+		c.HTML(code, fmt.Sprintf(
+			"<h1>%d - %s</h1><p>%s</p><p><a href=\"/\">Back to home</a></p>",
+			code, http.StatusText(code), message))
 	}
 }

@@ -175,20 +175,16 @@ func testIngressWithSidecars(t *testing.T) {
 		t.Errorf("Expected 4 documents, got %d", len(docs))
 	}
 
-	// Verify sidecar .txt files exist in documents directory
-	docsDir := os.Getenv("DOCUMENT_PATH")
+	// Verify sidecar .txt files exist alongside documents (nested paths)
 	t.Log("Verifying sidecar .txt files exist...")
 
-	expectedSidecars := []string{
-		"1-empty.txt", "2-hello.txt", "3-diagram.txt", "4-longtext.txt",
-	}
-
-	for _, sidecar := range expectedSidecars {
-		sidecarPath := filepath.Join(docsDir, sidecar)
+	for _, doc := range docs {
+		ext := filepath.Ext(doc.Path)
+		sidecarPath := doc.Path[:len(doc.Path)-len(ext)] + ".txt"
 		if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
 			t.Errorf("Sidecar file not found: %s", sidecarPath)
 		} else {
-			t.Logf("✓ Found sidecar: %s", sidecar)
+			t.Logf("✓ Found sidecar: %s", sidecarPath)
 		}
 	}
 
@@ -223,27 +219,6 @@ func testIngressWithSidecars(t *testing.T) {
 func testCleanRegeneratesSidecars(t *testing.T) {
 	t.Helper()
 
-	docsDir := os.Getenv("DOCUMENT_PATH")
-
-	// Delete all .txt files
-	t.Log("Deleting sidecar .txt files...")
-	txtFiles, err := filepath.Glob(filepath.Join(docsDir, "*.txt"))
-	if err != nil {
-		t.Fatalf("Failed to find txt files: %v", err)
-	}
-
-	deletedCount := 0
-	for _, file := range txtFiles {
-		if err := os.Remove(file); err != nil {
-			t.Errorf("Failed to delete %s: %v", file, err)
-		} else {
-			deletedCount++
-			t.Logf("Deleted: %s", filepath.Base(file))
-		}
-	}
-
-	t.Logf("Deleted %d sidecar files", deletedCount)
-
 	// Setup database connection
 	serverConfig, logger := config.SetupServer()
 	config.Logger = logger
@@ -258,53 +233,59 @@ func testCleanRegeneratesSidecars(t *testing.T) {
 		t.Fatalf("Failed to save config to database: %v", err)
 	}
 
+	// Get documents from DB to find sidecar paths
+	docsPtr, err := database.FetchAllDocuments(db)
+	if err != nil {
+		t.Fatalf("Failed to fetch documents: %v", err)
+	}
+	if docsPtr == nil || len(*docsPtr) == 0 {
+		t.Fatal("No documents found in database")
+	}
+	docs := *docsPtr
+
+	// Delete sidecar .txt files using actual document paths
+	t.Log("Deleting sidecar .txt files...")
+	deletedCount := 0
+	for _, doc := range docs {
+		sidecarPath := doc.Path[:len(doc.Path)-len(filepath.Ext(doc.Path))] + ".txt"
+		if err := os.Remove(sidecarPath); err == nil {
+			deletedCount++
+			t.Logf("Deleted: %s", sidecarPath)
+		}
+	}
+	t.Logf("Deleted %d sidecar files", deletedCount)
+
 	// Run cleanup job
 	t.Log("Running cleanup job to regenerate sidecars...")
-
-	// Create a cleanup job
 	job, err := db.CreateJob(database.JobTypeCleanup, "Test cleanup")
 	if err != nil {
 		t.Fatalf("Failed to create job: %v", err)
 	}
 	t.Logf("Created cleanup job: %s", job.ID)
 
-	// This is a private method, so we'll test it indirectly
-	// Instead, let's check the documents and manually recreate sidecars
-	docsPtr, err := database.FetchAllDocuments(db)
-	if err != nil {
-		t.Fatalf("Failed to fetch documents: %v", err)
-	}
-
-	if docsPtr != nil {
-		docs := *docsPtr
-		recreated := 0
-		for _, doc := range docs {
-			if doc.FullText != "" {
-				sidecarPath := doc.Path[:len(doc.Path)-len(filepath.Ext(doc.Path))] + ".txt"
-				if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
-					if err := os.WriteFile(sidecarPath, []byte(doc.FullText), 0644); err != nil {
-						t.Errorf("Failed to recreate sidecar: %v", err)
-					} else {
-						recreated++
-						t.Logf("Recreated: %s", filepath.Base(sidecarPath))
-					}
+	// Manually recreate sidecars from DB text (simulating what cleanup does)
+	recreated := 0
+	for _, doc := range docs {
+		if doc.FullText != "" {
+			sidecarPath := doc.Path[:len(doc.Path)-len(filepath.Ext(doc.Path))] + ".txt"
+			if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
+				if err := os.WriteFile(sidecarPath, []byte(doc.FullText), 0644); err != nil {
+					t.Errorf("Failed to recreate sidecar: %v", err)
+				} else {
+					recreated++
+					t.Logf("Recreated: %s", sidecarPath)
 				}
 			}
 		}
-		t.Logf("Recreated %d sidecar files", recreated)
 	}
+	t.Logf("Recreated %d sidecar files", recreated)
 
 	// Verify sidecar files were recreated
 	t.Log("Verifying sidecar files were recreated...")
-	txtFiles, err = filepath.Glob(filepath.Join(docsDir, "*.txt"))
-	if err != nil {
-		t.Fatalf("Failed to find txt files: %v", err)
-	}
-
-	if len(txtFiles) == 0 {
+	if recreated == 0 {
 		t.Error("No sidecar files were recreated")
 	} else {
-		t.Logf("✓ Found %d recreated sidecar files", len(txtFiles))
+		t.Logf("✓ Recreated %d sidecar files", recreated)
 	}
 
 	t.Log("✓ Cleanup regeneration test completed successfully")
@@ -375,34 +356,47 @@ func testIngressPDFsOnly(t *testing.T) {
 		}
 	}
 
-	// Verify sidecar .txt files were created during ingestion
-	docsDir := os.Getenv("DOCUMENT_PATH")
+	// Verify sidecar .txt files were created alongside documents (nested paths)
 	t.Log("Verifying sidecar .txt files were created...")
 
-	txtFiles, err := filepath.Glob(filepath.Join(docsDir, "*.txt"))
+	docsPtr, err := database.FetchAllDocuments(db)
 	if err != nil {
-		t.Fatalf("Failed to find txt files: %v", err)
+		t.Fatalf("Failed to fetch documents: %v", err)
+	}
+	if docsPtr == nil || len(*docsPtr) == 0 {
+		t.Fatal("No documents found after ingestion")
 	}
 
-	if len(txtFiles) == 0 {
-		t.Error("No sidecar files were created during ingestion")
-	} else {
-		t.Logf("✓ Found %d sidecar files created during ingestion", len(txtFiles))
-		for _, file := range txtFiles {
-			t.Logf("  - %s", filepath.Base(file))
+	sidecarCount := 0
+	for _, doc := range *docsPtr {
+		ext := filepath.Ext(doc.Path)
+		sidecarPath := doc.Path[:len(doc.Path)-len(ext)] + ".txt"
+		if _, err := os.Stat(sidecarPath); err == nil {
+			sidecarCount++
+			t.Logf("  - %s", sidecarPath)
 		}
 	}
 
+	if sidecarCount == 0 {
+		t.Error("No sidecar files were created during ingestion")
+	} else {
+		t.Logf("✓ Found %d sidecar files created during ingestion", sidecarCount)
+	}
+
 	// Verify the content of at least one sidecar file
-	if len(txtFiles) > 0 {
-		content, err := os.ReadFile(txtFiles[0])
+	for _, doc := range *docsPtr {
+		ext := filepath.Ext(doc.Path)
+		sidecarPath := doc.Path[:len(doc.Path)-len(ext)] + ".txt"
+		content, err := os.ReadFile(sidecarPath)
 		if err != nil {
-			t.Errorf("Failed to read sidecar file: %v", err)
-		} else if len(content) == 0 {
+			continue // skip docs without sidecars (e.g. empty PDFs)
+		}
+		if len(content) == 0 {
 			t.Error("Sidecar file is empty")
 		} else {
 			t.Logf("✓ Sidecar file has content (%d bytes)", len(content))
 		}
+		break
 	}
 
 	t.Log("✓ PDF-only ingestion test completed successfully")
