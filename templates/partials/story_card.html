@@ -13,11 +13,11 @@
                     </div>
                 </div>
             </div>
-            {% if s.StartDate or s.EndDate %}
+            {% if s.StartDateFmt or s.EndDateFmt %}
             <p class="is-size-7 has-text-grey mb-2">
-                {% if s.StartDate %}{{ s.StartDate|date:"2006-01-02" }}{% endif %}
-                {% if s.StartDate and s.EndDate %} &ndash; {% endif %}
-                {% if s.EndDate %}{{ s.EndDate|date:"2006-01-02" }}{% endif %}
+                {{ s.StartDateFmt }}
+                {% if s.StartDateFmt and s.EndDateFmt %} &ndash; {% endif %}
+                {{ s.EndDateFmt }}
             </p>
             {% endif %}
             <p class="is-size-7">

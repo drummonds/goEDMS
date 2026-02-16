@@ -116,6 +116,12 @@ func (p *PGDB) GetStoriesWithMeta() ([]StoryWithMeta, error) {
 	result := make([]StoryWithMeta, len(stories))
 	for i, s := range stories {
 		result[i].Story = s
+		if s.StartDate != nil {
+			result[i].StartDateFmt = s.StartDate.Format("2006-01-02")
+		}
+		if s.EndDate != nil {
+			result[i].EndDateFmt = s.EndDate.Format("2006-01-02")
+		}
 
 		// Get the story's own tag
 		tag, err := p.GetTagByID(s.TagID)

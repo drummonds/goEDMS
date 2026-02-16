@@ -2,9 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.42.1 2026-02-16
+## 0.42.2 2026-02-16
 
 - improving error logging
+- making time display more resilient
 
 ## 0.42.0 2026-02-15
 

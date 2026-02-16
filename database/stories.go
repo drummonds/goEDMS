@@ -21,4 +21,6 @@ type StoryWithMeta struct {
 	Tag            Tag   // The story's own tag (has color, name etc.)
 	AssociatedTags []Tag // Tags from story_tags junction
 	DocumentCount  int
+	StartDateFmt   string // Pre-formatted "2006-01-02" for templates (avoids *time.Time filter issues)
+	EndDateFmt     string
 }
