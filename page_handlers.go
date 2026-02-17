@@ -35,13 +35,15 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 		if view == "" {
 			view = "collapsed"
 		}
+		showHidden := c.QueryParam("show_hidden") == "1"
 
 		ctx := pongo2.Context{
-			"view": view,
+			"view":        view,
+			"show_hidden": showHidden,
 		}
 
 		if view == "flat" {
-			documents, totalCount, err := tr.db.GetNewestDocumentsWithPagination(page, pageSize)
+			documents, totalCount, err := tr.db.GetNewestDocumentsWithPagination(page, pageSize, showHidden)
 			if err != nil {
 				Logger.Error("Failed to fetch documents for home page", "error", err)
 				documents = []database.Document{}
@@ -57,7 +59,11 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 			ctx["total_pages"] = totalPages
 			ctx["has_next"] = page < totalPages
 			ctx["has_previous"] = page > 1
-			ctx["base_url"] = "/?view=flat"
+			baseURL := "/?view=flat"
+			if showHidden {
+				baseURL += "&show_hidden=1"
+			}
+			ctx["base_url"] = baseURL
 		} else {
 			// Collapsed view: stories + unstoried documents
 			stories, err := tr.db.GetStoriesWithMeta()
@@ -67,7 +73,7 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 			}
 			ctx["stories"] = stories
 
-			documents, totalCount, err := tr.db.GetDocumentsWithoutStory(page, pageSize)
+			documents, totalCount, err := tr.db.GetDocumentsWithoutStory(page, pageSize, showHidden)
 			if err != nil {
 				Logger.Error("Failed to fetch unstoried documents", "error", err)
 				documents = []database.Document{}
@@ -83,7 +89,11 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 			ctx["total_pages"] = totalPages
 			ctx["has_next"] = page < totalPages
 			ctx["has_previous"] = page > 1
-			ctx["base_url"] = "/?view=collapsed"
+			baseURL := "/?view=collapsed"
+			if showHidden {
+				baseURL += "&show_hidden=1"
+			}
+			ctx["base_url"] = baseURL
 		}
 
 		return tr.Render(c, "home.html", ctx)
@@ -95,9 +105,17 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		query := c.QueryParam("q")
 
+		showHidden := c.QueryParam("show_hidden") == "1"
+
+		baseURL := "/search?q=" + query
+		if showHidden {
+			baseURL += "&show_hidden=1"
+		}
+
 		ctx := pongo2.Context{
-			"query":    query,
-			"base_url": "/search",
+			"query":       query,
+			"base_url":    baseURL,
+			"show_hidden": showHidden,
 		}
 
 		// Load saved searches
@@ -118,7 +136,7 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 			pageSize := 20
 
 			parsed := database.ParseSearchQuery(query)
-			documents, totalCount, err := tr.db.ExecuteSearch(parsed, page, pageSize)
+			documents, totalCount, err := tr.db.ExecuteSearch(parsed, page, pageSize, showHidden)
 			if err != nil {
 				Logger.Error("Search failed", "query", query, "error", err)
 				documents = []database.Document{}
@@ -542,10 +560,19 @@ func HandleEditTagPage(tr *TemplateRenderer) echo.HandlerFunc {
 			groups = []string{}
 		}
 
+		// Check if this tag is already a story
+		isStory := false
+		if tagGroupValue == "Story" {
+			if s, _ := tr.db.GetStoryByTagID(tag.ID); s != nil {
+				isStory = true
+			}
+		}
+
 		return tr.Render(c, "tag_edit.html", pongo2.Context{
 			"tag":             tag,
 			"tag_group_value": tagGroupValue,
 			"tag_groups":      groups,
+			"is_story":        isStory,
 		})
 	}
 }

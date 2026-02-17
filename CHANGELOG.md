@@ -2,10 +2,14 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.43.1 2026-02-17
+
+- Adding hide tag eg is imported but don't want to see nor reimport
+
 ## 0.43.0 2026-02-16
 
 - Adding more fields to make more compatible with Evernote import
-- impoving display of tags
+- improving display of tags
 
 ## 0.42.2 2026-02-16
 

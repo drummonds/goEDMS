@@ -68,9 +68,14 @@
 
         <hr>
 
-        <form method="POST" action="/stories/{{ story.ID }}/delete" onsubmit="return confirm('Delete this story? Documents will keep their other tags.');">
-            <button class="button is-danger is-outlined is-small" type="submit">Delete Story</button>
-        </form>
+        <div class="buttons">
+            <form method="POST" action="/stories/{{ story.ID }}/to-tag" onsubmit="return confirm('Convert to a regular tag? The story will be removed but the tag and all document associations will be kept.');" style="display:inline;">
+                <button class="button is-warning is-outlined is-small" type="submit">Convert to Tag</button>
+            </form>
+            <form method="POST" action="/stories/{{ story.ID }}/delete" onsubmit="return confirm('Delete this story? Documents will keep their other tags.');" style="display:inline;">
+                <button class="button is-danger is-outlined is-small" type="submit">Delete Story</button>
+            </form>
+        </div>
     </div>
 
     <div class="column is-one-third">

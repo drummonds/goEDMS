@@ -81,7 +81,7 @@
                 <span class="tag" style="background-color: {{ tag.Color }}; color: white;">&nbsp;&nbsp;&nbsp;</span>
             </td>
             <td>{{ tag.Name }}</td>
-            <td>{{ tag.TagGroup|default:"" }}</td>
+            <td>{% if tag.TagGroup == "Story" %}<span class="tag is-warning is-light">Story</span>{% else %}{{ tag.TagGroup|default:"" }}{% endif %}</td>
             <td>{{ tag.Description }}</td>
             <td>{% if tag.UsageCount > 0 %}<a href="/search?q=%23{{ tag.Name }}">{{ tag.UsageCount }}</a>{% else %}0{% endif %}</td>
             <td>

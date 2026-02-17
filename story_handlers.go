@@ -272,6 +272,53 @@ func HandleAddDocumentToStory(tr *TemplateRenderer) echo.HandlerFunc {
 	}
 }
 
+// HandleConvertTagToStory converts an existing tag into a story.
+func HandleConvertTagToStory(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		tagID, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/tags")
+		}
+
+		// Check that tag isn't already a story
+		existingStory, _ := tr.db.GetStoryByTagID(tagID)
+		if existingStory != nil {
+			return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/stories/%d/edit", existingStory.ID))
+		}
+
+		story, err := tr.db.ConvertTagToStory(tagID)
+		if err != nil {
+			Logger.Error("Failed to convert tag to story", "tagID", tagID, "error", err)
+			return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/tags/%d/edit", tagID))
+		}
+
+		return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/stories/%d/edit", story.ID))
+	}
+}
+
+// HandleConvertStoryToTag converts a story back to a regular tag.
+func HandleConvertStoryToTag(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/stories")
+		}
+
+		story, err := tr.db.GetStoryByID(id)
+		if err != nil || story == nil {
+			return c.Redirect(http.StatusSeeOther, "/stories")
+		}
+
+		tagID := story.TagID
+		if err := tr.db.ConvertStoryToTag(id); err != nil {
+			Logger.Error("Failed to convert story to tag", "storyID", id, "error", err)
+			return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/stories/%d/edit", id))
+		}
+
+		return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/tags/%d/edit", tagID))
+	}
+}
+
 // HandleRemoveDocumentFromStory removes a document from a story.
 func HandleRemoveDocumentFromStory(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {

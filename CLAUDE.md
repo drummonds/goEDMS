@@ -68,6 +68,38 @@ document.tags.json     # Sidecar: metadata including tags (optional)
 - Config via `.env` file (see `.env.example`)
 - Frontend API URL configured via `BuildAPIURL()` in webapp
 
+## Import API Workflow
+
+External tools (e.g. Evernote importer) can upload documents and enrich them with metadata:
+
+```bash
+# 1. Upload the document file
+curl -X POST http://localhost:8000/api/document/upload \
+  -F "file=@document.pdf"
+
+# 2. Look up the document by its MD5 hash to get the ULID
+HASH=$(md5sum document.pdf | cut -d' ' -f1)
+curl http://localhost:8000/api/document/lookup?hash=$HASH
+# Returns: {"ulid":"01J...", "name":"document.pdf", ...}
+
+# 3. Set import metadata (all fields optional)
+curl -X PUT http://localhost:8000/api/document/$ULID/metadata \
+  -H 'Content-Type: application/json' \
+  -d '{"author":"John","source":"evernote","source_url":"https://...","created_date":"2024-03-15T10:30:00Z"}'
+# Also generates a thumbnail if missing
+
+# 4. Add tags
+curl -X POST http://localhost:8000/api/documents/$ULID/tags \
+  -H 'Content-Type: application/json' \
+  -d '{"tag_id": 5}'
+```
+
+Key endpoints:
+- `GET /api/document/lookup?hash=<md5>` — find document by file hash (returns full document JSON)
+- `PUT /api/document/:id/metadata` — set import metadata + auto-generate thumbnail
+- `POST /api/documents/:ulid/tags` — add a tag to a document
+- `GET /api/tags` — list all tags (to find tag IDs)
+
 ## See Also
 - `.claude/rules.md` - Detailed coding guidelines and review modes
 - `ARCHITECTURE.md` - System design

@@ -59,7 +59,7 @@ type Repository interface {
 	GetDocumentByPath(path string) (*Document, error)
 	GetDocumentByHash(hash string) (*Document, error)
 	GetNewestDocuments(limit int) ([]Document, error)
-	GetNewestDocumentsWithPagination(page int, pageSize int) ([]Document, int, error)
+	GetNewestDocumentsWithPagination(page int, pageSize int, showHidden ...bool) ([]Document, int, error)
 	GetAllDocuments() ([]Document, error)
 	GetDocumentsByFolder(folder string) ([]Document, error)
 	DeleteDocument(ulid string) error
@@ -117,10 +117,10 @@ type Repository interface {
 	UpdateSavedSearch(search *SavedSearch) error
 	DeleteSavedSearch(id int) error
 	// Search execution methods
-	GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int, error)
-	GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
-	GetTaggedDocuments(page, pageSize int) ([]Document, int, error)
-	ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Document, int, error)
+	GetDocumentsByTag(tagID int, page, pageSize int, showHidden ...bool) ([]Document, int, error)
+	GetUntaggedDocuments(page, pageSize int, showHidden ...bool) ([]Document, int, error)
+	GetTaggedDocuments(page, pageSize int, showHidden ...bool) ([]Document, int, error)
+	ExecuteSearch(parsed *ParsedSearch, page, pageSize int, showHidden ...bool) ([]Document, int, error)
 	// Story methods
 	CreateStory(story *Story) error
 	GetStoryByID(id int) (*Story, error)
@@ -134,8 +134,10 @@ type Repository interface {
 	RemoveStoryTag(storyID int, tagID int) error
 	AddDocumentToStory(documentID int, storyID int) error
 	RemoveDocumentFromStory(documentID int, storyID int) error
-	GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, error)
+	GetDocumentsWithoutStory(page, pageSize int, showHidden ...bool) ([]Document, int, error)
 	UpdateDocumentMetadata(ulid string, meta DocumentMetadataUpdate) error
+	ConvertTagToStory(tagID int) (*Story, error)
+	ConvertStoryToTag(storyID int) error
 }
 
 // FetchConfigFromDB pulls the server config from the database

@@ -158,6 +158,7 @@ func main() {
 	// Document API routes
 	e.GET("/api/documents/latest", serverHandler.GetLatestDocuments)
 	e.GET("/api/documents/filesystem", serverHandler.GetDocumentFileSystem)
+	e.GET("/api/document/lookup", serverHandler.LookupDocument)
 	e.GET("/api/document/:id", serverHandler.GetDocument)
 	e.GET("/api/document/:id/thumbnail", serverHandler.GetDocumentThumbnail)
 	e.GET("/api/document/:id/status", serverHandler.GetDocumentStatus)
@@ -247,6 +248,7 @@ func main() {
 	e.GET("/tags/:id/edit", HandleEditTagPage(tr))
 	e.POST("/tags/:id", HandleUpdateTag(tr))
 	e.POST("/tags/:id/delete", HandleDeleteTag(tr))
+	e.POST("/tags/:id/to-story", HandleConvertTagToStory(tr))
 
 	// Story management routes
 	e.GET("/stories", HandleStoriesPage(tr))
@@ -255,6 +257,7 @@ func main() {
 	e.GET("/stories/:id/edit", HandleEditStoryPage(tr))
 	e.POST("/stories/:id", HandleUpdateStory(tr))
 	e.POST("/stories/:id/delete", HandleDeleteStory(tr))
+	e.POST("/stories/:id/to-tag", HandleConvertStoryToTag(tr))
 	e.POST("/stories/:id/tags", HandleAddStoryTag(tr))
 	e.POST("/stories/:id/tags/:tagId/remove", HandleRemoveStoryTag(tr))
 	e.POST("/stories/:id/documents", HandleAddDocumentToStory(tr))

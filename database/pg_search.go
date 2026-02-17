@@ -116,16 +116,21 @@ func scanSavedSearchRows(rows *sql.Rows) ([]SavedSearch, error) {
 // ============================================================================
 
 // GetDocumentsByTag returns paginated documents that have a specific tag
-func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int, error) {
+func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int, showHidden ...bool) ([]Document, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
+
+	hideFilter := ""
+	if shouldExcludeHidden(showHidden) {
+		hideFilter = hideExcludeAND("d")
+	}
 
 	var count int
 	err := p.db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM documents d
 		INNER JOIN document_tags dt ON dt.document_id = d.id
-		WHERE dt.tag_id = $1`, tagID).Scan(&count)
+		WHERE dt.tag_id = $1`+hideFilter, tagID).Scan(&count)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count documents by tag: %w", err)
 	}
@@ -134,7 +139,7 @@ func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int
 		SELECT `+docColumnsAliased+`
 		FROM documents d
 		INNER JOIN document_tags dt ON dt.document_id = d.id
-		WHERE dt.tag_id = $1
+		WHERE dt.tag_id = $1`+hideFilter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $2 OFFSET $3`, tagID, pageSize, offset)
 	if err != nil {
@@ -147,14 +152,19 @@ func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int) ([]Document, int
 }
 
 // GetUntaggedDocuments returns paginated documents that have no tags
-func (p *PGDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error) {
+func (p *PGDB) GetUntaggedDocuments(page, pageSize int, showHidden ...bool) ([]Document, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
+
+	hideFilter := ""
+	if shouldExcludeHidden(showHidden) {
+		hideFilter = hideExcludeAND("d")
+	}
 
 	var count int
 	err := p.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM documents d
-		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`).Scan(&count)
+		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter).Scan(&count)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count untagged documents: %w", err)
 	}
@@ -162,7 +172,7 @@ func (p *PGDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
 	rows, err := p.db.QueryContext(ctx, `
 		SELECT `+docColumnsAliased+`
 		FROM documents d
-		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)
+		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $1 OFFSET $2`, pageSize, offset)
 	if err != nil {
@@ -175,14 +185,19 @@ func (p *PGDB) GetUntaggedDocuments(page, pageSize int) ([]Document, int, error)
 }
 
 // GetTaggedDocuments returns paginated documents that have at least one tag
-func (p *PGDB) GetTaggedDocuments(page, pageSize int) ([]Document, int, error) {
+func (p *PGDB) GetTaggedDocuments(page, pageSize int, showHidden ...bool) ([]Document, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
+
+	hideFilter := ""
+	if shouldExcludeHidden(showHidden) {
+		hideFilter = hideExcludeAND("d")
+	}
 
 	var count int
 	err := p.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM documents d
-		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`).Scan(&count)
+		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter).Scan(&count)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count tagged documents: %w", err)
 	}
@@ -190,7 +205,7 @@ func (p *PGDB) GetTaggedDocuments(page, pageSize int) ([]Document, int, error) {
 	rows, err := p.db.QueryContext(ctx, `
 		SELECT `+docColumnsAliased+`
 		FROM documents d
-		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)
+		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $1 OFFSET $2`, pageSize, offset)
 	if err != nil {
@@ -203,18 +218,18 @@ func (p *PGDB) GetTaggedDocuments(page, pageSize int) ([]Document, int, error) {
 }
 
 // ExecuteSearch executes a parsed search query and returns paginated results
-func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Document, int, error) {
+func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int, showHidden ...bool) ([]Document, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
 	if parsed.IsAllDocs {
-		return p.GetNewestDocumentsWithPagination(page, pageSize)
+		return p.GetNewestDocumentsWithPagination(page, pageSize, showHidden...)
 	}
 	if parsed.IsUntagged {
-		return p.GetUntaggedDocuments(page, pageSize)
+		return p.GetUntaggedDocuments(page, pageSize, showHidden...)
 	}
 	if parsed.IsTagged {
-		return p.GetTaggedDocuments(page, pageSize)
+		return p.GetTaggedDocuments(page, pageSize, showHidden...)
 	}
 
 	// Build dynamic query with parameterized placeholders
@@ -279,6 +294,21 @@ func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int) ([]Docume
 			fmt.Sprintf("d.document_date <= $%d", argIdx))
 		args = append(args, *parsed.BeforeDate)
 		argIdx++
+	}
+
+	// Add hide exclusion unless showing hidden or explicitly searching for #Hide
+	if shouldExcludeHidden(showHidden) {
+		searchingForHide := false
+		for _, tag := range parsed.IncludeTags {
+			if strings.EqualFold(tag, "Hide") {
+				searchingForHide = true
+				break
+			}
+		}
+		if !searchingForHide {
+			conditions = append(conditions,
+				`NOT EXISTS (SELECT 1 FROM document_tags hdt INNER JOIN tags ht ON ht.id = hdt.tag_id WHERE hdt.document_id = d.id AND ht.name = 'Hide')`)
+		}
 	}
 
 	// Build WHERE clause

@@ -1,13 +1,13 @@
 {% if total_pages > 1 %}
 <nav class="pagination is-centered mt-5" role="navigation" aria-label="pagination">
     {% if has_previous %}
-    <a class="pagination-previous" href="{{ base_url }}?page={{ page - 1 }}">Previous</a>
+    <a class="pagination-previous" href="{{ base_url }}&page={{ page - 1 }}">Previous</a>
     {% else %}
     <a class="pagination-previous" disabled>Previous</a>
     {% endif %}
 
     {% if has_next %}
-    <a class="pagination-next" href="{{ base_url }}?page={{ page + 1 }}">Next page</a>
+    <a class="pagination-next" href="{{ base_url }}&page={{ page + 1 }}">Next page</a>
     {% else %}
     <a class="pagination-next" disabled>Next page</a>
     {% endif %}

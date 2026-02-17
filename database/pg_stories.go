@@ -281,9 +281,14 @@ func (p *PGDB) RemoveDocumentFromStory(documentID int, storyID int) error {
 
 // GetDocumentsWithoutStory returns documents that don't belong to any story,
 // paginated and ordered by newest first.
-func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, error) {
+func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int, showHidden ...bool) ([]Document, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
+
+	hideFilter := ""
+	if shouldExcludeHidden(showHidden) {
+		hideFilter = hideExcludeAND("d")
+	}
 
 	// Count
 	var totalCount int
@@ -293,7 +298,7 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, er
 			SELECT 1 FROM document_tags dt
 			INNER JOIN tags t ON t.id = dt.tag_id
 			WHERE dt.document_id = d.id AND t.tag_group = 'Story'
-		)`).Scan(&totalCount)
+		)`+hideFilter).Scan(&totalCount)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count unstoried documents: %w", err)
 	}
@@ -306,7 +311,7 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, er
 			SELECT 1 FROM document_tags dt
 			INNER JOIN tags t ON t.id = dt.tag_id
 			WHERE dt.document_id = d.id AND t.tag_group = 'Story'
-		)
+		)`+hideFilter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $1 OFFSET $2`, pageSize, offset)
 	if err != nil {
@@ -316,6 +321,80 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int) ([]Document, int, er
 
 	docs, err := scanDocumentRows(rows)
 	return docs, totalCount, err
+}
+
+// ConvertTagToStory creates a story from an existing tag.
+// Sets the tag's group to "Story" and creates a story row linked to it.
+func (p *PGDB) ConvertTagToStory(tagID int) (*Story, error) {
+	ctx := context.Background()
+	now := time.Now()
+
+	// Set the tag group to "Story"
+	_, err := p.db.ExecContext(ctx,
+		`UPDATE tags SET tag_group = 'Story', updated_at = $1 WHERE id = $2`, now, tagID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update tag group: %w", err)
+	}
+
+	// Get tag name for the story title
+	var tagName string
+	err = p.db.QueryRowContext(ctx, `SELECT name FROM tags WHERE id = $1`, tagID).Scan(&tagName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tag name: %w", err)
+	}
+
+	// Create the story row
+	story := &Story{
+		Title:     strings.ReplaceAll(tagName, "-", " "),
+		TagID:     tagID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	err = p.db.QueryRowContext(ctx, `
+		INSERT INTO stories (title, description, start_date, end_date, tag_id, created_at, updated_at)
+		VALUES ($1, '', NULL, NULL, $2, $3, $4)
+		RETURNING id`,
+		story.Title, story.TagID, story.CreatedAt, story.UpdatedAt).Scan(&story.ID)
+	if err != nil {
+		// Fallback for pglike
+		_, execErr := p.db.ExecContext(ctx, `
+			INSERT INTO stories (title, description, start_date, end_date, tag_id, created_at, updated_at)
+			VALUES ($1, '', NULL, NULL, $2, $3, $4)`,
+			story.Title, story.TagID, story.CreatedAt, story.UpdatedAt)
+		if execErr != nil {
+			return nil, fmt.Errorf("failed to create story: %w", execErr)
+		}
+		p.db.QueryRowContext(ctx, `SELECT id FROM stories WHERE tag_id = $1`, story.TagID).Scan(&story.ID)
+	}
+
+	return story, nil
+}
+
+// ConvertStoryToTag removes the story but keeps the tag and all document associations.
+// Clears the tag's "Story" group.
+func (p *PGDB) ConvertStoryToTag(storyID int) error {
+	ctx := context.Background()
+
+	story, err := p.GetStoryByID(storyID)
+	if err != nil || story == nil {
+		return fmt.Errorf("story not found: %d", storyID)
+	}
+
+	// Clear the tag group
+	_, err = p.db.ExecContext(ctx,
+		`UPDATE tags SET tag_group = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, story.TagID)
+	if err != nil {
+		return fmt.Errorf("failed to clear tag group: %w", err)
+	}
+
+	// Delete the story row (but NOT the tag)
+	_, err = p.db.ExecContext(ctx, `DELETE FROM stories WHERE id = $1`, storyID)
+	if err != nil {
+		return fmt.Errorf("failed to delete story: %w", err)
+	}
+
+	return nil
 }
 
 // scanStory scans a single row into a Story.

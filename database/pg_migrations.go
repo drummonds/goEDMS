@@ -53,6 +53,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 		{"009", "add_document_date", migrate009AddDocumentDate},
 		{"010", "add_stories", migrate010AddStories},
 		{"011", "add_document_metadata", migrate011AddDocumentMetadata},
+		{"012", "add_hide_tag", migrate012AddHideTag},
 	}
 
 	for _, m := range migrations {
@@ -721,5 +722,21 @@ func migrate011AddDocumentMetadata(ctx context.Context, db *sql.DB, isPglike boo
 	}
 
 	Logger.Info("Migration 011 completed successfully")
+	return nil
+}
+
+// Migration 012: Add "Hide" system tag
+func migrate012AddHideTag(ctx context.Context, db *sql.DB, isPglike bool) error {
+	Logger.Info("Running migration 012: Add Hide system tag")
+
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO tags (name, color, description, tag_group, sort_order, created_at, updated_at)
+		VALUES ('Hide', '#6c757d', 'Hidden documents — excluded from default views', 'System', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (name) DO NOTHING`)
+	if err != nil {
+		return fmt.Errorf("failed to insert Hide tag: %w", err)
+	}
+
+	Logger.Info("Migration 012 completed successfully")
 	return nil
 }

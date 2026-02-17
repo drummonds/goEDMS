@@ -171,6 +171,22 @@ const docColumns = `id, name, path, ingress_time, folder, hash, ulid, document_t
 
 const docColumnsAliased = `d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url, d.document_date, d.created_date, d.updated_date, d.author, d.source_url, d.source`
 
+// hideExcludeAND returns " AND NOT EXISTS(...)" to append to a WHERE clause.
+func hideExcludeAND(alias string) string {
+	return fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM document_tags hdt INNER JOIN tags ht ON ht.id = hdt.tag_id WHERE hdt.document_id = %s.id AND ht.name = 'Hide')`, alias)
+}
+
+// hideExcludeWHERE returns " WHERE NOT EXISTS(...)" for queries without a WHERE clause.
+func hideExcludeWHERE(alias string) string {
+	return fmt.Sprintf(` WHERE NOT EXISTS (SELECT 1 FROM document_tags hdt INNER JOIN tags ht ON ht.id = hdt.tag_id WHERE hdt.document_id = %s.id AND ht.name = 'Hide')`, alias)
+}
+
+// shouldExcludeHidden returns true if hidden docs should be excluded.
+// Convention: SSR handlers pass showHidden=false (exclude), API callers pass nothing (include all).
+func shouldExcludeHidden(showHidden []bool) bool {
+	return len(showHidden) > 0 && !showHidden[0]
+}
+
 // SaveDocument saves or updates a document
 func (p *PGDB) SaveDocument(doc *Document) error {
 	ctx := context.Background()
@@ -247,17 +263,22 @@ func (p *PGDB) GetNewestDocuments(limit int) ([]Document, error) {
 }
 
 // GetNewestDocumentsWithPagination retrieves documents with pagination support
-func (p *PGDB) GetNewestDocumentsWithPagination(page int, pageSize int) ([]Document, int, error) {
+func (p *PGDB) GetNewestDocumentsWithPagination(page int, pageSize int, showHidden ...bool) ([]Document, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
+	hideFilter := ""
+	if shouldExcludeHidden(showHidden) {
+		hideFilter = hideExcludeWHERE("documents")
+	}
+
 	var totalCount int
-	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM documents`).Scan(&totalCount); err != nil {
+	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM documents`+hideFilter).Scan(&totalCount); err != nil {
 		return nil, 0, err
 	}
 
 	rows, err := p.db.QueryContext(ctx,
-		`SELECT `+docColumns+` FROM documents ORDER BY ingress_time DESC LIMIT $1 OFFSET $2`,
+		`SELECT `+docColumns+` FROM documents`+hideFilter+` ORDER BY ingress_time DESC LIMIT $1 OFFSET $2`,
 		pageSize, offset)
 	if err != nil {
 		return nil, 0, err

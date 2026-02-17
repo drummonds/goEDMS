@@ -61,5 +61,12 @@
             </div>
         </div>
     </form>
+
+    {% if not is_story %}
+    <hr>
+    <form method="POST" action="/tags/{{ tag.ID }}/to-story" onsubmit="return confirm('Convert this tag to a story? The tag will be preserved and linked to the new story.');">
+        <button class="button is-warning is-outlined is-small" type="submit">Convert to Story</button>
+    </form>
+    {% endif %}
 </div>
 {% endblock %}

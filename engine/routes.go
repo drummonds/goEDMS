@@ -1344,7 +1344,22 @@ func (serverHandler *ServerHandler) UpdateDocumentText(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
 }
 
+// LookupDocument finds a document by hash (for import tools to locate uploaded documents).
+// GET /api/document/lookup?hash=<md5hash>
+func (serverHandler *ServerHandler) LookupDocument(c echo.Context) error {
+	hash := c.QueryParam("hash")
+	if hash == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "hash parameter required"})
+	}
+	doc, err := serverHandler.DB.GetDocumentByHash(hash)
+	if err != nil || doc == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "document not found"})
+	}
+	return c.JSON(http.StatusOK, doc)
+}
+
 // UpdateDocumentMetadata updates import metadata fields (author, source, dates, etc.)
+// Also generates a thumbnail if one doesn't already exist.
 func (serverHandler *ServerHandler) UpdateDocumentMetadata(c echo.Context) error {
 	ulidStr := c.Param("id")
 	var meta database.DocumentMetadataUpdate
@@ -1355,6 +1370,20 @@ func (serverHandler *ServerHandler) UpdateDocumentMetadata(c echo.Context) error
 		Logger.Error("UpdateDocumentMetadata failed", "ulid", ulidStr, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
+
+	// Generate thumbnail if missing
+	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
+	if err == nil && doc != nil && thumbnailSupported(doc.Path) {
+		tnPath := getThumbnailPath(doc.Path)
+		if _, err := os.Stat(tnPath); os.IsNotExist(err) {
+			if err := saveThumbnailFile(doc.Path); err != nil {
+				Logger.Warn("Failed to generate thumbnail on metadata import", "ulid", ulidStr, "error", err)
+			} else {
+				Logger.Info("Generated thumbnail on metadata import", "ulid", ulidStr)
+			}
+		}
+	}
+
 	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
 }
 

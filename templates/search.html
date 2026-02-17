@@ -40,6 +40,11 @@
             <a class="button is-medium is-light" href="/search/help" title="Search syntax help">?</a>
         </div>
     </div>
+    <div class="field mt-2">
+        <label class="checkbox is-size-7">
+            <input type="checkbox" name="show_hidden" value="1" {% if show_hidden %}checked{% endif %}> Show hidden
+        </label>
+    </div>
 </form>
 
 {% if query %}
