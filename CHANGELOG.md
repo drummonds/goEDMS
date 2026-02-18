@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.43.4 2026-02-18
+
+- improving document card layout
+
 ## 0.43.3 2026-02-18
 
 - improving docmentation and enabling githubpages
