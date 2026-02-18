@@ -262,6 +262,12 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		}
 	}
 
+	// Step 1b: Restore tag aliases from config (so old .tags.json names resolve during rescan)
+	db.UpdateJobProgress(jobID, 55, "Restoring tag aliases from config")
+	if err := ApplyTagAliasesFromConfig(serverHandler.ServerConfig.ConfigPath, db); err != nil {
+		Logger.Error("Failed to apply tag aliases from config", "error", err)
+	}
+
 	// Step 2: Find orphaned files in document storage and rescan them in-place
 	db.UpdateJobProgress(jobID, 60, "Scanning for orphaned files")
 	rescannedCount := 0

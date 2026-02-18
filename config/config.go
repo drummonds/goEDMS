@@ -33,6 +33,7 @@ type ServerConfig struct {
 	IngressPreserve      bool
 	UseSidecarTxt        bool
 	DocumentPath         string
+	ConfigPath           string // sibling of DocumentPath for persistent config (tag_aliases.json etc.)
 	NewDocumentFolder    string //absolute path to new document folder
 	NewDocumentFolderRel string //relative path to new document folder
 	WebUIPass            bool
@@ -169,6 +170,7 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 		logger.Error("Error creating document path", "path", documentPathRelative, "error", err)
 	}
 	serverConfigLive.DocumentPath = documentPathAbs
+	serverConfigLive.ConfigPath = filepath.Join(filepath.Dir(documentPathAbs), "config")
 
 	newDocumentPath := filepath.ToSlash(getEnv("NEW_DOCUMENT_FOLDER", "New"))
 	serverConfigLive.NewDocumentFolderRel = newDocumentPath

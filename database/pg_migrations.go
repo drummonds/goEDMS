@@ -54,6 +54,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 		{"010", "add_stories", migrate010AddStories},
 		{"011", "add_document_metadata", migrate011AddDocumentMetadata},
 		{"012", "add_hide_tag", migrate012AddHideTag},
+		{"013", "add_tag_aliases", migrate013AddTagAliases},
 	}
 
 	for _, m := range migrations {
@@ -738,5 +739,30 @@ func migrate012AddHideTag(ctx context.Context, db *sql.DB, isPglike bool) error 
 	}
 
 	Logger.Info("Migration 012 completed successfully")
+	return nil
+}
+
+// Migration 013: Add tag_aliases table for rename tracking
+func migrate013AddTagAliases(ctx context.Context, db *sql.DB, isPglike bool) error {
+	Logger.Info("Running migration 013: Add tag_aliases table")
+
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS tag_aliases (
+			id SERIAL PRIMARY KEY,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			alias_name TEXT NOT NULL UNIQUE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`)
+	if err != nil {
+		return fmt.Errorf("failed to create tag_aliases table: %w", err)
+	}
+
+	_, err = db.ExecContext(ctx,
+		`CREATE INDEX IF NOT EXISTS idx_tag_aliases_tag_id ON tag_aliases(tag_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create tag_aliases index: %w", err)
+	}
+
+	Logger.Info("Migration 013 completed successfully")
 	return nil
 }

@@ -18,6 +18,12 @@ type Tag struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// TagAliasEntry represents a tag alias with resolved tag name (for config export/import)
+type TagAliasEntry struct {
+	AliasName string `json:"alias_name"`
+	TagName   string `json:"tag_name"`
+}
+
 // DocumentTag represents the many-to-many relationship between documents and tags
 type DocumentTag struct {
 	DocumentID int       `json:"document_id"`

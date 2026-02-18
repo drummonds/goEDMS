@@ -180,6 +180,10 @@ func (serverHandler *ServerHandler) UpdateTag(c echo.Context) error {
 		})
 	}
 
+	if err := WriteTagAliases(serverHandler.ServerConfig.ConfigPath, serverHandler.DB); err != nil {
+		Logger.Error("Failed to write tag aliases to config", "error", err)
+	}
+
 	return c.JSON(http.StatusOK, tag)
 }
 

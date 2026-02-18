@@ -99,6 +99,8 @@ type Repository interface {
 	RemoveTagFromDocument(documentID int, tagID int) error
 	GetTagUsageCount(tagID int) (int, error)
 	GetTagGroups() ([]string, error)
+	GetAllTagAliases() ([]TagAliasEntry, error)
+	InsertTagAlias(tagID int, aliasName string) error
 	// Dimension methods
 	GetAllDimensions() ([]Dimension, error)
 	GetDimensionByID(id int) (*Dimension, error)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drummonds/godocs/database"
+	"github.com/drummonds/godocs/engine"
 	"github.com/drummonds/godocs/internal/build"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
@@ -612,6 +613,10 @@ func HandleUpdateTag(tr *TemplateRenderer) echo.HandlerFunc {
 
 		if err := tr.db.UpdateTag(tag); err != nil {
 			Logger.Error("Failed to update tag", "id", id, "error", err)
+		}
+
+		if err := engine.WriteTagAliases(tr.config.ConfigPath, tr.db); err != nil {
+			Logger.Error("Failed to write tag aliases to config", "error", err)
 		}
 
 		return c.Redirect(http.StatusSeeOther, "/tags")

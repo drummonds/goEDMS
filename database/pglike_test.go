@@ -253,6 +253,73 @@ func TestPglikeDatabase(t *testing.T) {
 		}
 	})
 
+	t.Run("Tag alias on rename", func(t *testing.T) {
+		tag := &Tag{Name: "Receipt", Color: "#00ff00"}
+		if err := db.CreateTag(tag); err != nil {
+			t.Fatalf("Failed to create tag: %v", err)
+		}
+
+		// Rename Receipt → Receipts
+		tag.Name = "Receipts"
+		if err := db.UpdateTag(tag); err != nil {
+			t.Fatalf("Failed to update tag: %v", err)
+		}
+
+		// Old name should resolve via alias
+		found, err := db.GetTagByName("Receipt")
+		if err != nil {
+			t.Fatalf("GetTagByName(old) failed: %v", err)
+		}
+		if found == nil {
+			t.Fatal("Expected old name 'Receipt' to resolve via alias, got nil")
+		}
+		if found.Name != "Receipts" {
+			t.Errorf("Expected resolved name 'Receipts', got %q", found.Name)
+		}
+
+		// Current name should still work
+		found2, err := db.GetTagByName("Receipts")
+		if err != nil {
+			t.Fatalf("GetTagByName(new) failed: %v", err)
+		}
+		if found2 == nil || found2.ID != tag.ID {
+			t.Error("Expected current name to resolve directly")
+		}
+	})
+
+	t.Run("Chained tag rename aliases", func(t *testing.T) {
+		tag := &Tag{Name: "Draft", Color: "#0000ff"}
+		if err := db.CreateTag(tag); err != nil {
+			t.Fatalf("Failed to create tag: %v", err)
+		}
+
+		// Draft → Pending
+		tag.Name = "Pending"
+		if err := db.UpdateTag(tag); err != nil {
+			t.Fatalf("Failed to rename to Pending: %v", err)
+		}
+
+		// Pending → Review
+		tag.Name = "Review"
+		if err := db.UpdateTag(tag); err != nil {
+			t.Fatalf("Failed to rename to Review: %v", err)
+		}
+
+		// Both old names should resolve
+		for _, oldName := range []string{"Draft", "Pending"} {
+			found, err := db.GetTagByName(oldName)
+			if err != nil {
+				t.Fatalf("GetTagByName(%q) failed: %v", oldName, err)
+			}
+			if found == nil {
+				t.Fatalf("Expected %q to resolve via alias, got nil", oldName)
+			}
+			if found.Name != "Review" {
+				t.Errorf("Expected %q to resolve to 'Review', got %q", oldName, found.Name)
+			}
+		}
+	})
+
 	t.Run("Saved search operations", func(t *testing.T) {
 		searches, err := db.GetAllSavedSearches()
 		if err != nil {

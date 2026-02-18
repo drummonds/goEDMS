@@ -86,20 +86,38 @@ func (p *PGDB) GetTagByID(id int) (*Tag, error) {
 	return tag, err
 }
 
-// GetTagByName returns a tag by its name
+// GetTagByName returns a tag by its name, falling back to alias lookup
 func (p *PGDB) GetTagByName(name string) (*Tag, error) {
 	tag, err := scanTag(p.db.QueryRowContext(context.Background(), `
 		SELECT id, name, color, description, tag_group, sort_order, created_at, updated_at
 		FROM tags WHERE name = $1`, name))
 	if err == sql.ErrNoRows {
-		return nil, nil
+		// Fallback: check tag_aliases
+		tag, err = scanTag(p.db.QueryRowContext(context.Background(), `
+			SELECT t.id, t.name, t.color, t.description, t.tag_group, t.sort_order, t.created_at, t.updated_at
+			FROM tags t JOIN tag_aliases ta ON ta.tag_id = t.id
+			WHERE ta.alias_name = $1`, name))
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 	}
 	return tag, err
 }
 
-// UpdateTag updates an existing tag
+// UpdateTag updates an existing tag. If the name changed, the old name is
+// saved as an alias so that .tags.json sidecars with the old name still resolve.
 func (p *PGDB) UpdateTag(tag *Tag) error {
-	_, err := p.db.ExecContext(context.Background(), `
+	ctx := context.Background()
+
+	// Fetch current name to detect renames
+	var oldName string
+	err := p.db.QueryRowContext(ctx,
+		`SELECT name FROM tags WHERE id = $1`, tag.ID).Scan(&oldName)
+	if err != nil {
+		return fmt.Errorf("failed to fetch current tag name: %w", err)
+	}
+
+	_, err = p.db.ExecContext(ctx, `
 		UPDATE tags SET name = $1, color = $2, description = $3,
 			tag_group = $4, sort_order = $5, updated_at = $6
 		WHERE id = $7`,
@@ -108,6 +126,17 @@ func (p *PGDB) UpdateTag(tag *Tag) error {
 	if err != nil {
 		return fmt.Errorf("failed to update tag: %w", err)
 	}
+
+	// If renamed, record old name as alias
+	if oldName != tag.Name {
+		_, err = p.db.ExecContext(ctx, `
+			INSERT INTO tag_aliases (tag_id, alias_name) VALUES ($1, $2)
+			ON CONFLICT (alias_name) DO NOTHING`, tag.ID, oldName)
+		if err != nil {
+			return fmt.Errorf("failed to insert tag alias: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -198,6 +227,39 @@ func scanTagRows(rows *sql.Rows) ([]Tag, error) {
 		tags = append(tags, *tag)
 	}
 	return tags, rows.Err()
+}
+
+// GetAllTagAliases returns all tag aliases with resolved tag names
+func (p *PGDB) GetAllTagAliases() ([]TagAliasEntry, error) {
+	rows, err := p.db.QueryContext(context.Background(), `
+		SELECT ta.alias_name, t.name
+		FROM tag_aliases ta JOIN tags t ON ta.tag_id = t.id
+		ORDER BY t.name, ta.alias_name`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all tag aliases: %w", err)
+	}
+	defer rows.Close()
+
+	var aliases []TagAliasEntry
+	for rows.Next() {
+		var e TagAliasEntry
+		if err := rows.Scan(&e.AliasName, &e.TagName); err != nil {
+			return nil, err
+		}
+		aliases = append(aliases, e)
+	}
+	return aliases, rows.Err()
+}
+
+// InsertTagAlias inserts a tag alias (does nothing on conflict)
+func (p *PGDB) InsertTagAlias(tagID int, aliasName string) error {
+	_, err := p.db.ExecContext(context.Background(), `
+		INSERT INTO tag_aliases (tag_id, alias_name) VALUES ($1, $2)
+		ON CONFLICT (alias_name) DO NOTHING`, tagID, aliasName)
+	if err != nil {
+		return fmt.Errorf("failed to insert tag alias: %w", err)
+	}
+	return nil
 }
 
 // ============================================================================

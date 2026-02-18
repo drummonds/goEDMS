@@ -1,10 +1,5 @@
 <div class="column is-one-third-desktop is-half-tablet">
     <div class="card document-card">
-        {% if select_mode %}
-        <label class="checkbox bulk-select-label">
-            <input type="checkbox" name="ulids" value="{{ doc.ULID }}"> Select
-        </label>
-        {% endif %}
         <div class="card-top-row">
             <div class="card-thumbnail">
                 {% if doc.HasThumbnail %}
@@ -20,6 +15,11 @@
                     <a href="/document/{{ doc.ULID }}" class="button is-small is-link is-outlined" title="View document">&#128065;</a>
                     <a href="/document/view/{{ doc.ULID }}" class="button is-small is-info is-outlined" title="Download file">&#11015;</a>
                     <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit tags">&#9998;</a>
+                    {% if select_mode %}
+                    <label class="button is-small is-outlined" title="Select">
+                        <input type="checkbox" name="ulids" value="{{ doc.ULID }}">
+                    </label>
+                    {% endif %}
                 </div>
                 {% for tag in doc.Tags %}
                 <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;" title="{{ tag.Name }}">{{ tag.Name }}</span>
@@ -27,7 +27,7 @@
             </div>
         </div>
         <div class="card-bottom-content">
-            <a href="/document/{{ doc.ULID }}" class="is-size-6">{{ doc.Name }}</a>
+            <a href="/document/view/{{ doc.ULID }}" class="is-size-6">{{ doc.Name }}</a>
             <span class="tag doc-type-badge is-info is-light ml-2">{{ doc.DocumentType }}</span>
         </div>
     </div>
