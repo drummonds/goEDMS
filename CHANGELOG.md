@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.43.3 2026-02-18
+
+- improving docmentation and enabling githubpages
+
 ## 0.43.2 2026-02-17
 
 - Adding hide tag eg is imported but don't want to see nor reimport

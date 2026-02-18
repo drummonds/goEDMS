@@ -14,7 +14,7 @@ RUN chmod +x /opt/godocs/godocs && \
 # Stage 2
 FROM scratch
 COPY --from=build / /
-LABEL Author="deranjer"
+LABEL Author="drummonds"
 LABEL name="godocs"
 EXPOSE 8000
 WORKDIR /opt/godocs

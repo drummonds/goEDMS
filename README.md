@@ -195,10 +195,11 @@ For more details, see:
 - [Ingestion Refactor Documentation](docs/INGESTION_REFACTOR.md) - Step-based ingestion details
 - [Architecture Documentation](docs/ARCHITECTURE.md) - Frontend/Backend separation details
 - [OpenAPI Specification](docs/openapi.yaml) - Complete API documentation
+- [Static API Reference](https://drummonds.github.io/godocs/api.html) - Browse API docs online (GitHub Pages)
 
 ## Documentation
 
-[Documentation](https://deranjer.github.io/godocsDocs)
+[Documentation]( https://drummonds.github.io/godocs/)
 
 
 ## Commands
