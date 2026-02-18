@@ -12,18 +12,31 @@
     <div class="level-right">
         <div class="level-item">
             <div class="buttons has-addons">
-                <a class="button is-small{% if view == "collapsed" %} is-primary{% endif %}" href="/?view=collapsed{% if show_hidden %}&show_hidden=1{% endif %}">Stories</a>
-                <a class="button is-small{% if view == "flat" %} is-primary{% endif %}" href="/?view=flat{% if show_hidden %}&show_hidden=1{% endif %}">All</a>
+                <a class="button is-small{% if view == "collapsed" %} is-primary{% endif %}" href="/?view=collapsed{% if show_hidden %}&show_hidden=1{% endif %}{% if select_mode %}&select=1{% endif %}">Stories</a>
+                <a class="button is-small{% if view == "flat" %} is-primary{% endif %}" href="/?view=flat{% if show_hidden %}&show_hidden=1{% endif %}{% if select_mode %}&select=1{% endif %}">All</a>
+            </div>
+        </div>
+        <div class="level-item">
+            <div class="buttons has-addons">
+                {% if select_mode %}
+                <a class="button is-small is-warning" href="/?view={{ view }}{% if show_hidden %}&show_hidden=1{% endif %}">Cancel Select</a>
+                {% else %}
+                <a class="button is-small" href="/?view={{ view }}{% if show_hidden %}&show_hidden=1{% endif %}&select=1">Select</a>
+                {% endif %}
             </div>
         </div>
         <div class="level-item">
             <label class="checkbox is-size-7">
-                <input type="checkbox" {% if show_hidden %}checked{% endif %} onchange="location.href='/?view={{ view }}&show_hidden=' + (this.checked ? '1' : '0')">
+                <input type="checkbox" {% if show_hidden %}checked{% endif %} onchange="location.href='/?view={{ view }}&show_hidden=' + (this.checked ? '1' : '0'){% if select_mode %}+ '&select=1'{% endif %}">
                 Show hidden
             </label>
         </div>
     </div>
 </div>
+
+{% if select_mode %}
+<form method="POST" action="/documents/bulk-edit">
+{% endif %}
 
 {% if view == "collapsed" %}
     {% if stories %}
@@ -67,5 +80,12 @@
         <p>No documents found. Add documents to the ingress folder to get started.</p>
     </div>
     {% endif %}
+{% endif %}
+
+{% if select_mode %}
+<div class="mt-4">
+    <button type="submit" class="button is-primary">Bulk Edit Selected</button>
+</div>
+</form>
 {% endif %}
 {% endblock %}

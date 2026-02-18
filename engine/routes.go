@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"crypto/md5"
 	"fmt"
 	"io"
 	"net/http"
@@ -166,13 +167,32 @@ func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error 
 	}
 	Logger.Debug("Creating path for file upload to ingress", "dir", filepath.Dir(path))
 	body, err := io.ReadAll(file) //get the file, write it to the filesystem
+	if err != nil {
+		Logger.Error("Unable to read uploaded file", "error", err)
+		return err
+	}
 	err = os.WriteFile(path, body, 0644)
 	if err != nil {
 		Logger.Error("Unable to write uploaded file", "path", path, "error", err)
 		return err
 	}
 	serverHandler.ingressDocument(path, "upload") //ingress the document into the database
-	return context.JSON(http.StatusOK, path)
+
+	// Look up the ingested document by hash to return its ULID
+	hash := md5.Sum(body)
+	fileHash := fmt.Sprintf("%x", hash[:])
+	doc, err := serverHandler.DB.GetDocumentByHash(fileHash)
+	if err == nil && doc != nil {
+		return context.JSON(http.StatusOK, map[string]interface{}{
+			"path": path,
+			"ulid": doc.ULID.String(),
+			"name": doc.Name,
+		})
+	}
+
+	return context.JSON(http.StatusOK, map[string]interface{}{
+		"path": path,
+	})
 }
 
 // MoveDocuments will accept an API call from the frontend to move a document or documents

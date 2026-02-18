@@ -2,9 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.43.1 2026-02-17
+## 0.43.2 2026-02-17
 
 - Adding hide tag eg is imported but don't want to see nor reimport
+- Adding URLID on upload
+- allowing multitaging
 
 ## 0.43.0 2026-02-16
 

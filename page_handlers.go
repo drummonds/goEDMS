@@ -37,9 +37,12 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 		}
 		showHidden := c.QueryParam("show_hidden") == "1"
 
+		selectMode := c.QueryParam("select") == "1"
+
 		ctx := pongo2.Context{
 			"view":        view,
 			"show_hidden": showHidden,
+			"select_mode": selectMode,
 		}
 
 		if view == "flat" {
@@ -106,6 +109,7 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 		query := c.QueryParam("q")
 
 		showHidden := c.QueryParam("show_hidden") == "1"
+		selectMode := c.QueryParam("select") == "1"
 
 		baseURL := "/search?q=" + query
 		if showHidden {
@@ -116,6 +120,7 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"query":       query,
 			"base_url":    baseURL,
 			"show_hidden": showHidden,
+			"select_mode": selectMode,
 		}
 
 		// Load saved searches

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - Bulk Edit ({{ doc_count }} documents){% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+    <ul>
+        <li><a href="/">Documents</a></li>
+        <li class="is-active"><a href="#" aria-current="page">Bulk Edit ({{ doc_count }})</a></li>
+    </ul>
+</nav>
+
+<h1 class="title is-4">Bulk Edit {{ doc_count }} Documents</h1>
+
+<div class="columns">
+    <div class="column is-one-third">
+        <h2 class="subtitle is-5">Selected Documents</h2>
+        <div class="content">
+            {% for d in docs %}
+            <div class="media">
+                {% if d.HasThumbnail %}
+                <div class="media-left">
+                    <figure class="image is-48x48">
+                        <img src="/api/document/{{ d.ULID }}/thumbnail" alt="{{ d.Name }}">
+                    </figure>
+                </div>
+                {% endif %}
+                <div class="media-content">
+                    <p class="is-size-7">{{ d.Name }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-4">
+            <a href="/" class="button is-link is-outlined is-fullwidth">Back to Documents</a>
+        </div>
+    </div>
+
+    <div class="column">
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Common Tags</h2>
+            {% if common_tags %}
+            <div class="tags are-medium">
+                {% for tag in common_tags %}
+                <span class="tag" style="background-color: {{ tag.Color }}; color: white;">
+                    {{ tag.Name }}
+                    <form method="POST" action="/documents/bulk-edit/tags/{{ tag.ID }}/remove" style="display:inline; margin:0; padding:0;">
+                        <input type="hidden" name="ulids" value="{{ ulids }}">
+                        <button type="submit" class="delete is-small" aria-label="Remove {{ tag.Name }}"></button>
+                    </form>
+                </span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="has-text-grey">No tags common to all selected documents.</p>
+            {% endif %}
+        </div>
+
+        {% if available_tags %}
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Add Tag</h2>
+            <form method="POST" action="/documents/bulk-edit/tags">
+                <input type="hidden" name="ulids" value="{{ ulids }}">
+                <div class="field has-addons">
+                    <div class="control is-expanded">
+                        <div class="select is-fullwidth">
+                            <select name="tag_id" required>
+                                <option value="">Select a tag...</option>
+                                {% for tag in available_tags %}
+                                <option value="{{ tag.ID }}">{{ tag.Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="control">
+                        <button type="submit" class="button is-primary">Add to All</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if stories %}
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Add to Story</h2>
+            <form method="POST" action="/documents/bulk-edit/story">
+                <input type="hidden" name="ulids" value="{{ ulids }}">
+                <div class="field has-addons">
+                    <div class="control is-expanded">
+                        <div class="select is-fullwidth">
+                            <select name="story_id" required>
+                                <option value="">Select a story...</option>
+                                {% for story in stories %}
+                                <option value="{{ story.ID }}">{{ story.Title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="control">
+                        <button type="submit" class="button is-primary">Add to All</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Set Date</h2>
+            <form method="POST" action="/documents/bulk-edit/date">
+                <input type="hidden" name="ulids" value="{{ ulids }}">
+                <div class="field has-addons">
+                    <div class="control">
+                        <div class="select">
+                            <select name="field" required>
+                                <option value="document_date">Document Date</option>
+                                <option value="created_date">Created Date</option>
+                                <option value="updated_date">Updated Date</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="control is-expanded">
+                        <input class="input" type="date" name="date" required>
+                    </div>
+                    <div class="control">
+                        <button type="submit" class="button is-primary">Set on All</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

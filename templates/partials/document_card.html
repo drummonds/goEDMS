@@ -1,5 +1,10 @@
 <div class="column is-one-third-desktop is-half-tablet">
     <div class="card document-card">
+        {% if select_mode %}
+        <label class="checkbox bulk-select-label">
+            <input type="checkbox" name="ulids" value="{{ doc.ULID }}"> Select
+        </label>
+        {% endif %}
         <div class="card-top-row">
             <div class="card-thumbnail">
                 {% if doc.HasThumbnail %}
