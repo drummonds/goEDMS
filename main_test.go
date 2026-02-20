@@ -1,3 +1,5 @@
+//go:build !js
+
 package main
 
 import (
@@ -41,7 +43,17 @@ func setupSSRTestServer(t *testing.T) (*echo.Echo, database.Repository, func()) 
 
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
 
-	tr := NewTemplateRenderer(app, db, serverConfig, &serverHandler)
+	tr := &TemplateRenderer{
+		templateSet:       NewTemplateSet(),
+		db:                db,
+		config:            serverConfig,
+		version:           "test",
+		isActionRunning:   app.IsActionRunning,
+		checkThumbnail:    checkThumbnailFS,
+		writeTagAliases:   engine.WriteTagAliases,
+		runCleanupAsync:   serverHandler.RunCleanupAsync,
+		runIngestionAsync: serverHandler.RunIngestionAsync,
+	}
 
 	e.HTTPErrorHandler = createHTTPErrorHandler(e, tr)
 	docsHandler := docs.DocsHandler{DocsFS: docsFS, SwaggerUIFS: swaggerUIFS}
