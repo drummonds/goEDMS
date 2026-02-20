@@ -704,24 +704,18 @@ func (serverHandler *ServerHandler) convertToImage(fileName string) (*string, er
 	var err error
 	Logger.Info("Converting PDF To image for OCR using Go libraries", "fileName", fileName)
 
-	// Create output image path
-	imageName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	imageName = filepath.Base(fmt.Sprint(imageName + ".png"))
-	imageName = filepath.Join("temp", imageName)
-	imageName, err = filepath.Abs(imageName)
+	// Create temporary image file for OCR
+	baseName := strings.TrimSuffix(filepath.Base(fileName), filepath.Ext(fileName))
+	tmpFile, err := os.CreateTemp("", baseName+"-*.png")
 	if err != nil {
-		Logger.Error("Unable to edit absolute path string for temporary image for OCR", "fileName", fileName, "error", err)
+		Logger.Error("Unable to create temp file for OCR image", "fileName", fileName, "error", err)
 		return nil, err
 	}
-
-	err = os.MkdirAll(filepath.Dir(imageName), os.ModePerm)
-	if err != nil {
-		Logger.Error("Unable to create absolute path for temporary image for OCR (permissions?)", "dir", filepath.Dir(imageName), "error", err)
-		return nil, err
-	}
+	imageName := tmpFile.Name()
+	tmpFile.Close() // Will be written to below
+	defer os.Remove(imageName)
 
 	fileName = filepath.Clean(fileName)
-	imageName = filepath.Clean(imageName)
 	Logger.Info("Creating temp image for OCR at", "imageName", imageName)
 
 	// Check if file exists and is readable
@@ -823,23 +817,20 @@ func (serverHandler *ServerHandler) ocrProcessing(imageName string) (*string, er
 		return &emptyText, nil
 	}
 
-	var fullText string
-	var err error
-	textFileName := filepath.Base(imageName)                                    //creating the path for the .txt that tesseract will output with the OCR results.
-	textFileName = strings.TrimSuffix(textFileName, filepath.Ext(textFileName)) //just get the name, no extension
-	fullpath := filepath.Join("temp", textFileName)
-	fullpath, err = filepath.Abs(fullpath)
+	// Tesseract takes an output base path and appends ".txt" itself
+	baseName := strings.TrimSuffix(filepath.Base(imageName), filepath.Ext(imageName))
+	tmpFile, err := os.CreateTemp("", baseName+"-ocr-*")
 	if err != nil {
-		Logger.Error("Unable to create full path for temp OCR File", "fullpath", fullpath)
+		Logger.Error("Unable to create temp file for OCR output", "error", err)
+		return nil, err
 	}
-	textFileName = filepath.Clean(fullpath)
-	/* 	tempOCRFile, err := os.Create(fmt.Sprintf("temp/%s", imageName))
-	   	if err != nil {
-	   		Logger.Error("Unable to create temp file", "path", fmt.Sprintf("temp/%s", imageName), "error", err)
-	   		return nil, err
-	   	} */
-	tesseractArgs := []string{imageName, textFileName}                                       //outputting ocr to a txt file
-	tesseractCMD := exec.Command(serverHandler.ServerConfig.TesseractPath, tesseractArgs...) //get the path to tesseract
+	textFileBase := tmpFile.Name()
+	tmpFile.Close()
+	os.Remove(textFileBase) // Tesseract creates its own file
+	defer os.Remove(textFileBase + ".txt")
+
+	tesseractArgs := []string{imageName, textFileBase}
+	tesseractCMD := exec.Command(serverHandler.ServerConfig.TesseractPath, tesseractArgs...)
 	var stdBuffer bytes.Buffer
 	mw := io.MultiWriter(os.Stdout, &stdBuffer)
 
@@ -851,14 +842,15 @@ func (serverHandler *ServerHandler) ocrProcessing(imageName string) (*string, er
 	if err != nil {
 		Logger.Warn("Tesseract encountered error when attempting to OCR image, storing document without text", "imageName", imageName, "detail", stdBuffer.String())
 		emptyText := ""
-		return &emptyText, nil // Return empty text instead of error - document should still be saved
+		return &emptyText, nil
 	}
-	fileBytes, err := os.ReadFile(textFileName + ".txt")
+	fileBytes, err := os.ReadFile(textFileBase + ".txt")
 	if err != nil {
-		Logger.Warn("Unable to read OCR output file, storing document without text", "textFile", textFileName+".txt", "error", err)
+		Logger.Warn("Unable to read OCR output file, storing document without text", "textFile", textFileBase+".txt", "error", err)
 		emptyText := ""
 		return &emptyText, nil
 	}
+	var fullText string
 	fullText = string(fileBytes)
 	if fullText == "" {
 		Logger.Info("OCR returned empty string - document may have no recognizable text (e.g., handwritten, blank, or image-only)", "imageName", imageName)
