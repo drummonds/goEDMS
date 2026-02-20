@@ -3,12 +3,10 @@ package main
 import (
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/drummonds/godocs/database"
-	"github.com/drummonds/godocs/engine"
 	"github.com/drummonds/godocs/internal/build"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
@@ -53,7 +51,7 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 				documents = []database.Document{}
 				totalCount = 0
 			}
-			docsWithMeta := enrichDocuments(documents, tr.db)
+			docsWithMeta := tr.enrichDocuments(documents)
 			totalPages := (totalCount + pageSize - 1) / pageSize
 
 			ctx["documents"] = docsWithMeta
@@ -83,7 +81,7 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 				documents = []database.Document{}
 				totalCount = 0
 			}
-			docsWithMeta := enrichDocuments(documents, tr.db)
+			docsWithMeta := tr.enrichDocuments(documents)
 			totalPages := (totalCount + pageSize - 1) / pageSize
 
 			ctx["documents"] = docsWithMeta
@@ -149,7 +147,7 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 				totalCount = 0
 			}
 
-			docsWithMeta := enrichDocuments(documents, tr.db)
+			docsWithMeta := tr.enrichDocuments(documents)
 			totalPages := (totalCount + pageSize - 1) / pageSize
 
 			ctx["documents"] = docsWithMeta
@@ -228,7 +226,7 @@ func HandleDocumentPage(tr *TemplateRenderer) echo.HandlerFunc {
 		}
 
 		// Check for thumbnail
-		hasThumbnail := checkThumbnailExists(document.Path)
+		hasThumbnail := tr.checkThumbnail(document.Path)
 
 		// Get tags
 		tags, err := tr.db.GetTagsForDocument(document.ID)
@@ -284,7 +282,7 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			return tr.RenderWithStatus(c, "404.html", http.StatusNotFound, nil)
 		}
 
-		hasThumbnail := checkThumbnailExists(document.Path)
+		hasThumbnail := tr.checkThumbnail(document.Path)
 
 		tags, err := tr.db.GetTagsForDocument(document.ID)
 		if err != nil {
@@ -615,8 +613,10 @@ func HandleUpdateTag(tr *TemplateRenderer) echo.HandlerFunc {
 			Logger.Error("Failed to update tag", "id", id, "error", err)
 		}
 
-		if err := engine.WriteTagAliases(tr.config.ConfigPath, tr.db); err != nil {
-			Logger.Error("Failed to write tag aliases to config", "error", err)
+		if tr.writeTagAliases != nil {
+			if err := tr.writeTagAliases(tr.config.ConfigPath, tr.db); err != nil {
+				Logger.Error("Failed to write tag aliases to config", "error", err)
+			}
 		}
 
 		return c.Redirect(http.StatusSeeOther, "/tags")
@@ -689,7 +689,7 @@ func HandleJobsPage(tr *TemplateRenderer) echo.HandlerFunc {
 // HandleTriggerClean triggers a database cleanup job
 func HandleTriggerClean(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		_, err := tr.engine.RunCleanupAsync()
+		_, err := tr.runCleanupAsync()
 		if err != nil {
 			Logger.Error("Failed to trigger cleanup", "error", err)
 		}
@@ -700,7 +700,7 @@ func HandleTriggerClean(tr *TemplateRenderer) echo.HandlerFunc {
 // HandleTriggerIngest triggers an ingestion job
 func HandleTriggerIngest(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		_, err := tr.engine.RunIngestionAsync()
+		_, err := tr.runIngestionAsync()
 		if err != nil {
 			Logger.Error("Failed to trigger ingestion", "error", err)
 		}
@@ -709,14 +709,14 @@ func HandleTriggerIngest(tr *TemplateRenderer) echo.HandlerFunc {
 }
 
 // enrichDocuments adds thumbnail and tag info to documents for display
-func enrichDocuments(docs []database.Document, db database.Repository) []DocumentWithMeta {
+func (tr *TemplateRenderer) enrichDocuments(docs []database.Document) []DocumentWithMeta {
 	result := make([]DocumentWithMeta, len(docs))
 	for i, doc := range docs {
 		result[i] = DocumentWithMeta{
 			Document:     doc,
-			HasThumbnail: checkThumbnailExists(doc.Path),
+			HasThumbnail: tr.checkThumbnail(doc.Path),
 		}
-		tags, err := db.GetTagsForDocument(doc.ID)
+		tags, err := tr.db.GetTagsForDocument(doc.ID)
 		if err != nil {
 			Logger.Error("Failed to fetch tags for document in enrichDocuments",
 				"docID", doc.ID, "docName", doc.Name, "error", err)
@@ -725,15 +725,4 @@ func enrichDocuments(docs []database.Document, db database.Repository) []Documen
 		}
 	}
 	return result
-}
-
-// checkThumbnailExists checks if a thumbnail file exists for a document
-func checkThumbnailExists(docPath string) bool {
-	ext := filepath.Ext(docPath)
-	if ext == "" {
-		return false
-	}
-	thumbnailPath := docPath[:len(docPath)-len(ext)] + ".tn_256.png"
-	_, err := os.Stat(thumbnailPath)
-	return err == nil
 }

@@ -1,3 +1,5 @@
+//go:build !js
+
 package main
 
 import (
@@ -6,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -76,8 +79,18 @@ func main() {
 
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
 
-	// Create template renderer
-	tr := NewTemplateRenderer(app, db, serverConfig, &serverHandler)
+	// Create template renderer with callback functions
+	tr := &TemplateRenderer{
+		templateSet:       NewTemplateSet(),
+		db:                db,
+		config:            serverConfig,
+		version:           version,
+		isActionRunning:   app.IsActionRunning,
+		checkThumbnail:    checkThumbnailFS,
+		writeTagAliases:   engine.WriteTagAliases,
+		runCleanupAsync:   serverHandler.RunCleanupAsync,
+		runIngestionAsync: serverHandler.RunIngestionAsync,
+	}
 
 	// Custom error handler
 	e.HTTPErrorHandler = createHTTPErrorHandler(e, tr)
@@ -294,6 +307,17 @@ func main() {
 		Logger.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// checkThumbnailFS checks if a thumbnail file exists on the filesystem
+func checkThumbnailFS(docPath string) bool {
+	ext := filepath.Ext(docPath)
+	if ext == "" {
+		return false
+	}
+	thumbnailPath := docPath[:len(docPath)-len(ext)] + ".tn_256.png"
+	_, err := os.Stat(thumbnailPath)
+	return err == nil
 }
 
 // createHTTPErrorHandler returns a custom HTTP error handler

@@ -140,17 +140,6 @@ func TestOCRProcessingAndDatabaseStorage(t *testing.T) {
 	// Use "ingress" as source so cleanup logic runs and removes the test file
 	serverHandler.ingressDocument(testPDFPath, "ingress")
 
-	// Clean up any temp OCR files created during processing
-	defer func() {
-		tempFiles := []string{
-			filepath.Join("temp", "test_ocr_document.png"),
-			filepath.Join("temp", "test_ocr_document.txt"),
-		}
-		for _, f := range tempFiles {
-			os.Remove(f)
-		}
-	}()
-
 	// Query the database to verify the document was stored
 	documents, err := testDB.GetAllDocuments()
 	if err != nil {

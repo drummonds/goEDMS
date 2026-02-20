@@ -40,7 +40,7 @@ func HandleBulkEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			docs = append(docs, BulkDocInfo{
 				ULID:         ulidStr,
 				Name:         doc.Name,
-				HasThumbnail: checkThumbnailExists(doc.Path),
+				HasThumbnail: tr.checkThumbnail(doc.Path),
 			})
 			tags, err := tr.db.GetTagsForDocument(doc.ID)
 			if err != nil {

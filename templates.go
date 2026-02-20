@@ -11,9 +11,7 @@ import (
 
 	"github.com/drummonds/godocs/config"
 	"github.com/drummonds/godocs/database"
-	"github.com/drummonds/godocs/engine"
 	"github.com/drummonds/godocs/internal/build"
-	"github.com/drummonds/lofigui"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
 )
@@ -46,27 +44,25 @@ func (l *embedLoader) Get(path string) (io.Reader, error) {
 	return bytes.NewReader(data), nil
 }
 
-// TemplateRenderer holds the pongo2 template set and app dependencies
+// TemplateRenderer holds the pongo2 template set and app dependencies.
+// Callback functions decouple this from engine/lofigui so the same code
+// compiles for both server and WASM targets.
 type TemplateRenderer struct {
-	templateSet *pongo2.TemplateSet
-	app         *lofigui.App
-	db          database.Repository
-	config      config.ServerConfig
-	engine      *engine.ServerHandler
+	templateSet       *pongo2.TemplateSet
+	db                database.Repository
+	config            config.ServerConfig
+	version           string
+	isActionRunning   func() bool
+	checkThumbnail    func(string) bool
+	writeTagAliases   func(string, database.Repository) error
+	runCleanupAsync   func() (*database.Job, error)
+	runIngestionAsync func() (*database.Job, error)
 }
 
-// NewTemplateRenderer creates a renderer with embedded templates
-func NewTemplateRenderer(app *lofigui.App, db database.Repository, cfg config.ServerConfig, eng *engine.ServerHandler) *TemplateRenderer {
+// NewTemplateSet creates a pongo2 template set from embedded templates
+func NewTemplateSet() *pongo2.TemplateSet {
 	loader := &embedLoader{fs: templatesFS, prefix: "templates"}
-	tplSet := pongo2.NewSet("embedded", loader)
-
-	return &TemplateRenderer{
-		templateSet: tplSet,
-		app:         app,
-		db:          db,
-		config:      cfg,
-		engine:      eng,
-	}
+	return pongo2.NewSet("embedded", loader)
 }
 
 // Render renders a template with merged lofigui state and page-specific data.
@@ -117,14 +113,14 @@ func (tr *TemplateRenderer) renderToResponse(c echo.Context, name string, status
 func (tr *TemplateRenderer) buildContext(c echo.Context, extra pongo2.Context) pongo2.Context {
 	ctx := pongo2.Context{
 		"request":     c.Request(),
-		"version":     tr.app.Version,
+		"version":     tr.version,
 		"app_version": build.GetVersion(),
 		"active_page": getActivePage(c.Request().URL.Path),
 		"refresh":     "", // no polling for page renders
 	}
 
 	// Check if an action is running (for future polling support)
-	if tr.app.IsActionRunning() {
+	if tr.isActionRunning() {
 		ctx["polling"] = "Running"
 	} else {
 		ctx["polling"] = "Stopped"

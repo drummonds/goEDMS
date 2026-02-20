@@ -110,7 +110,7 @@ func HandleEditStoryPage(tr *TemplateRenderer) echo.HandlerFunc {
 			storyDocs = []database.Document{}
 			docCount = 0
 		}
-		docsWithMeta := enrichDocuments(storyDocs, tr.db)
+		docsWithMeta := tr.enrichDocuments(storyDocs)
 
 		// Format dates for HTML date inputs
 		startDate := ""

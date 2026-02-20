@@ -2,6 +2,12 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.44.2 2026-02-19
+
+- adding wasm version for local tests
+- updating migrations doc
+- cleanding temp directory
+
 ## 0.43.4 2026-02-18
 
 - improving document card layout
