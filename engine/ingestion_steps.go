@@ -161,7 +161,7 @@ func (serverHandler *ServerHandler) createInitialDocument(filePath string, fileH
 	}
 
 	// Phase 2: Compute nested path from the DB ID and update
-	nestedPath, nestedFolder := ComputeNestedPath(doc.ID, fileName, serverConfig.DocumentPath)
+	nestedPath, nestedFolder := ComputeNestedPath(doc.ID, doc.DocumentType, serverConfig.DocumentPath)
 	doc.Path = nestedPath
 	doc.Folder = nestedFolder
 
@@ -212,19 +212,20 @@ func (serverHandler *ServerHandler) moveAndVerifyFile(sourcePath, destPath, expe
 		// Don't fail the operation - the file was copied successfully
 	}
 
-	// If sidecar .txt file exists in ingress, move it to documents too
+	// If sidecar .txt file exists in ingress, move it to documents as canonical .ocr.txt
 	if serverHandler.ServerConfig.UseSidecarTxt {
-		sourceSidecarPath := getSidecarTxtPath(sourcePath)
+		// Ingress sidecars use legacy naming: {base}.txt
+		sourceExt := filepath.Ext(sourcePath)
+		sourceSidecarPath := sourcePath[:len(sourcePath)-len(sourceExt)] + ".txt"
 		if _, err := os.Stat(sourceSidecarPath); err == nil {
-			// Sidecar exists in ingress, move it to documents
-			destSidecarPath := getSidecarTxtPath(destPath)
+			// Save with canonical naming in documents
+			destSidecarPath := getOCRPath(destPath)
 			sidecarContent, err := os.ReadFile(sourceSidecarPath)
 			if err == nil {
 				if err := os.WriteFile(destSidecarPath, sidecarContent, 0644); err != nil {
 					Logger.Warn("Failed to copy sidecar .txt file", "source", sourceSidecarPath, "dest", destSidecarPath, "error", err)
 				} else {
-					Logger.Info("Moved sidecar .txt file", "source", sourceSidecarPath, "dest", destSidecarPath)
-					// Delete source sidecar file
+					Logger.Info("Moved ingress sidecar to canonical OCR path", "source", sourceSidecarPath, "dest", destSidecarPath)
 					os.Remove(sourceSidecarPath)
 				}
 			}
@@ -238,7 +239,7 @@ func (serverHandler *ServerHandler) moveAndVerifyFile(sourcePath, destPath, expe
 func (serverHandler *ServerHandler) extractText(filePath string) (string, error) {
 	// Check for sidecar .txt file first if enabled
 	if serverHandler.ServerConfig.UseSidecarTxt {
-		sidecarPath := getSidecarTxtPath(filePath)
+		sidecarPath := getOCRPath(filePath)
 		if content, err := os.ReadFile(sidecarPath); err == nil {
 			Logger.Info("Using sidecar .txt file for text content", "document", filePath, "sidecar", sidecarPath)
 			return string(content), nil
@@ -303,7 +304,7 @@ func (serverHandler *ServerHandler) updateDocumentText(doc *database.Document, f
 
 	// Save sidecar .txt file if enabled and we have text
 	if serverHandler.ServerConfig.UseSidecarTxt && fullText != "" {
-		if err := saveSidecarTxtFile(doc.Path, fullText); err != nil {
+		if err := saveOCRFile(doc.Path, fullText); err != nil {
 			Logger.Warn("Failed to save sidecar .txt file", "document", doc.Path, "error", err)
 			// Don't fail the ingestion if sidecar save fails
 		}
@@ -333,15 +334,9 @@ func (serverHandler *ServerHandler) updateDocumentText(doc *database.Document, f
 	return nil
 }
 
-// getSidecarTxtPath returns the path to the sidecar .txt file for a document
-func getSidecarTxtPath(docPath string) string {
-	ext := filepath.Ext(docPath)
-	return docPath[:len(docPath)-len(ext)] + ".txt"
-}
-
-// saveSidecarTxtFile saves the extracted text to a .txt file alongside the document
-func saveSidecarTxtFile(docPath, text string) error {
-	sidecarPath := getSidecarTxtPath(docPath)
+// saveOCRFile saves the extracted text to an OCR sidecar file alongside the document
+func saveOCRFile(docPath, text string) error {
+	sidecarPath := getOCRPath(docPath)
 
 	// Create directory if needed
 	if err := os.MkdirAll(filepath.Dir(sidecarPath), 0755); err != nil {
@@ -358,7 +353,7 @@ func saveSidecarTxtFile(docPath, text string) error {
 }
 
 // moveFileAndSidecars moves a document file and any associated sidecars
-// (.txt, .tn_256.png, .tags.json) from src to dst.
+// (.ocr.txt, .thumb.png, .tags.json) from src to dst.
 func moveFileAndSidecars(srcPath, dstPath string) error {
 	if err := os.MkdirAll(filepath.Dir(dstPath), os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
@@ -379,9 +374,9 @@ func moveFileAndSidecars(srcPath, dstPath string) error {
 
 	// Move sidecars if they exist
 	sidecarFns := []func(string) string{
-		getSidecarTxtPath,
-		getThumbnailPath,
-		getTagsSidecarPath,
+		getOCRPath,
+		getThumbPath,
+		getTagsPath,
 	}
 	for _, fn := range sidecarFns {
 		srcSidecar := fn(srcPath)
@@ -463,7 +458,7 @@ func (serverHandler *ServerHandler) RescanOrphanedDocument(filePath string, db d
 	}
 
 	// Phase 2: Compute nested path from DB ID
-	nestedPath, nestedFolder := ComputeNestedPath(doc.ID, fileName, serverConfig.DocumentPath)
+	nestedPath, nestedFolder := ComputeNestedPath(doc.ID, doc.DocumentType, serverConfig.DocumentPath)
 	doc.Path = nestedPath
 	doc.Folder = nestedFolder
 

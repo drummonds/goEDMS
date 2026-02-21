@@ -2,6 +2,21 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.45.0 2026-02-21
+
+- Canonical file naming: documents on disk now use `{id}.orig.{ext}` with semantic sidecar suffixes
+  - `.ocr.txt` (was `.txt`), `.thumb.png` (was `.tn_256.png`), `.tags.json` (unchanged)
+- Clean DB automatically migrates legacy filenames to canonical naming
+- `ComputeNestedPath` now takes extension instead of filename
+- Added `SidecarBasePath`, `CanonicalDocName`, `canonicalBase` helpers
+- Both legacy and canonical sidecar patterns recognized for backward compatibility
+- Clean DB now purges incomplete ingestion entries (`__temp__/` paths)
+- Clean DB now verifies ingress folder and deletes files already ingested (by hash)
+- Fixed ingress sidecar pickup: legacy `.txt` sidecars in ingress correctly saved as `.ocr.txt`
+- Added `PUT /api/document/:id/ocr` endpoint for external tools to set OCR text without knowing file naming
+- Upload endpoint now rejects sidecar files (`.ocr.txt`, `.thumb.png`, `.tags.json`, `.tn_256.png`) with 400
+- Added `docs/internal/agents.md` — external agent API guide for upload workflows
+
 ## 0.44.3 2026-02-19
 
 - adding wasm version for local tests

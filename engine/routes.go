@@ -153,6 +153,15 @@ func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error 
 		return err
 	}
 	defer file.Close()
+
+	// Reject sidecar/auxiliary files — these should not be uploaded as documents.
+	// Use the dedicated OCR, metadata, or tag endpoints instead.
+	if isSidecarFilename(fileHeader.Filename) {
+		return context.JSON(http.StatusBadRequest, map[string]string{
+			"error": "cannot upload sidecar files directly; use /api/document/:id/ocr for text, or /api/documents/:ulid/tags for tags",
+		})
+	}
+
 	//Upload it to the ingress folder so if there is an issue it will stick there and not in the documents folder which will cause issues.
 	path := filepath.ToSlash(serverHandler.ServerConfig.IngressPath + "/" + uploadPath + fileHeader.Filename)
 	_, err = os.Stat(filepath.Dir(path)) //since this is the ingress folder we MAY need to create the directory path.
@@ -368,7 +377,7 @@ func (serverHandler *ServerHandler) GetDocumentThumbnail(context echo.Context) e
 	}
 
 	// Get thumbnail path
-	thumbnailPath := getThumbnailPath(document.Path)
+	thumbnailPath := getThumbPath(document.Path)
 
 	// Check if thumbnail exists
 	if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
@@ -442,7 +451,7 @@ func (serverHandler *ServerHandler) GetDocumentStatus(context echo.Context) erro
 	}
 
 	// Check if thumbnail exists
-	thumbnailPath := getThumbnailPath(document.Path)
+	thumbnailPath := getThumbPath(document.Path)
 	if _, err := os.Stat(thumbnailPath); err == nil {
 		status.HasThumbnail = true
 		status.ThumbnailURL = "/api/document/" + document.ULID.String() + "/thumbnail"
@@ -540,7 +549,7 @@ func (serverHandler *ServerHandler) RegenerateThumbnail(context echo.Context) er
 		})
 	}
 
-	thumbnailPath := getThumbnailPath(document.Path)
+	thumbnailPath := getThumbPath(document.Path)
 	Logger.Info("Thumbnail regenerated", "document", document.Path, "thumbnail", thumbnailPath)
 
 	return context.JSON(http.StatusOK, map[string]string{
@@ -588,7 +597,7 @@ func convertDocumentsToFileTree(documents []database.Document) (fullFileTree *[]
 		currentFile.ParentID = "SearchResults"
 
 		// Check if thumbnail exists and add URL
-		thumbnailPath := getThumbnailPath(document.Path)
+		thumbnailPath := getThumbPath(document.Path)
 		if _, err := os.Stat(thumbnailPath); err == nil {
 			// Thumbnail exists, create URL for it
 			currentFile.ThumbnailURL = "/api/document/" + document.ULID.String() + "/thumbnail"
@@ -677,7 +686,7 @@ func fileTree(rootPath string, db database.Repository) (fileTree *fullFileSystem
 			currentFile.ULIDStr = document.ULID.String()
 
 			// Check if thumbnail exists and add URL
-			thumbnailPath := getThumbnailPath(path)
+			thumbnailPath := getThumbPath(path)
 			if _, err := os.Stat(thumbnailPath); err == nil {
 				// Thumbnail exists, create URL for it
 				currentFile.ThumbnailURL = "/api/document/" + document.ULID.String() + "/thumbnail"
@@ -749,7 +758,7 @@ func (serverHandler *ServerHandler) GetLatestDocuments(context echo.Context) err
 		documentsWithThumbnails[i] = DocumentWithThumbnail{Document: doc}
 
 		// Check if thumbnail exists and add URL
-		thumbnailPath := getThumbnailPath(doc.Path)
+		thumbnailPath := getThumbPath(doc.Path)
 		if _, err := os.Stat(thumbnailPath); err == nil {
 			documentsWithThumbnails[i].ThumbnailURL = "/api/document/" + doc.ULID.String() + "/thumbnail"
 		}
@@ -1051,16 +1060,17 @@ func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.D
 	for _, doc := range documents {
 		if doc.Path != "" {
 			dbPaths[doc.Path] = true
-			// Also mark companion/sidecar files as tracked
+			// Mark canonical sidecar files
+			dbPaths[getOCRPath(doc.Path)] = true
+			dbPaths[getThumbPath(doc.Path)] = true
+			dbPaths[getTagsPath(doc.Path)] = true
+			// Legacy sidecar paths (for transition)
 			dbPaths[doc.Path+".yaml"] = true
-			dbPaths[doc.Path+".txt"] = true
-			// Mark .tags.json sidecar file
 			ext := filepath.Ext(doc.Path)
 			basePath := doc.Path[:len(doc.Path)-len(ext)]
+			dbPaths[basePath+".txt"] = true
 			dbPaths[basePath+".tags.json"] = true
-			dbPaths[basePath+".txt"] = true // sidecar txt without extension
-			// Mark thumbnail file
-			dbPaths[getThumbnailPath(doc.Path)] = true
+			dbPaths[basePath+".tn_256.png"] = true
 		}
 	}
 
@@ -1079,33 +1089,32 @@ func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.D
 			return nil
 		}
 
-		// Skip thumbnail files
-		if strings.HasSuffix(path, ".tn_256.png") {
+		// Skip thumbnail files (legacy and canonical)
+		if isThumbnailFile(path) {
 			return nil
 		}
 
-		// Skip companion/sidecar files - they'll be handled with their main file
-		ext := filepath.Ext(path)
 		fileName := filepath.Base(path)
 
-		// Skip .tags.json files
+		// Skip canonical sidecar files
+		if strings.HasSuffix(fileName, ".ocr.txt") {
+			return nil
+		}
 		if strings.HasSuffix(fileName, ".tags.json") {
 			return nil
 		}
 
-		// Skip .yaml and .txt companion files
+		// Skip legacy companion files (.yaml, .txt)
+		ext := filepath.Ext(path)
 		if ext == ".yaml" || ext == ".txt" {
-			// Check if this is a companion file (base file + .yaml or .txt)
 			basePath := path[:len(path)-len(ext)]
 			if _, err := os.Stat(basePath); err == nil {
-				// This is a companion file, skip it for now
 				return nil
 			}
 		}
 
 		// Check if this file is in the database
 		if !dbPaths[path] {
-			// Check if it's a document file type we care about
 			if isProcessableDocument(path) {
 				Logger.Info("Found orphaned document", "path", path)
 				orphanedFiles = append(orphanedFiles, path)
@@ -1131,10 +1140,25 @@ var rootDocumentExtensions = []string{".pdf", ".rtf", ".doc", ".docx", ".odf", "
 func isProcessableDocument(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 
-	// Check root document types
+	// Check root document types (direct extension match)
 	for _, validExt := range rootDocumentExtensions {
 		if ext == validExt {
 			return true
+		}
+	}
+
+	// Canonical naming: "001234.orig.pdf" — filepath.Ext returns ".pdf",
+	// so the above check already matches. But for safety, also check for
+	// files where the base contains ".orig." to handle edge cases.
+	base := filepath.Base(path)
+	if strings.Contains(base, ".orig.") {
+		// Extract the real extension past ".orig."
+		idx := strings.LastIndex(base, ".orig.")
+		realExt := strings.ToLower(base[idx+5:]) // skip ".orig"
+		for _, validExt := range rootDocumentExtensions {
+			if realExt == validExt {
+				return true
+			}
 		}
 	}
 
@@ -1171,38 +1195,58 @@ func (serverHandler *ServerHandler) cleanOrphanedSidecars() int {
 	documentPath := serverHandler.ServerConfig.DocumentPath
 	deletedCount := 0
 
-	// Sidecar patterns to check
-	sidecarSuffixes := []string{".txt", ".tags.json", ".tn_256.png"}
+	// Sidecar suffixes: canonical and legacy
+	type sidecarPattern struct {
+		suffix    string
+		stripLen  int  // how many bytes to strip to get base path (0 = use filepath.Ext)
+		canonical bool // canonical sidecars use SidecarBasePath logic
+	}
+	patterns := []sidecarPattern{
+		// Canonical sidecars (*.ocr.txt, *.thumb.png, *.tags.json)
+		{".ocr.txt", len(".ocr.txt"), true},
+		{".thumb.png", len(".thumb.png"), true},
+		// Legacy sidecars
+		{".tn_256.png", len(".tn_256.png"), false},
+		{".tags.json", 0, false},
+		{".txt", 0, false},
+	}
 
 	err := filepath.Walk(documentPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Continue walking
-		}
-
-		// Skip directories
-		if info.IsDir() {
+		if err != nil || info.IsDir() {
 			return nil
 		}
 
-		// Check if this is a sidecar file
 		fileName := filepath.Base(path)
 
-		for _, suffix := range sidecarSuffixes {
-			if strings.HasSuffix(fileName, suffix) {
-				// This is a potential sidecar file
-				// Get the base path (without the sidecar suffix)
-				var basePath string
-				if suffix == ".txt" || suffix == ".tags.json" {
-					// For .txt and .tags.json, the base is the path without the extension
-					ext := filepath.Ext(path)
-					basePath = path[:len(path)-len(ext)]
-				} else if suffix == ".tn_256.png" {
-					// For thumbnails, remove .tn_256.png suffix
-					basePath = path[:len(path)-len(".tn_256.png")]
-				}
+		for _, p := range patterns {
+			if !strings.HasSuffix(fileName, p.suffix) {
+				continue
+			}
 
-				// Check if any root document exists
-				rootExists := false
+			// Compute base path for root document lookup
+			var basePath string
+			if p.canonical {
+				// Canonical sidecars: strip suffix to get "NNN" base, then look for "NNN.orig.*"
+				basePath = path[:len(path)-p.stripLen]
+			} else if p.stripLen > 0 {
+				basePath = path[:len(path)-p.stripLen]
+			} else {
+				ext := filepath.Ext(path)
+				basePath = path[:len(path)-len(ext)]
+			}
+
+			rootExists := false
+			if p.canonical {
+				// For canonical sidecars, check for *.orig.{ext} files
+				for _, rootExt := range rootDocumentExtensions {
+					rootPath := basePath + ".orig" + rootExt
+					if _, err := os.Stat(rootPath); err == nil {
+						rootExists = true
+						break
+					}
+				}
+			} else {
+				// Legacy: check for base + ext
 				for _, rootExt := range rootDocumentExtensions {
 					rootPath := basePath + rootExt
 					if _, err := os.Stat(rootPath); err == nil {
@@ -1210,18 +1254,17 @@ func (serverHandler *ServerHandler) cleanOrphanedSidecars() int {
 						break
 					}
 				}
-
-				// If no root document exists, this sidecar is orphaned
-				if !rootExists {
-					Logger.Info("Deleting orphaned sidecar file", "path", path)
-					if err := os.Remove(path); err != nil {
-						Logger.Error("Failed to delete orphaned sidecar", "path", path, "error", err)
-					} else {
-						deletedCount++
-					}
-				}
-				break // Don't check other suffixes for this file
 			}
+
+			if !rootExists {
+				Logger.Info("Deleting orphaned sidecar file", "path", path)
+				if err := os.Remove(path); err != nil {
+					Logger.Error("Failed to delete orphaned sidecar", "path", path, "error", err)
+				} else {
+					deletedCount++
+				}
+			}
+			break
 		}
 
 		return nil
@@ -1394,7 +1437,7 @@ func (serverHandler *ServerHandler) UpdateDocumentMetadata(c echo.Context) error
 	// Generate thumbnail if missing
 	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
 	if err == nil && doc != nil && thumbnailSupported(doc.Path) {
-		tnPath := getThumbnailPath(doc.Path)
+		tnPath := getThumbPath(doc.Path)
 		if _, err := os.Stat(tnPath); os.IsNotExist(err) {
 			if err := saveThumbnailFile(doc.Path); err != nil {
 				Logger.Warn("Failed to generate thumbnail on metadata import", "ulid", ulidStr, "error", err)
@@ -1425,4 +1468,82 @@ func (serverHandler *ServerHandler) UpdateDocumentDate(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
+}
+
+// UpdateDocumentOCR sets the OCR/extracted text for a document.
+// Writes the .ocr.txt sidecar file on disk and updates the database full_text field.
+// External tools should use this endpoint instead of writing sidecar files directly.
+//
+// @Summary Set document OCR text
+// @Description Set or replace the extracted text for a document. Writes the sidecar file and updates search index.
+// @Tags Documents
+// @Accept json
+// @Produce json
+// @Param id path string true "Document ULID"
+// @Param body body object true "OCR text" example({"text":"extracted text content"})
+// @Success 200 {object} map[string]string "Text updated"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 404 {object} map[string]string "Document not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /api/document/{id}/ocr [put]
+func (serverHandler *ServerHandler) UpdateDocumentOCR(c echo.Context) error {
+	ulidStr := c.Param("id")
+	var req struct {
+		Text string `json:"text"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	// Look up document
+	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
+	if err != nil || doc == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "document not found"})
+	}
+
+	// Verify the document file exists on disk
+	if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "document file not found on disk"})
+	}
+
+	// Write .ocr.txt sidecar file
+	ocrPath := getOCRPath(doc.Path)
+	if err := os.MkdirAll(filepath.Dir(ocrPath), 0755); err != nil {
+		Logger.Error("Failed to create directory for OCR sidecar", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write OCR file"})
+	}
+	if err := os.WriteFile(ocrPath, []byte(req.Text), 0644); err != nil {
+		Logger.Error("Failed to write OCR sidecar", "path", ocrPath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write OCR file"})
+	}
+
+	// Update database full_text field (also updates search index via trigger)
+	if err := serverHandler.DB.UpdateDocumentFullText(ulidStr, req.Text); err != nil {
+		Logger.Error("UpdateDocumentOCR: failed to update DB", "ulid", ulidStr, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	Logger.Info("OCR text updated via API", "ulid", ulidStr, "textLength", len(req.Text))
+	return c.JSON(http.StatusOK, map[string]string{
+		"status":  "updated",
+		"ocrPath": ocrPath,
+	})
+}
+
+// isSidecarFilename returns true if the filename looks like a sidecar file
+// that should not be uploaded as a standalone document.
+func isSidecarFilename(filename string) bool {
+	if strings.HasSuffix(filename, ".ocr.txt") {
+		return true
+	}
+	if strings.HasSuffix(filename, ".thumb.png") {
+		return true
+	}
+	if strings.HasSuffix(filename, ".tags.json") {
+		return true
+	}
+	if strings.HasSuffix(filename, ".tn_256.png") {
+		return true
+	}
+	return false
 }

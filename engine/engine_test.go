@@ -378,6 +378,21 @@ func TestShouldSkipFileForIngestion(t *testing.T) {
 			filePath: "/path/to/photo.jpg",
 			want:     false,
 		},
+		{
+			name:     "Canonical OCR sidecar should be skipped",
+			filePath: "/path/to/001234.ocr.txt",
+			want:     true,
+		},
+		{
+			name:     "Canonical tags sidecar should be skipped",
+			filePath: "/path/to/001234.tags.json",
+			want:     true,
+		},
+		{
+			name:     "Canonical thumbnail should be skipped",
+			filePath: "/path/to/001234.thumb.png",
+			want:     true,
+		},
 	}
 
 	for _, tt := range tests {

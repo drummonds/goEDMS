@@ -177,12 +177,11 @@ func testIngressWithSidecars(t *testing.T) {
 		t.Errorf("Expected 4 documents, got %d", len(docs))
 	}
 
-	// Verify sidecar .txt files exist alongside documents (nested paths)
-	t.Log("Verifying sidecar .txt files exist...")
+	// Verify OCR sidecar files exist alongside documents (nested paths)
+	t.Log("Verifying OCR sidecar files exist...")
 
 	for _, doc := range docs {
-		ext := filepath.Ext(doc.Path)
-		sidecarPath := doc.Path[:len(doc.Path)-len(ext)] + ".txt"
+		sidecarPath := engine.SidecarBasePath(doc.Path) + ".ocr.txt"
 		if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
 			t.Errorf("Sidecar file not found: %s", sidecarPath)
 		} else {
@@ -245,11 +244,11 @@ func testCleanRegeneratesSidecars(t *testing.T) {
 	}
 	docs := *docsPtr
 
-	// Delete sidecar .txt files using actual document paths
-	t.Log("Deleting sidecar .txt files...")
+	// Delete OCR sidecar files using actual document paths
+	t.Log("Deleting OCR sidecar files...")
 	deletedCount := 0
 	for _, doc := range docs {
-		sidecarPath := doc.Path[:len(doc.Path)-len(filepath.Ext(doc.Path))] + ".txt"
+		sidecarPath := engine.SidecarBasePath(doc.Path) + ".ocr.txt"
 		if err := os.Remove(sidecarPath); err == nil {
 			deletedCount++
 			t.Logf("Deleted: %s", sidecarPath)
@@ -269,7 +268,7 @@ func testCleanRegeneratesSidecars(t *testing.T) {
 	recreated := 0
 	for _, doc := range docs {
 		if doc.FullText != "" {
-			sidecarPath := doc.Path[:len(doc.Path)-len(filepath.Ext(doc.Path))] + ".txt"
+			sidecarPath := engine.SidecarBasePath(doc.Path) + ".ocr.txt"
 			if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
 				if err := os.WriteFile(sidecarPath, []byte(doc.FullText), 0644); err != nil {
 					t.Errorf("Failed to recreate sidecar: %v", err)
@@ -358,8 +357,8 @@ func testIngressPDFsOnly(t *testing.T) {
 		}
 	}
 
-	// Verify sidecar .txt files were created alongside documents (nested paths)
-	t.Log("Verifying sidecar .txt files were created...")
+	// Verify OCR sidecar files were created alongside documents (nested paths)
+	t.Log("Verifying OCR sidecar files were created...")
 
 	docsPtr, err := database.FetchAllDocuments(db)
 	if err != nil {
@@ -371,8 +370,7 @@ func testIngressPDFsOnly(t *testing.T) {
 
 	sidecarCount := 0
 	for _, doc := range *docsPtr {
-		ext := filepath.Ext(doc.Path)
-		sidecarPath := doc.Path[:len(doc.Path)-len(ext)] + ".txt"
+		sidecarPath := engine.SidecarBasePath(doc.Path) + ".ocr.txt"
 		if _, err := os.Stat(sidecarPath); err == nil {
 			sidecarCount++
 			t.Logf("  - %s", sidecarPath)
@@ -387,8 +385,7 @@ func testIngressPDFsOnly(t *testing.T) {
 
 	// Verify the content of at least one sidecar file
 	for _, doc := range *docsPtr {
-		ext := filepath.Ext(doc.Path)
-		sidecarPath := doc.Path[:len(doc.Path)-len(ext)] + ".txt"
+		sidecarPath := engine.SidecarBasePath(doc.Path) + ".ocr.txt"
 		content, err := os.ReadFile(sidecarPath)
 		if err != nil {
 			continue // skip docs without sidecars (e.g. empty PDFs)

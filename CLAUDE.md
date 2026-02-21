@@ -22,32 +22,34 @@ static/            # Served static files (Swagger UI)
 
 ## Document File Structure
 
-Each document in the system consists of a root file and optional companion files:
+Each document uses canonical naming based on the DB auto-increment ID:
 
 ```
-document.pdf           # Root document (primary file)
-document.txt           # Sidecar: extracted text content (optional)
-document.tn_256.png    # Sidecar: thumbnail image (optional, for PDFs)
-document.tags.json     # Sidecar: metadata including tags (optional)
+L/00/12/34/001234.orig.pdf     # Original document
+L/00/12/34/001234.ocr.txt      # OCR/extracted text (optional)
+L/00/12/34/001234.thumb.png    # Thumbnail image (optional)
+L/00/12/34/001234.tags.json    # Tags metadata (optional)
 ```
 
 **Rules:**
 
 - Root documents: `.pdf`, `.jpg`, `.jpeg`, `.png`, `.tiff`, `.doc`, `.docx`, `.odf`, `.rtf`, `.text`
-- `.txt` is ONLY a root document if no other source file exists with the same base name
-- Use `.text` extension for primary text files to avoid ambiguity with sidecar `.txt` files
-- `.txt` as sidecar: contains extracted/OCR'd text from the root document
-- `.tn_256.png`: uniform thumbnail generated from first page with page-count watermark
+- ID padding matches tier: 6-digit (L), 8-digit (K), 10-digit (J)
+- DB `Name` field preserves the original filename for display
+- `.orig.` unambiguously marks the primary document
+- `.ocr.txt`: extracted/OCR text sidecar
+- `.thumb.png`: uniform thumbnail generated from first page
 - `.tags.json`: JSON file with tags and metadata
+- See `docs/internal/file-naming.md` for full details
 
 **Clean Database behavior:**
 
 - Removes DB entries for files that no longer exist on disk
 - Rescans orphaned files (on disk but not in DB) in-place
 - Skips duplicate files by hash (first occurrence wins)
-- Regenerates missing sidecar `.txt` files from DB
-- Generates missing thumbnails for PDFs
-- Skips `.txt` files that are sidecars (have a corresponding root document)
+- Regenerates missing `.ocr.txt` sidecar files from DB
+- Generates missing thumbnails for supported types
+- Migrates legacy file naming to canonical naming
 - Deletes orphaned sidecar files (sidecars without a root document)
 
 ## Common Tasks
@@ -70,32 +72,14 @@ document.tags.json     # Sidecar: metadata including tags (optional)
 
 ## Import API Workflow
 
-External tools (e.g. Evernote importer) can upload documents and enrich them with metadata:
+See `docs/internal/agents.md` for full external agent/uploader instructions.
 
-```bash
-# 1. Upload the document file
-curl -X POST http://localhost:8000/api/document/upload \
-  -F "file=@document.pdf"
-
-# 2. Look up the document by its MD5 hash to get the ULID
-HASH=$(md5sum document.pdf | cut -d' ' -f1)
-curl http://localhost:8000/api/document/lookup?hash=$HASH
-# Returns: {"ulid":"01J...", "name":"document.pdf", ...}
-
-# 3. Set import metadata (all fields optional)
-curl -X PUT http://localhost:8000/api/document/$ULID/metadata \
-  -H 'Content-Type: application/json' \
-  -d '{"author":"John","source":"evernote","source_url":"https://...","created_date":"2024-03-15T10:30:00Z"}'
-# Also generates a thumbnail if missing
-
-# 4. Add tags
-curl -X POST http://localhost:8000/api/documents/$ULID/tags \
-  -H 'Content-Type: application/json' \
-  -d '{"tag_id": 5}'
-```
+Key flow: upload → lookup by hash → set OCR text → set metadata → add tags.
 
 Key endpoints:
-- `GET /api/document/lookup?hash=<md5>` — find document by file hash (returns full document JSON)
+- `POST /api/document/upload` — upload a document (rejects sidecar files)
+- `GET /api/document/lookup?hash=<md5>` — find document by file hash
+- `PUT /api/document/:id/ocr` — set OCR text (writes sidecar + updates DB + search index)
 - `PUT /api/document/:id/metadata` — set import metadata + auto-generate thumbnail
 - `POST /api/documents/:ulid/tags` — add a tag to a document
 - `GET /api/tags` — list all tags (to find tag IDs)
@@ -104,3 +88,5 @@ Key endpoints:
 - `.claude/rules.md` - Detailed coding guidelines and review modes
 - `ARCHITECTURE.md` - System design
 - `DATABASE_README.md` - Schema details
+- `docs/internal/agents.md` - External uploader agent instructions
+- `docs/internal/file-naming.md` - Canonical file naming convention

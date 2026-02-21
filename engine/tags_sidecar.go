@@ -10,18 +10,10 @@ import (
 	"github.com/drummonds/godocs/database"
 )
 
-// getTagsSidecarPath returns the path to the tags sidecar file for a document
-// For example: /path/to/document.pdf -> /path/to/document.tags.json
-func getTagsSidecarPath(docPath string) string {
-	ext := filepath.Ext(docPath)
-	basePath := docPath[:len(docPath)-len(ext)]
-	return basePath + ".tags.json"
-}
-
 // readTagsSidecar reads tags and dimensions from a sidecar JSON file
 // Returns the tags/dimensions struct and an error if the file doesn't exist or is invalid
 func readTagsSidecar(docPath string) (*database.DocumentTagsAndDimensions, error) {
-	sidecarPath := getTagsSidecarPath(docPath)
+	sidecarPath := getTagsPath(docPath)
 
 	// Check if sidecar file exists
 	if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
@@ -58,7 +50,7 @@ func readTagsSidecar(docPath string) (*database.DocumentTagsAndDimensions, error
 
 // writeTagsSidecar writes tags and dimensions to a sidecar JSON file
 func writeTagsSidecar(docPath string, tagData *database.DocumentTagsAndDimensions) error {
-	sidecarPath := getTagsSidecarPath(docPath)
+	sidecarPath := getTagsPath(docPath)
 
 	// Create directory if needed
 	if err := os.MkdirAll(filepath.Dir(sidecarPath), 0755); err != nil {

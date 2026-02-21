@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -178,6 +177,7 @@ func main() {
 	e.GET("/api/document/:id/text", serverHandler.GetDocumentText)
 	e.POST("/api/document/:id/thumbnail/regenerate", serverHandler.RegenerateThumbnail)
 	e.PUT("/api/document/:id/text", serverHandler.UpdateDocumentText)
+	e.PUT("/api/document/:id/ocr", serverHandler.UpdateDocumentOCR)
 	e.PUT("/api/document/:id/date", serverHandler.UpdateDocumentDate)
 	e.PUT("/api/document/:id/metadata", serverHandler.UpdateDocumentMetadata)
 	e.DELETE("/api/document/*", serverHandler.DeleteFile)
@@ -311,11 +311,7 @@ func main() {
 
 // checkThumbnailFS checks if a thumbnail file exists on the filesystem
 func checkThumbnailFS(docPath string) bool {
-	ext := filepath.Ext(docPath)
-	if ext == "" {
-		return false
-	}
-	thumbnailPath := docPath[:len(docPath)-len(ext)] + ".tn_256.png"
+	thumbnailPath := engine.SidecarBasePath(docPath) + ".thumb.png"
 	_, err := os.Stat(thumbnailPath)
 	return err == nil
 }

@@ -10,9 +10,14 @@ import (
 // thumbnailSupportedExtensions lists file extensions that the go-thumbnails library can handle
 var thumbnailSupportedExtensions = []string{".pdf", ".tif", ".tiff", ".jpg", ".jpeg", ".png"}
 
-// isThumbnailFile returns true if the file is itself a thumbnail (matches *.tn_N*.png pattern)
+// isThumbnailFile returns true if the file is itself a thumbnail
+// Detects both legacy (*.tn_N*.png) and canonical (*.thumb.png) patterns.
 func isThumbnailFile(path string) bool {
-	return strings.Contains(filepath.Base(path), ".tn_") && strings.HasSuffix(path, ".png")
+	base := filepath.Base(path)
+	if strings.HasSuffix(base, ".thumb.png") {
+		return true
+	}
+	return strings.Contains(base, ".tn_") && strings.HasSuffix(path, ".png")
 }
 
 // thumbnailSupported returns true if the file extension is supported for thumbnail generation
@@ -29,14 +34,8 @@ func thumbnailSupported(path string) bool {
 	return false
 }
 
-// getThumbnailPath returns the path to the thumbnail file for a document
-func getThumbnailPath(docPath string) string {
-	ext := filepath.Ext(docPath)
-	return docPath[:len(docPath)-len(ext)] + ".tn_256.png"
-}
-
 // saveThumbnailFile generates and saves a thumbnail for a document
 func saveThumbnailFile(docPath string) error {
-	outputPath := getThumbnailPath(docPath)
+	outputPath := getThumbPath(docPath)
 	return thumbnails.GenerateStyledAndSave(docPath, outputPath, 256, thumbnails.StyleUniform)
 }

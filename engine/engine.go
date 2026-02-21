@@ -23,28 +23,32 @@ import (
 )
 
 // shouldSkipFileForIngestion checks if a file should be skipped during ingestion
-// Returns true for auxiliary files like thumbnails (.tn_256.png) and sidecar text files
+// Returns true for auxiliary/sidecar files (thumbnails, OCR text, tags metadata)
 func shouldSkipFileForIngestion(filePath string) bool {
 	fileName := filepath.Base(filePath)
 
-	// Skip thumbnail files (e.g., document.tn_256.png)
+	// Skip thumbnail files (legacy *.tn_*.png and canonical *.thumb.png)
 	if isThumbnailFile(filePath) {
 		return true
 	}
 
-	// Skip sidecar .txt files - these are handled separately during ingestion
-	// Only skip if the corresponding main document exists
+	// Skip canonical sidecar files: *.ocr.txt, *.tags.json
+	if strings.HasSuffix(fileName, ".ocr.txt") {
+		return true
+	}
+	if strings.HasSuffix(fileName, ".tags.json") {
+		return true
+	}
+
+	// Skip legacy sidecar .txt files if a corresponding main document exists
 	if strings.HasSuffix(fileName, ".txt") {
-		// Check if this is a sidecar file by looking for a corresponding document
 		baseName := fileName[:len(fileName)-4] // Remove .txt extension
 		dir := filepath.Dir(filePath)
 
-		// Common document extensions that might have sidecar files
 		commonExts := []string{".pdf", ".jpg", ".jpeg", ".png", ".tiff"}
 		for _, ext := range commonExts {
 			possibleDoc := filepath.Join(dir, baseName+ext)
 			if _, err := os.Stat(possibleDoc); err == nil {
-				// Found corresponding document, this is a sidecar file
 				return true
 			}
 		}
@@ -262,6 +266,22 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		}
 	}
 
+	// Step 1a: Purge incomplete ingestions (DB entries with __temp__ paths)
+	tempPurged := 0
+	for _, doc := range documents {
+		if strings.HasPrefix(doc.Path, "__temp__/") || strings.HasPrefix(doc.Folder, "__temp__/") {
+			Logger.Info("Purging incomplete ingestion entry", "path", doc.Path, "id", doc.ID)
+			if err := database.DeleteDocument(doc.ULID.String(), db); err != nil {
+				Logger.Error("Failed to purge temp entry", "error", err, "id", doc.ID)
+			} else {
+				tempPurged++
+			}
+		}
+	}
+	if tempPurged > 0 {
+		Logger.Info("Purged incomplete ingestion entries", "count", tempPurged)
+	}
+
 	// Step 1b: Restore tag aliases from config (so old .tags.json names resolve during rescan)
 	db.UpdateJobProgress(jobID, 55, "Restoring tag aliases from config")
 	if err := ApplyTagAliasesFromConfig(serverHandler.ServerConfig.ConfigPath, db); err != nil {
@@ -327,12 +347,12 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 			}
 
 			// Check if sidecar .txt file exists
-			sidecarPath := getSidecarTxtPath(doc.Path)
+			sidecarPath := getOCRPath(doc.Path)
 			if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
 				// Sidecar doesn't exist but document has text in database
 				if doc.FullText != "" {
 					Logger.Info("Recreating missing sidecar .txt file", "document", doc.Path, "sidecar", sidecarPath)
-					if err := saveSidecarTxtFile(doc.Path, doc.FullText); err != nil {
+					if err := saveOCRFile(doc.Path, doc.FullText); err != nil {
 						Logger.Error("Failed to recreate sidecar .txt file", "document", doc.Path, "error", err)
 					} else {
 						sidecarCount++
@@ -375,7 +395,7 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		thumbnailsChecked++
 
 		// Check if thumbnail exists - only generate if missing
-		thumbnailPath := getThumbnailPath(doc.Path)
+		thumbnailPath := getThumbPath(doc.Path)
 		if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
 			// Thumbnail doesn't exist, generate it
 			Logger.Info("Generating missing thumbnail", "document", doc.Path, "thumbnail", thumbnailPath)
@@ -402,36 +422,36 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	orphanedSidecarsDeleted = serverHandler.cleanOrphanedSidecars()
 	Logger.Info("Orphaned sidecar cleanup complete", "deleted", orphanedSidecarsDeleted)
 
-	// Step 6: Migrate flat documents to nested directory structure
-	db.UpdateJobProgress(jobID, 83, "Migrating documents to nested paths")
+	// Step 6: Migrate documents to canonical naming (nested path + ID-based filenames)
+	db.UpdateJobProgress(jobID, 83, "Migrating documents to canonical naming")
 	nestedMigratedCount := 0
-	Logger.Info("Checking for documents needing nested path migration")
+	Logger.Info("Checking for documents needing canonical naming migration")
 	// Re-fetch documents (some may have been rescanned/deleted above)
 	freshDocsPtr, err := database.FetchAllDocuments(db)
 	if err == nil && freshDocsPtr != nil {
 		documentRoot := serverHandler.ServerConfig.DocumentPath
 		for _, doc := range *freshDocsPtr {
-			expectedPath, expectedFolder := ComputeNestedPath(doc.ID, doc.Name, documentRoot)
+			expectedPath, expectedFolder := ComputeNestedPath(doc.ID, doc.DocumentType, documentRoot)
 			if doc.Path == expectedPath {
 				continue
 			}
-			// File exists at old location — move it
+			// File exists at old location — migrate it
 			if _, statErr := os.Stat(doc.Path); statErr != nil {
 				continue // file doesn't exist, nothing to move
 			}
-			if err := moveFileAndSidecars(doc.Path, expectedPath); err != nil {
-				Logger.Error("Failed to migrate document to nested path", "id", doc.ID, "from", doc.Path, "to", expectedPath, "error", err)
+			if err := migrateToCanonicalNaming(doc, expectedPath); err != nil {
+				Logger.Error("Failed to migrate document to canonical naming", "id", doc.ID, "from", doc.Path, "to", expectedPath, "error", err)
 				continue
 			}
 			if err := db.UpdateDocumentPath(doc.ULID.String(), expectedPath, expectedFolder); err != nil {
-				Logger.Error("Failed to update DB after nested migration", "id", doc.ID, "error", err)
+				Logger.Error("Failed to update DB after canonical migration", "id", doc.ID, "error", err)
 				continue
 			}
 			nestedMigratedCount++
-			Logger.Info("Migrated document to nested path", "id", doc.ID, "from", doc.Path, "to", expectedPath)
+			Logger.Info("Migrated document to canonical naming", "id", doc.ID, "from", doc.Path, "to", expectedPath)
 		}
 	}
-	Logger.Info("Nested path migration complete", "migrated", nestedMigratedCount)
+	Logger.Info("Canonical naming migration complete", "migrated", nestedMigratedCount)
 
 	// Step 7: Migrate stormid to id in .tags.json files (legacy cleanup)
 	db.UpdateJobProgress(jobID, 87, "Migrating legacy JSON fields")
@@ -441,19 +461,157 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	Logger.Info("JSON field migration complete", "migrated", jsonMigratedCount)
 
 	// Step 8: Recalculate word cloud
-	db.UpdateJobProgress(jobID, 92, "Recalculating word cloud")
+	db.UpdateJobProgress(jobID, 90, "Recalculating word cloud")
 	Logger.Info("Recalculating word cloud after database cleanup")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
 		Logger.Error("Word cloud recalculation failed after cleanup", "error", err)
 	}
 
+	// Step 9: Clean ingress folder — remove files that have already been ingested
+	db.UpdateJobProgress(jobID, 93, "Cleaning ingress folder")
+	ingressCleaned := 0
+	ingressPath := serverHandler.ServerConfig.IngressPath
+	Logger.Info("Checking ingress folder for already-ingested files", "path", ingressPath)
+	if ingressPath != "" {
+		ingressCleaned = serverHandler.cleanIngressFolder(db)
+		deleteEmptyIngressFolders(ingressPath)
+	}
+	Logger.Info("Ingress cleanup complete", "deleted", ingressCleaned)
+
 	// Complete the job
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "nestedMigrated": %d, "jsonFilesMigrated": %d}`, totalDocs, deletedCount, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, nestedMigratedCount, jsonMigratedCount)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "tempPurged": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "nestedMigrated": %d, "jsonFilesMigrated": %d, "ingressCleaned": %d}`, totalDocs, deletedCount, tempPurged, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, nestedMigratedCount, jsonMigratedCount, ingressCleaned)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
 
-	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted, "nestedMigrated", nestedMigratedCount, "jsonFilesMigrated", jsonMigratedCount)
+	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "tempPurged", tempPurged, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted, "nestedMigrated", nestedMigratedCount, "jsonFilesMigrated", jsonMigratedCount, "ingressCleaned", ingressCleaned)
+}
+
+// migrateToCanonicalNaming moves a document file to its canonical path and renames
+// legacy sidecars to canonical names. Uses rename with copy+delete fallback.
+func migrateToCanonicalNaming(doc database.Document, newDocPath string) error {
+	if err := os.MkdirAll(filepath.Dir(newDocPath), os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Move main file
+	if err := renameWithFallback(doc.Path, newDocPath); err != nil {
+		return fmt.Errorf("failed to move main file: %w", err)
+	}
+
+	// Compute old base path (strip extension from old path)
+	oldExt := filepath.Ext(doc.Path)
+	oldBase := doc.Path[:len(doc.Path)-len(oldExt)]
+
+	// Compute new sidecar base from canonical path
+	newBase := SidecarBasePath(newDocPath)
+
+	// Legacy sidecar → canonical sidecar mapping
+	sidecarMappings := []struct {
+		oldPath string
+		newPath string
+	}{
+		{oldBase + ".txt", newBase + ".ocr.txt"},
+		{oldBase + ".tn_256.png", newBase + ".thumb.png"},
+		{oldBase + ".tags.json", newBase + ".tags.json"},
+	}
+
+	for _, m := range sidecarMappings {
+		if _, err := os.Stat(m.oldPath); err == nil {
+			if err := renameWithFallback(m.oldPath, m.newPath); err != nil {
+				Logger.Warn("Failed to migrate sidecar", "from", m.oldPath, "to", m.newPath, "error", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// renameWithFallback tries os.Rename, falling back to copy+delete for cross-device moves.
+func renameWithFallback(src, dst string) error {
+	if err := os.Rename(src, dst); err != nil {
+		data, err2 := os.ReadFile(src)
+		if err2 != nil {
+			return fmt.Errorf("failed to read source: %w", err2)
+		}
+		if err2 := os.WriteFile(dst, data, os.ModePerm); err2 != nil {
+			return fmt.Errorf("failed to write destination: %w", err2)
+		}
+		os.Remove(src)
+	}
+	return nil
+}
+
+// cleanIngressFolder walks the ingress folder and deletes files that have already
+// been ingested (verified by matching file hash against the database).
+// Also deletes sidecar files (.txt, .tags.json) whose companion document has been ingested.
+// Returns the number of files deleted.
+func (serverHandler *ServerHandler) cleanIngressFolder(db database.Repository) int {
+	ingressPath := serverHandler.ServerConfig.IngressPath
+	deletedCount := 0
+
+	err := filepath.Walk(ingressPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+
+		// Skip sidecar/auxiliary files on first pass — they'll be cleaned
+		// if their companion document is gone
+		if shouldSkipFileForIngestion(path) {
+			return nil
+		}
+
+		// Calculate hash and check if already in DB
+		fileHash, err := calculateFileHash(path)
+		if err != nil {
+			Logger.Warn("Failed to hash ingress file", "path", path, "error", err)
+			return nil
+		}
+
+		doc, err := db.GetDocumentByHash(fileHash)
+		if err != nil || doc == nil {
+			// Not in DB — leave it for future ingestion
+			return nil
+		}
+
+		// Verify the ingested file actually exists on disk
+		if _, statErr := os.Stat(doc.Path); statErr != nil {
+			Logger.Info("Ingress file matches DB hash but document file missing, leaving for re-ingestion",
+				"ingress", path, "dbPath", doc.Path)
+			return nil
+		}
+
+		// Already ingested — safe to delete from ingress
+		Logger.Info("Deleting already-ingested file from ingress", "path", path, "hash", fileHash, "dbDoc", doc.Path)
+		if err := os.Remove(path); err != nil {
+			Logger.Error("Failed to delete ingress file", "path", path, "error", err)
+		} else {
+			deletedCount++
+		}
+
+		// Also delete companion sidecar files in ingress
+		ext := filepath.Ext(path)
+		basePath := path[:len(path)-len(ext)]
+		for _, suffix := range []string{".txt", ".tags.json"} {
+			sidecarPath := basePath + suffix
+			if _, err := os.Stat(sidecarPath); err == nil {
+				Logger.Info("Deleting ingress sidecar for ingested document", "path", sidecarPath)
+				if err := os.Remove(sidecarPath); err != nil {
+					Logger.Error("Failed to delete ingress sidecar", "path", sidecarPath, "error", err)
+				} else {
+					deletedCount++
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		Logger.Error("Error walking ingress folder for cleanup", "error", err)
+	}
+
+	return deletedCount
 }
 
 // ingressDocumentWithError is like ingressDocument but returns errors instead of just logging

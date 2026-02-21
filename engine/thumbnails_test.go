@@ -32,7 +32,7 @@ func TestThumbnailGeneration(t *testing.T) {
 				t.Fatalf("Failed to generate thumbnail: %v", err)
 			}
 
-			thumbnailPath := getThumbnailPath(tc.file)
+			thumbnailPath := getThumbPath(tc.file)
 			if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
 				t.Errorf("Thumbnail was not created: %s", thumbnailPath)
 			} else {
@@ -45,21 +45,21 @@ func TestThumbnailGeneration(t *testing.T) {
 	}
 }
 
-func TestGetThumbnailPath(t *testing.T) {
+func TestGetThumbPath(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
 	}{
-		{"/path/to/document.pdf", "/path/to/document.tn_256.png"},
-		{"/path/to/file.PDF", "/path/to/file.tn_256.png"},
-		{"document.pdf", "document.tn_256.png"},
-		{"/nested/path/invoice.pdf", "/nested/path/invoice.tn_256.png"},
+		{"/path/to/001234.orig.pdf", "/path/to/001234.thumb.png"},
+		{"/path/to/000042.orig.PDF", "/path/to/000042.thumb.png"},
+		{"001234.orig.pdf", "001234.thumb.png"},
+		{"/nested/path/001234.orig.pdf", "/nested/path/001234.thumb.png"},
 	}
 
 	for _, tt := range tests {
-		result := getThumbnailPath(tt.input)
+		result := getThumbPath(tt.input)
 		if result != tt.expected {
-			t.Errorf("getThumbnailPath(%q) = %q, want %q", tt.input, result, tt.expected)
+			t.Errorf("getThumbPath(%q) = %q, want %q", tt.input, result, tt.expected)
 		}
 	}
 }
@@ -80,11 +80,14 @@ func TestThumbnailSupported(t *testing.T) {
 		{"document.docx", false},
 		{"document.txt", false},
 		{"document.rtf", false},
-		// Thumbnail files should not be considered supported
+		// Legacy thumbnail files should not be considered supported
 		{"document.tn_256.png", false},
 		{"/path/to/document.tn_256.png", false},
 		{"photo.tn_128.png", false},
 		{"scan.tn_512.png", false},
+		// Canonical thumbnail files should not be considered supported
+		{"001234.thumb.png", false},
+		{"/path/to/001234.thumb.png", false},
 	}
 
 	for _, tt := range tests {
@@ -100,10 +103,15 @@ func TestIsThumbnailFile(t *testing.T) {
 		path     string
 		expected bool
 	}{
+		// Legacy patterns
 		{"document.tn_256.png", true},
 		{"/path/to/document.tn_256.png", true},
 		{"photo.tn_128.png", true},
 		{"scan.tn_512.png", true},
+		// Canonical patterns
+		{"001234.thumb.png", true},
+		{"/path/to/001234.thumb.png", true},
+		// Non-thumbnails
 		{"document.pdf", false},
 		{"photo.png", false},
 		{"file.tn_256.jpg", false}, // wrong extension

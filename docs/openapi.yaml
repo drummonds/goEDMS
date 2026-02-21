@@ -410,6 +410,54 @@ paths:
       summary: Get all dimensions
       tags:
       - Dimensions
+  /api/document/{id}/ocr:
+    put:
+      consumes:
+      - application/json
+      description: Set or replace the extracted text for a document. Writes the sidecar
+        file and updates search index.
+      parameters:
+      - description: Document ULID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: OCR text
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Text updated
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Document not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Set document OCR text
+      tags:
+      - Documents
   /api/document/{id}/status:
     get:
       consumes:
