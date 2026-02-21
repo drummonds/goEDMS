@@ -50,6 +50,24 @@
             </form>
         </div>
 
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Rotate Document</h2>
+            <div class="buttons">
+                <form method="POST" action="/document/{{ doc.ULID }}/rotate" style="display:inline;">
+                    <input type="hidden" name="degrees" value="90">
+                    <button type="submit" class="button is-small">90° CW</button>
+                </form>
+                <form method="POST" action="/document/{{ doc.ULID }}/rotate" style="display:inline;">
+                    <input type="hidden" name="degrees" value="180">
+                    <button type="submit" class="button is-small">180°</button>
+                </form>
+                <form method="POST" action="/document/{{ doc.ULID }}/rotate" style="display:inline;">
+                    <input type="hidden" name="degrees" value="270">
+                    <button type="submit" class="button is-small">270° CW</button>
+                </form>
+            </div>
+        </div>
+
         {% if doc.Author or doc.Source or doc.SourceURL or created_date or updated_date %}
         <div class="mb-5">
             <h2 class="subtitle is-5">Import Metadata</h2>

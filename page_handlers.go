@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drummonds/godocs/database"
+	"github.com/drummonds/godocs/engine"
 	"github.com/drummonds/godocs/internal/build"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
@@ -375,6 +376,59 @@ func HandleDocumentRemoveTag(tr *TemplateRenderer) echo.HandlerFunc {
 
 		if err := tr.db.RemoveTagFromDocument(document.ID, tagID); err != nil {
 			Logger.Error("Failed to remove tag from document", "docID", document.ID, "tagID", tagID, "error", err)
+		}
+
+		return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+	}
+}
+
+// HandleDocumentRotate handles rotating a document file in place
+func HandleDocumentRotate(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ulidStr := c.Param("ulid")
+
+		degreesStr := c.FormValue("degrees")
+		degrees, err := strconv.Atoi(degreesStr)
+		if err != nil || (degrees != 90 && degrees != 180 && degrees != 270) {
+			Logger.Error("Invalid rotation degrees", "degrees", degreesStr)
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+
+		document, _, err := database.FetchDocument(ulidStr, tr.db)
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/")
+		}
+
+		// Rotate the file
+		if err := engine.RotateDocumentFile(document.Path, degrees); err != nil {
+			Logger.Error("Document rotation failed", "ulid", ulidStr, "error", err)
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+
+		// Recalculate hash
+		newHash, err := engine.CalculateFileHash(document.Path)
+		if err != nil {
+			Logger.Error("Failed to recalculate hash after rotation", "error", err)
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
+		document.Hash = newHash
+		document.FullText = "" // Will be re-extracted via SaveDocument flow
+
+		// Save updated document
+		if err := tr.db.SaveDocument(&document); err != nil {
+			Logger.Error("Failed to save document after rotation", "error", err)
+		}
+
+		// Update full text
+		if err := tr.db.UpdateDocumentFullText(ulidStr, ""); err != nil {
+			Logger.Error("Failed to clear full text after rotation", "error", err)
+		}
+
+		// Regenerate thumbnail
+		if tr.checkThumbnail(document.Path) || engine.ThumbnailSupported(document.Path) {
+			if err := engine.SaveThumbnailFile(document.Path); err != nil {
+				Logger.Warn("Failed to regenerate thumbnail after rotation", "error", err)
+			}
 		}
 
 		return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")

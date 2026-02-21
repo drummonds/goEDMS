@@ -1547,3 +1547,84 @@ func isSidecarFilename(filename string) bool {
 	}
 	return false
 }
+
+// RotateDocument rotates a document file in place and regenerates derived data.
+// POST /api/document/:id/rotate
+// Body: {"degrees": 90}
+func (serverHandler *ServerHandler) RotateDocument(c echo.Context) error {
+	ulidStr := c.Param("id")
+	var req struct {
+		Degrees int `json:"degrees"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+	if req.Degrees != 90 && req.Degrees != 180 && req.Degrees != 270 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "degrees must be 90, 180, or 270"})
+	}
+
+	document, httpStatus, err := database.FetchDocument(ulidStr, serverHandler.DB)
+	if err != nil {
+		return c.JSON(httpStatus, map[string]string{"error": err.Error()})
+	}
+
+	if _, err := os.Stat(document.Path); os.IsNotExist(err) {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "document file not found on disk"})
+	}
+
+	// Rotate the file
+	if err := RotateDocumentFile(document.Path, req.Degrees); err != nil {
+		Logger.Error("RotateDocument failed", "ulid", ulidStr, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	// Recalculate hash
+	newHash, err := CalculateFileHash(document.Path)
+	if err != nil {
+		Logger.Error("Failed to recalculate hash after rotation", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to recalculate hash"})
+	}
+	document.Hash = newHash
+
+	// Re-extract text
+	fullText, err := serverHandler.extractText(document.Path)
+	if err != nil {
+		Logger.Warn("Text re-extraction failed after rotation, tagging as OCR Needed", "error", err)
+		fullText = ""
+		// Tag as "OCR Needed"
+		tagID, tagErr := ensureOCRNeededTag(serverHandler.DB)
+		if tagErr == nil {
+			serverHandler.DB.AddTagToDocument(document.ID, tagID)
+		}
+	}
+	document.FullText = fullText
+
+	// Save updated document (upserts on path - updates hash, full_text)
+	if err := serverHandler.DB.SaveDocument(&document); err != nil {
+		Logger.Error("Failed to save document after rotation", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update document"})
+	}
+
+	// Update sidecar .txt if enabled
+	if serverHandler.ServerConfig.UseSidecarTxt && fullText != "" {
+		if err := saveOCRFile(document.Path, fullText); err != nil {
+			Logger.Warn("Failed to update sidecar .txt after rotation", "error", err)
+		}
+	}
+
+	// Regenerate thumbnail
+	if thumbnailSupported(document.Path) {
+		if err := saveThumbnailFile(document.Path); err != nil {
+			Logger.Warn("Failed to regenerate thumbnail after rotation", "error", err)
+		}
+	}
+
+	Logger.Info("Document rotated", "ulid", ulidStr, "degrees", req.Degrees, "newHash", newHash)
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":  "rotated",
+		"degrees": req.Degrees,
+		"hash":    newHash,
+		"ulid":    ulidStr,
+	})
+}

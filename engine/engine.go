@@ -562,7 +562,7 @@ func (serverHandler *ServerHandler) cleanIngressFolder(db database.Repository) i
 		}
 
 		// Calculate hash and check if already in DB
-		fileHash, err := calculateFileHash(path)
+		fileHash, err := CalculateFileHash(path)
 		if err != nil {
 			Logger.Warn("Failed to hash ingress file", "path", path, "error", err)
 			return nil

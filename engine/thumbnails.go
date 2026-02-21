@@ -39,3 +39,9 @@ func saveThumbnailFile(docPath string) error {
 	outputPath := getThumbPath(docPath)
 	return thumbnails.GenerateStyledAndSave(docPath, outputPath, 256, thumbnails.StyleUniform)
 }
+
+// ThumbnailSupported is the exported version of thumbnailSupported.
+func ThumbnailSupported(path string) bool { return thumbnailSupported(path) }
+
+// SaveThumbnailFile is the exported version of saveThumbnailFile.
+func SaveThumbnailFile(docPath string) error { return saveThumbnailFile(docPath) }

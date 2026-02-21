@@ -197,13 +197,13 @@ tasks:
   demo:
     desc: Run app with pglike database and generated test documents
     cmds:
-      - go run cmd/testgen/main.go
+      - go run cmd/testgen/main.go 
       - >-
         DATABASE_TYPE=pglike
         DATABASE_NAME=testdocs/demo.db
         DOCUMENT_PATH=testdocs
         LOG_OUTPUT=stdout
-        go run .
+        go run . -demo
 
   demo:clean:
     desc: Remove generated demo data

@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.46.0 2026-02-21
+
+-- Adding orientation feature
+
 ## 0.45.0 2026-02-21
 
 - Canonical file naming: documents on disk now use `{id}.orig.{ext}` with semantic sidecar suffixes

@@ -25,7 +25,7 @@ func (serverHandler *ServerHandler) IngestDocumentWithSteps(filePath string, db 
 	db.UpdateJobProgress(jobID, baseProgress, stepMsg)
 	Logger.Info("Step 1: Calculating hash", "filePath", filePath)
 
-	fileHash, err := calculateFileHash(filePath)
+	fileHash, err := CalculateFileHash(filePath)
 	if err != nil {
 		return fmt.Errorf("step 1 failed (hash calculation): %w", err)
 	}
@@ -99,8 +99,8 @@ func (serverHandler *ServerHandler) IngestDocumentWithSteps(filePath string, db 
 	return nil
 }
 
-// calculateFileHash computes MD5 hash of a file
-func calculateFileHash(filePath string) (string, error) {
+// CalculateFileHash computes MD5 hash of a file
+func CalculateFileHash(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", err
@@ -193,7 +193,7 @@ func (serverHandler *ServerHandler) moveAndVerifyFile(sourcePath, destPath, expe
 	}
 
 	// Verify hash of destination file
-	destHash, err := calculateFileHash(destPath)
+	destHash, err := CalculateFileHash(destPath)
 	if err != nil {
 		// Cleanup: remove the copied file
 		os.Remove(destPath)
@@ -409,7 +409,7 @@ func (serverHandler *ServerHandler) RescanOrphanedDocument(filePath string, db d
 
 	// Step 1: Calculate hash
 	Logger.Info("Rescan: Calculating hash", "filePath", filePath)
-	fileHash, err := calculateFileHash(filePath)
+	fileHash, err := CalculateFileHash(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to calculate hash: %w", err)
 	}

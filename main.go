@@ -4,10 +4,13 @@ package main
 
 import (
 	"embed"
+	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +45,9 @@ func injectGlobals(logger *slog.Logger) {
 }
 
 func main() {
+	demo := flag.Bool("demo", false, "auto-increment port if already in use")
+	flag.Parse()
+
 	serverConfig, logger := config.SetupServer()
 	injectGlobals(logger)
 
@@ -180,6 +186,7 @@ func main() {
 	e.PUT("/api/document/:id/ocr", serverHandler.UpdateDocumentOCR)
 	e.PUT("/api/document/:id/date", serverHandler.UpdateDocumentDate)
 	e.PUT("/api/document/:id/metadata", serverHandler.UpdateDocumentMetadata)
+	e.POST("/api/document/:id/rotate", serverHandler.RotateDocument)
 	e.DELETE("/api/document/*", serverHandler.DeleteFile)
 	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
 	e.POST("/api/document/upload", serverHandler.UploadDocuments)
@@ -251,6 +258,7 @@ func main() {
 	e.GET("/document/:ulid", HandleDocumentPage(tr))
 	e.GET("/document/:ulid/edit", HandleDocumentEditPage(tr))
 	e.POST("/document/:ulid/date", HandleDocumentUpdateDate(tr))
+	e.POST("/document/:ulid/rotate", HandleDocumentRotate(tr))
 	e.POST("/document/:ulid/tags", HandleDocumentAddTag(tr))
 	e.POST("/document/:ulid/tags/:tagId/remove", HandleDocumentRemoveTag(tr))
 	e.GET("/about", HandleAboutPage(tr))
@@ -290,6 +298,24 @@ func main() {
 	e.POST("/jobs/ingest", HandleTriggerIngest(tr))
 
 	// --- Start server ---
+	if *demo {
+		port, err := strconv.Atoi(serverConfig.ListenAddrPort)
+		if err != nil {
+			Logger.Error("Invalid port", "port", serverConfig.ListenAddrPort, "error", err)
+			os.Exit(1)
+		}
+		for i := range 50 {
+			addr := net.JoinHostPort(serverConfig.ListenAddrIP, strconv.Itoa(port+i))
+			ln, err := net.Listen("tcp", addr)
+			if err != nil {
+				continue
+			}
+			ln.Close()
+			serverConfig.ListenAddrPort = strconv.Itoa(port + i)
+			break
+		}
+	}
+
 	displayAddr := serverConfig.ListenAddrIP
 	if displayAddr == "" {
 		displayAddr = "localhost"
