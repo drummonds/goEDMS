@@ -88,6 +88,9 @@ tasks:
     desc: 'Release process eg task release VERSION=v0.22.1 COMMENT="fix jobs"'
     requires:
       vars: [VERSION, COMMENT]
+    preconditions:
+      - sh: echo "{{.VERSION}}" | grep -q '^v'
+        msg: "VERSION must start with 'v' (e.g. v0.45.1)"
     cmds:
       - task: clean:all
       - task: build
