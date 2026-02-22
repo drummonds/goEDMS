@@ -329,6 +329,15 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			ingressTime = document.IngressTime.Format("2006-01-02 15:04")
 		}
 
+		textExcerpt := document.FullText
+		if len(textExcerpt) > 2000 {
+			textExcerpt = textExcerpt[:2000] + "..."
+		}
+
+		ocrSidecarPath := engine.SidecarBasePath(document.Path) + ".ocr.txt"
+		_, ocrErr := os.Stat(ocrSidecarPath)
+		hasOCRSidecar := ocrErr == nil
+
 		return tr.Render(c, "document_edit.html", pongo2.Context{
 			"doc":                 document,
 			"has_thumbnail":       hasThumbnail,
@@ -338,6 +347,8 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"created_date":        createdDate,
 			"updated_date":        updatedDate,
 			"ingress_time":        ingressTime,
+			"text_excerpt":        textExcerpt,
+			"has_ocr_sidecar":     hasOCRSidecar,
 		})
 	}
 }

@@ -34,22 +34,6 @@
         <h1 class="title is-4">{{ doc.Name }}</h1>
 
         <div class="mb-5">
-            <h2 class="subtitle is-5">Document Details</h2>
-            <table class="table is-fullwidth is-narrow">
-                <tbody>
-                    <tr><th>Serial ID</th><td>{{ doc.ID }}</td></tr>
-                    <tr><th>ULID</th><td><code>{{ doc.ULID }}</code></td></tr>
-                    <tr><th>Original Filename</th><td>{{ doc.Name }}</td></tr>
-                    <tr><th>Type</th><td><span class="tag is-info">{{ doc.DocumentType }}</span></td></tr>
-                    <tr><th>Folder</th><td>{{ doc.Folder }}</td></tr>
-                    <tr><th>Path</th><td><code>{{ doc.Path }}</code></td></tr>
-                    <tr><th>Hash</th><td><code>{{ doc.Hash }}</code></td></tr>
-                    {% if ingress_time %}<tr><th>Ingress Time</th><td>{{ ingress_time }}</td></tr>{% endif %}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="mb-5">
             <h2 class="subtitle is-5">Document Date</h2>
             <form method="POST" action="/document/{{ doc.ULID }}/date">
                 <div class="field has-addons">
@@ -140,6 +124,55 @@
             </form>
         </div>
         {% endif %}
+
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Document Identity</h2>
+            <table class="table is-fullwidth is-narrow">
+                <tbody>
+                    <tr><th>Serial ID</th><td>{{ doc.ID }}</td></tr>
+                    <tr><th>ULID</th><td><code>{{ doc.ULID }}</code></td></tr>
+                    <tr><th>Original Filename</th><td>{{ doc.Name }}</td></tr>
+                    <tr><th>Type</th><td><span class="tag is-info">{{ doc.DocumentType }}</span></td></tr>
+                    {% if ingress_time %}<tr><th>Ingress Time</th><td>{{ ingress_time }}</td></tr>{% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mb-5">
+            <h2 class="subtitle is-5">File Details</h2>
+            <table class="table is-fullwidth is-narrow">
+                <tbody>
+                    <tr><th>Folder</th><td>{{ doc.Folder }}</td></tr>
+                    <tr><th>Path</th><td><code>{{ doc.Path }}</code></td></tr>
+                    <tr><th>Hash</th><td><code>{{ doc.Hash }}</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+
     </div>
+</div>
+
+<div class="mb-5">
+    <h2 class="subtitle is-5">Text Content</h2>
+    <p class="mb-2">
+        <strong>OCR Status:</strong>
+        {% if has_ocr_sidecar %}
+            <span class="tag is-success">Sidecar file exists</span>
+        {% else %}
+            <span class="tag is-warning">No sidecar file</span>
+        {% endif %}
+        {% if text_excerpt %}
+            <span class="tag is-success">Text in DB</span>
+        {% else %}
+            <span class="tag is-danger">No text in DB</span>
+        {% endif %}
+    </p>
+    {% if text_excerpt %}
+    <div class="box" style="max-height: 300px; overflow-y: auto;">
+        <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ text_excerpt }}</pre>
+    </div>
+    {% else %}
+    <p class="has-text-grey">No OCR text available.</p>
+    {% endif %}
 </div>
 {% endblock %}

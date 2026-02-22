@@ -2,6 +2,12 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.46.2 2026-02-22
+
+- Edit page: added Document Identity and File Details tables
+- Edit page: rotate buttons now warn that operation is destructive
+- Edit page: full-width Text Content section with OCR status indicators
+
 ## 0.46.1 2026-02-22
 
 - reformatting orientation feature
