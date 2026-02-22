@@ -34,6 +34,22 @@
         <h1 class="title is-4">{{ doc.Name }}</h1>
 
         <div class="mb-5">
+            <h2 class="subtitle is-5">Document Details</h2>
+            <table class="table is-fullwidth is-narrow">
+                <tbody>
+                    <tr><th>Serial ID</th><td>{{ doc.ID }}</td></tr>
+                    <tr><th>ULID</th><td><code>{{ doc.ULID }}</code></td></tr>
+                    <tr><th>Original Filename</th><td>{{ doc.Name }}</td></tr>
+                    <tr><th>Type</th><td><span class="tag is-info">{{ doc.DocumentType }}</span></td></tr>
+                    <tr><th>Folder</th><td>{{ doc.Folder }}</td></tr>
+                    <tr><th>Path</th><td><code>{{ doc.Path }}</code></td></tr>
+                    <tr><th>Hash</th><td><code>{{ doc.Hash }}</code></td></tr>
+                    {% if ingress_time %}<tr><th>Ingress Time</th><td>{{ ingress_time }}</td></tr>{% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mb-5">
             <h2 class="subtitle is-5">Document Date</h2>
             <form method="POST" action="/document/{{ doc.ULID }}/date">
                 <div class="field has-addons">
@@ -52,18 +68,19 @@
 
         <div class="mb-5">
             <h2 class="subtitle is-5">Rotate Document</h2>
-            <div class="buttons">
+            <p class="help has-text-warning-dark">Rotation modifies the file in place. The original file will be replaced and a new hash generated.</p>
+            <div class="buttons mt-2">
                 <form method="POST" action="/document/{{ doc.ULID }}/rotate" style="display:inline;">
                     <input type="hidden" name="degrees" value="90">
-                    <button type="submit" class="button is-small">90° CW</button>
+                    <button type="submit" class="button is-small is-warning">90° CW</button>
                 </form>
                 <form method="POST" action="/document/{{ doc.ULID }}/rotate" style="display:inline;">
                     <input type="hidden" name="degrees" value="180">
-                    <button type="submit" class="button is-small">180°</button>
+                    <button type="submit" class="button is-small is-warning">180°</button>
                 </form>
                 <form method="POST" action="/document/{{ doc.ULID }}/rotate" style="display:inline;">
                     <input type="hidden" name="degrees" value="270">
-                    <button type="submit" class="button is-small">270° CW</button>
+                    <button type="submit" class="button is-small is-warning">270° CW</button>
                 </form>
             </div>
         </div>

@@ -324,6 +324,11 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			updatedDate = document.UpdatedDate.Format("2006-01-02 15:04")
 		}
 
+		ingressTime := ""
+		if !document.IngressTime.IsZero() {
+			ingressTime = document.IngressTime.Format("2006-01-02 15:04")
+		}
+
 		return tr.Render(c, "document_edit.html", pongo2.Context{
 			"doc":                 document,
 			"has_thumbnail":       hasThumbnail,
@@ -332,6 +337,7 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"document_date_value": documentDateValue,
 			"created_date":        createdDate,
 			"updated_date":        updatedDate,
+			"ingress_time":        ingressTime,
 		})
 	}
 }

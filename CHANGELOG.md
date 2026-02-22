@@ -2,9 +2,13 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.46.1 2026-02-22
+
+- reformatting orientation feature
+
 ## 0.46.0 2026-02-21
 
--- Adding orientation feature
+- Adding orientation feature
 
 ## 0.45.0 2026-02-21
 
