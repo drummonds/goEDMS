@@ -30,6 +30,11 @@ jobs:
           GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o gh-pages/godocs-demo.wasm .
           cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" gh-pages/
 
+      - name: Copy API docs
+        run: |
+          cp docs/index.html gh-pages/api.html
+          cp docs/swagger.json gh-pages/swagger.json
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

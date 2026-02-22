@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.46.3 2026-02-22
+
+- Update docs
+ 
 ## 0.46.2 2026-02-22
 
 - Edit page: added Document Identity and File Details tables

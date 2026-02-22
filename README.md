@@ -2,6 +2,8 @@
 
 # godocs
 
+![godocs screenshot](https://drummonds.github.io/godocs/screenshot.svg)
+
 A lightweight Electronic Document Management System (EDMS) for home users, built entirely in Go. It has no
 user authentication.
 

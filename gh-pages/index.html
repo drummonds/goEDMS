@@ -3,34 +3,34 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>godocs demo</title>
+    <title>godocs - Document Management System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
-    <style>
-        #loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 80vh;
-        }
-        #loading .progress {
-            max-width: 400px;
-            margin-top: 1rem;
-        }
-        #app { display: none; }
-        #app.loaded { display: block; }
-    </style>
 </head>
 <body>
-    <div id="loading">
-        <h1 class="title">godocs demo</h1>
-        <p class="subtitle">Loading WebAssembly...</p>
-        <progress id="progress" class="progress is-primary" max="100">Loading...</progress>
-        <p id="status" class="has-text-grey">Initializing...</p>
-    </div>
-    <div id="app"></div>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">godocs</h1>
+            <p class="subtitle">A lightweight Electronic Document Management System for home users, built entirely in Go.</p>
 
-    <script src="wasm_exec.js"></script>
-    <script src="app.js"></script>
+            <div class="box">
+                <figure class="image">
+                    <img src="screenshot.svg" alt="godocs screenshot">
+                </figure>
+            </div>
+
+            <div class="columns">
+                <div class="column">
+                    <a href="api.html" class="button is-primary is-large is-fullwidth">API Documentation</a>
+                </div>
+                <div class="column">
+                    <a href="demo.html" class="button is-link is-large is-fullwidth">WASM Demo</a>
+                </div>
+            </div>
+
+            <div class="content">
+                <p>Source code: <a href="https://github.com/drummonds/godocs">github.com/drummonds/godocs</a></p>
+            </div>
+        </div>
+    </section>
 </body>
 </html>

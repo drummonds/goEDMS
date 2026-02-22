@@ -235,3 +235,16 @@ tasks:
       - task: fmt
       - task: vet
       - task: test
+
+  screenshot:
+    desc: Capture SVG screenshot of running demo site (requires task demo running)
+    cmds:
+      - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8000 -width 800 -height 600 -mode compact -o gh-pages/screenshot.svg
+      - echo "Screenshot saved to gh-pages/screenshot.svg"
+
+  docs:ghpages:
+    desc: Prepare gh-pages directory with API docs
+    cmds:
+      - cp docs/index.html gh-pages/api.html
+      - cp docs/swagger.json gh-pages/swagger.json
+      - echo "API docs copied to gh-pages/"
