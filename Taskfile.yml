@@ -217,16 +217,16 @@ tasks:
       VERSION:
         sh: git describe --tags --always 2>/dev/null || echo "dev"
     cmds:
-      - mkdir -p gh-pages
-      - GOOS=js GOARCH=wasm go build -ldflags="-s -w -X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}-demo'" -o gh-pages/godocs-demo.wasm .
-      - cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" gh-pages/ 2>/dev/null || cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" gh-pages/ 2>/dev/null || echo "WARNING - wasm_exec.js not found, download manually"
-      - echo "WASM build complete ($(du -h gh-pages/godocs-demo.wasm | cut -f1))"
+      - mkdir -p gh-pages/demo
+      - GOOS=js GOARCH=wasm go build -ldflags="-s -w -X 'github.com/drummonds/godocs/internal/build.Version={{.VERSION}}-demo'" -o gh-pages/demo/godocs-demo.wasm .
+      - cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" gh-pages/demo/ 2>/dev/null || cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" gh-pages/demo/ 2>/dev/null || echo "WARNING - wasm_exec.js not found, download manually"
+      - echo "WASM build complete ($(du -h gh-pages/demo/godocs-demo.wasm | cut -f1))"
 
   demo:wasm:
     desc: Build WASM and serve locally
     deps: [build:wasm]
     cmds:
-      - echo "Serving at http://localhost:8080"
+      - echo "Serving at http://localhost:8080/demo/"
       - python3 -m http.server 8080 --directory gh-pages
 
   check:
@@ -237,9 +237,9 @@ tasks:
       - task: test
 
   screenshot:
-    desc: Capture SVG screenshot of running demo site (requires task demo running)
+    desc: Capture SVG screenshot of running demo site (requires task demo running on port 8080)
     cmds:
-      - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8000 -width 800 -height 600 -mode compact -o gh-pages/screenshot.svg
+      - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8080 -width 800 -height 600 -mode compact -o gh-pages/screenshot.svg
       - echo "Screenshot saved to gh-pages/screenshot.svg"
 
   docs:ghpages:
@@ -248,3 +248,10 @@ tasks:
       - cp docs/index.html gh-pages/api.html
       - cp docs/swagger.json gh-pages/swagger.json
       - echo "API docs copied to gh-pages/"
+
+  gh-pages:
+    desc: Serve gh-pages locally for preview
+    deps: [docs:ghpages]
+    cmds:
+      - echo "Serving at http://localhost:8080"
+      - python3 -m http.server 8080 --directory gh-pages

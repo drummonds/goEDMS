@@ -27,8 +27,9 @@ jobs:
 
       - name: Build WASM binary
         run: |
-          GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o gh-pages/godocs-demo.wasm .
-          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" gh-pages/
+          mkdir -p gh-pages/demo
+          GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o gh-pages/demo/godocs-demo.wasm .
+          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" gh-pages/demo/
 
       - name: Copy API docs
         run: |

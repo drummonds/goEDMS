@@ -1,5 +1,11 @@
 This is a series of ideas which we can implement on by one.
 
+# First
+
+Improve github pages documenation so that it all starts to make sense
+
+- then fix the file location
+
 # Extend tags.
 
 ## other
