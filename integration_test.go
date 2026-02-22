@@ -13,6 +13,7 @@ import (
 	"github.com/drummonds/godocs/config"
 	"github.com/drummonds/godocs/database"
 	"github.com/drummonds/godocs/engine"
+	"github.com/jung-kurt/gofpdf"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -403,16 +404,64 @@ func testIngressPDFsOnly(t *testing.T) {
 
 // Helper functions
 
-// generateTestDocs runs the testgen tool to create test documents
+// generateTestDocs creates test PDF and sidecar files in testdocs/
 func generateTestDocs() error {
-	// Check if testdocs already exist
 	if _, err := os.Stat("testdocs/1-empty.pdf"); err == nil {
 		return nil // Already generated
 	}
 
-	// Run testgen
-	// This would normally run: go run cmd/testgen/main.go
-	// For tests, we'll assume they're already generated or skip this
+	testDir := "testdocs"
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		return fmt.Errorf("failed to create testdocs dir: %w", err)
+	}
+
+	// 1-empty.pdf: empty page
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	if err := pdf.OutputFileAndClose(filepath.Join(testDir, "1-empty.pdf")); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "1-empty.txt"), []byte(""), 0644); err != nil {
+		return err
+	}
+
+	// 2-hello.pdf: simple text
+	pdf = gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 24)
+	pdf.Cell(0, 10, "Hello World")
+	if err := pdf.OutputFileAndClose(filepath.Join(testDir, "2-hello.pdf")); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "2-hello.txt"), []byte("Hello World"), 0644); err != nil {
+		return err
+	}
+
+	// 3-diagram.pdf: diagram text
+	pdf = gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 16)
+	pdf.Cell(0, 10, "System Architecture Diagram")
+	if err := pdf.OutputFileAndClose(filepath.Join(testDir, "3-diagram.pdf")); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "3-diagram.txt"), []byte("System Architecture Diagram"), 0644); err != nil {
+		return err
+	}
+
+	// 4-longtext.pdf: longer text with searchable content
+	pdf = gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Courier", "", 8)
+	longText := "Go Source Code Sample\n\nThis demonstrates various language features and syntax patterns."
+	pdf.MultiCell(0, 4, longText, "", "", false)
+	if err := pdf.OutputFileAndClose(filepath.Join(testDir, "4-longtext.pdf")); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "4-longtext.txt"), []byte(longText), 0644); err != nil {
+		return err
+	}
+
 	return nil
 }
 

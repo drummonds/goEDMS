@@ -50,8 +50,7 @@ tasks:
     desc: Build the application
     deps: [swagger:download, openapi]
     vars:
-      VERSION:
-        sh: git describe --tags --always 2>/dev/null || echo "dev"
+      VERSION: '{{.VERSION | default "dev"}}'
     cmds:
       - "echo 'Building godocs...'"
       - mkdir -p {{.BUILD_DIR}}
@@ -94,6 +93,8 @@ tasks:
     cmds:
       - task: clean:all
       - task: build
+        vars:
+          VERSION: "{{.VERSION}}"
       - task: check
       - git add .
       - git commit -am "{{.COMMENT}}"
@@ -190,8 +191,13 @@ tasks:
   # Utility tasks
   run:
     desc: Build and run the application
+    vars:
+      VERSION:
+        sh: git describe --tags --always 2>/dev/null || echo "dev"
     cmds:
       - task: build
+        vars:
+          VERSION: "{{.VERSION}}"
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
 
   demo:

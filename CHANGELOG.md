@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.46.3 2026-02-22
+## 0.46.4 2026-02-22
 
 - Update docs
  
