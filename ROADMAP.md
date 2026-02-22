@@ -20,3 +20,23 @@ If a
  Want to add a rescan option to diagnose why no thumbnails?
 
  OCR as well and flags for requiring OCR.
+
+ Sorting out documentation
+
+ Need an index page for root of git hub pages
+
+ Add a URLID explanation page
+
+ Clean up front page
+ Create a document lifecyle map
+
+ Support archiving with a lock once archived
+
+ Be able to archive a whole story or selection of ones.  Possible story rmains- markdown to html? like a hugo page
+
+ Show only good tags eg recently used or popular on tag page
+
+ Show tags on edit page as buttons.
+
+ Unify edit page with loader page
+ 
