@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.47.0 2026-02-23
+
+- Refactor document paths
+
 ## 0.46.7 2026-02-23
 
 - Update docs
