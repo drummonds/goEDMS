@@ -19,8 +19,8 @@ func TestThumbnailGeneration(t *testing.T) {
 	}{
 		{"Empty PDF", "../testdocs/1-empty.pdf"},
 		{"Single page", "../testdocs/2-hello.pdf"},
-		{"Two pages", "../testdocs/5-twopage.pdf"},
-		{"Five pages", "../testdocs/6-fivepage.pdf"},
+		{"Two pages", "../testdocs/3-twopage.pdf"},
+		{"Five pages", "../testdocs/4-fivepage.pdf"},
 	}
 
 	if err := testdocs.Generate("../testdocs"); err != nil {

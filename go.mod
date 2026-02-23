@@ -26,6 +26,7 @@ require (
 	github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
+	github.com/yuin/goldmark v1.7.16
 )
 
 require (

@@ -32,3 +32,6 @@ test_godocs*
 testdocs
 
 node_modules
+
+# Generated docs
+docs/internal/*.html

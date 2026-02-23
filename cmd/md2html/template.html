@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{.Title}} - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    {{- range .Breadcrumbs}}
+                    {{- if .URL}}
+                    <li><a href="{{.URL}}">{{.Label}}</a></li>
+                    {{- else}}
+                    <li class="is-active"><a href="#" aria-current="page">{{.Label}}</a></li>
+                    {{- end}}
+                    {{- end}}
+                </ul>
+            </nav>
+
+            <div class="content">
+                {{.Content}}
+            </div>
+        </div>
+    </section>
+</body>
+</html>

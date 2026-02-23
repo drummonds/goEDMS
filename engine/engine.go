@@ -506,14 +506,22 @@ func migrateToCanonicalNaming(doc database.Document, newDocPath string) error {
 	// Compute new sidecar base from canonical path
 	newBase := SidecarBasePath(newDocPath)
 
-	// Legacy sidecar → canonical sidecar mapping
+	// Compute old canonical sidecar base (for L/K/J → A-Z migration)
+	oldCanonicalBase := SidecarBasePath(doc.Path)
+
+	// Sidecar mappings: legacy names first, then canonical names (for tier migration)
 	sidecarMappings := []struct {
 		oldPath string
 		newPath string
 	}{
+		// Legacy sidecar names
 		{oldBase + ".txt", newBase + ".ocr.txt"},
 		{oldBase + ".tn_256.png", newBase + ".thumb.png"},
 		{oldBase + ".tags.json", newBase + ".tags.json"},
+		// Canonical sidecar names (L/K/J → A-Z migration)
+		{oldCanonicalBase + ".ocr.txt", newBase + ".ocr.txt"},
+		{oldCanonicalBase + ".thumb.png", newBase + ".thumb.png"},
+		{oldCanonicalBase + ".tags.json", newBase + ".tags.json"},
 	}
 
 	for _, m := range sidecarMappings {

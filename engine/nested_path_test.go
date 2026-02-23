@@ -10,15 +10,17 @@ func TestNestedDirParts(t *testing.T) {
 		letter string
 		pairs  string
 	}{
-		{1, "L", "00/00/01"},
-		{42, "L", "00/00/42"},
-		{1234, "L", "00/12/34"},
-		{99999, "L", "09/99/99"},
-		{100000, "K", "00/10/00/00"},
-		{1234567, "K", "01/23/45/67"},
-		{9999999, "K", "09/99/99/99"},
-		{10000000, "J", "00/10/00/00/00"},
-		{12345678, "J", "00/12/34/56/78"},
+		{1, "A", ""},
+		{7, "A", ""},
+		{10, "A", ""},
+		{11, "B", "01"},
+		{42, "B", "04"},
+		{1000, "B", "99"},
+		{1001, "C", "01/00"},
+		{1234, "C", "01/23"},
+		{100000, "C", "99/99"},
+		{100001, "D", "01/00/00"},
+		{1234567, "D", "12/34/56"},
 	}
 
 	for _, tt := range tests {
@@ -34,14 +36,11 @@ func TestCanonicalBase(t *testing.T) {
 		id   int
 		want string
 	}{
-		{1, "000001"},
-		{42, "000042"},
-		{1234, "001234"},
-		{99999, "099999"},
-		{100000, "00100000"},
-		{1234567, "01234567"},
-		{10000000, "0010000000"},
-		{12345678, "0012345678"},
+		{1, "1"},
+		{42, "42"},
+		{1234, "1234"},
+		{100000, "100000"},
+		{1234567, "1234567"},
 	}
 	for _, tt := range tests {
 		got := canonicalBase(tt.id)
@@ -57,9 +56,9 @@ func TestCanonicalDocName(t *testing.T) {
 		ext  string
 		want string
 	}{
-		{42, ".pdf", "000042.orig.pdf"},
-		{1234, ".jpg", "001234.orig.jpg"},
-		{100000, ".png", "00100000.orig.png"},
+		{42, ".pdf", "42.orig.pdf"},
+		{1234, ".jpg", "1234.orig.jpg"},
+		{100000, ".png", "100000.orig.png"},
 	}
 	for _, tt := range tests {
 		got := CanonicalDocName(tt.id, tt.ext)
@@ -74,9 +73,9 @@ func TestSidecarBasePath(t *testing.T) {
 		docPath string
 		want    string
 	}{
-		{"L/00/12/34/001234.orig.pdf", "L/00/12/34/001234"},
-		{"L/00/00/42/000042.orig.jpg", "L/00/00/42/000042"},
-		{"K/01/23/45/67/01234567.orig.png", "K/01/23/45/67/01234567"},
+		{"C/01/23/1234.orig.pdf", "C/01/23/1234"},
+		{"A/42.orig.jpg", "A/42"},
+		{"D/12/34/56/1234567.orig.png", "D/12/34/56/1234567"},
 	}
 	for _, tt := range tests {
 		got := SidecarBasePath(tt.docPath)
@@ -94,11 +93,17 @@ func TestComputeNestedPath(t *testing.T) {
 		wantPath string
 		wantDir  string
 	}{
-		{42, ".pdf", "/docs", "/docs/L/00/00/42/000042.orig.pdf", "/docs/L/00/00/42"},
-		{1234, ".pdf", "/docs", "/docs/L/00/12/34/001234.orig.pdf", "/docs/L/00/12/34"},
-		{99999, ".png", "/data/documents", "/data/documents/L/09/99/99/099999.orig.png", "/data/documents/L/09/99/99"},
-		{100000, ".pdf", "/docs", "/docs/K/00/10/00/00/00100000.orig.pdf", "/docs/K/00/10/00/00"},
-		{1234567, ".pdf", "/docs", "/docs/K/01/23/45/67/01234567.orig.pdf", "/docs/K/01/23/45/67"},
+		{1, ".pdf", "/docs", "/docs/A/1.orig.pdf", "/docs/A"},
+		{7, ".pdf", "/docs", "/docs/A/7.orig.pdf", "/docs/A"},
+		{10, ".pdf", "/docs", "/docs/A/10.orig.pdf", "/docs/A"},
+		{11, ".pdf", "/docs", "/docs/B/01/11.orig.pdf", "/docs/B/01"},
+		{42, ".pdf", "/docs", "/docs/B/04/42.orig.pdf", "/docs/B/04"},
+		{1000, ".pdf", "/docs", "/docs/B/99/1000.orig.pdf", "/docs/B/99"},
+		{1001, ".pdf", "/docs", "/docs/C/01/00/1001.orig.pdf", "/docs/C/01/00"},
+		{1234, ".pdf", "/docs", "/docs/C/01/23/1234.orig.pdf", "/docs/C/01/23"},
+		{100000, ".png", "/data/documents", "/data/documents/C/99/99/100000.orig.png", "/data/documents/C/99/99"},
+		{100001, ".pdf", "/docs", "/docs/D/01/00/00/100001.orig.pdf", "/docs/D/01/00/00"},
+		{1234567, ".pdf", "/docs", "/docs/D/12/34/56/1234567.orig.pdf", "/docs/D/12/34/56"},
 	}
 
 	for _, tt := range tests {
@@ -113,15 +118,15 @@ func TestComputeNestedPath(t *testing.T) {
 }
 
 func TestSidecarPaths(t *testing.T) {
-	docPath := "/docs/L/00/12/34/001234.orig.pdf"
+	docPath := "/docs/C/01/23/1234.orig.pdf"
 
-	if got := getOCRPath(docPath); got != "/docs/L/00/12/34/001234.ocr.txt" {
+	if got := getOCRPath(docPath); got != "/docs/C/01/23/1234.ocr.txt" {
 		t.Errorf("getOCRPath = %q", got)
 	}
-	if got := getThumbPath(docPath); got != "/docs/L/00/12/34/001234.thumb.png" {
+	if got := getThumbPath(docPath); got != "/docs/C/01/23/1234.thumb.png" {
 		t.Errorf("getThumbPath = %q", got)
 	}
-	if got := getTagsPath(docPath); got != "/docs/L/00/12/34/001234.tags.json" {
+	if got := getTagsPath(docPath); got != "/docs/C/01/23/1234.tags.json" {
 		t.Errorf("getTagsPath = %q", got)
 	}
 }
