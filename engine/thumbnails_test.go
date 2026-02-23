@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/drummonds/godocs/internal/testdocs"
 )
 
 func TestThumbnailGeneration(t *testing.T) {
@@ -21,10 +23,14 @@ func TestThumbnailGeneration(t *testing.T) {
 		{"Five pages", "../testdocs/6-fivepage.pdf"},
 	}
 
+	if err := testdocs.Generate("../testdocs"); err != nil {
+		t.Fatalf("Failed to generate test docs: %v", err)
+	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := os.Stat(tc.file); os.IsNotExist(err) {
-				t.Skipf("Test file not found: %s (run 'go run cmd/testgen/main.go' first)", tc.file)
+				t.Skipf("Test file not found: %s", tc.file)
 			}
 
 			err := saveThumbnailFile(tc.file)

@@ -2,9 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.46.4 2026-02-22
+## 0.46.5 2026-02-22
 
 - Update docs
+- Fix relocation of wasm_exec.js in go 1.25
  
 ## 0.46.2 2026-02-22
 

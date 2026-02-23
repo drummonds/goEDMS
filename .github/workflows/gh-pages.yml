@@ -29,7 +29,7 @@ jobs:
         run: |
           mkdir -p gh-pages/demo
           GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o gh-pages/demo/godocs-demo.wasm .
-          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" gh-pages/demo/
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" gh-pages/demo/
 
       - name: Copy API docs
         run: |
