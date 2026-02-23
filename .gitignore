@@ -27,7 +27,7 @@ test_output.log
 
 # Files for local testing
 .env
-demo
+/demo
 test_godocs*
 testdocs
 
