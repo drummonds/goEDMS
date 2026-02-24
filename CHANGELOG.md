@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.47.1 2026-02-24
+
+- extract  godocs-hash
+
 ## 0.47.0 2026-02-23
 
 - Refactor document paths

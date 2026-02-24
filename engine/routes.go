@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"crypto/md5"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	godocshash "github.com/drummonds/godocs-hash"
 	"github.com/drummonds/godocs/config"
 	"github.com/drummonds/godocs/database"
 	"github.com/drummonds/godocs/internal/build"
@@ -188,8 +188,7 @@ func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error 
 	serverHandler.ingressDocument(path, "upload") //ingress the document into the database
 
 	// Look up the ingested document by hash to return its ULID
-	hash := md5.Sum(body)
-	fileHash := fmt.Sprintf("%x", hash[:])
+	fileHash := godocshash.HashBytes(body)
 	doc, err := serverHandler.DB.GetDocumentByHash(fileHash)
 	if err == nil && doc != nil {
 		return context.JSON(http.StatusOK, map[string]interface{}{

@@ -33,6 +33,7 @@ require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/drummonds/godocs-hash v0.0.0
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-openapi/jsonpointer v0.22.4 // indirect
 	github.com/go-openapi/jsonreference v0.21.4 // indirect
@@ -79,3 +80,5 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.45.0 // indirect
 )
+
+replace github.com/drummonds/godocs-hash => ../godocs-hash

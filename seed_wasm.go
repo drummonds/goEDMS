@@ -3,10 +3,9 @@
 package main
 
 import (
-	"crypto/md5"
-	"fmt"
 	"time"
 
+	godocshash "github.com/drummonds/godocs-hash"
 	"github.com/drummonds/godocs/database"
 	"github.com/oklog/ulid/v2"
 )
@@ -107,7 +106,7 @@ func seedDemoData(db *database.MemDB) {
 	for i, dd := range demoDocuments {
 		docTime := now.Add(-time.Duration(len(demoDocuments)-i) * 24 * time.Hour)
 		id, _ := ulid.New(ulid.Timestamp(docTime), ulid.DefaultEntropy())
-		hash := fmt.Sprintf("%x", md5.Sum([]byte(dd.name+dd.text)))
+		hash := godocshash.HashBytes([]byte(dd.name + dd.text))
 
 		docDate := docTime
 		doc := &database.Document{

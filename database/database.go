@@ -1,18 +1,16 @@
 package database
 
 import (
-	"crypto/md5"
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"math/rand"
 	"net/http"
-	"os"
 	"path/filepath"
 	"time"
 
+	godocshash "github.com/drummonds/godocs-hash"
 	"github.com/drummonds/godocs/config"
 	"github.com/oklog/ulid/v2"
 )
@@ -349,21 +347,11 @@ func checkDuplicateDocument(fileHash string, fileName string, db Repository) boo
 	return true
 }
 
-// calculate the hash of the incoming file
+// calculateHash computes the hash of the incoming file.
+// Delegates to github.com/drummonds/godocs-hash so external tools
+// can produce the same hash for deduplication.
 func calculateHash(fileName string) (string, error) {
-	var fileHash string
-	file, err := os.Open(fileName)
-	if err != nil {
-		return fileHash, err
-	}
-	defer file.Close()
-	hash := md5.New()
-	_, err = io.Copy(hash, file)
-	if err != nil {
-		return fileHash, err
-	}
-	fileHash = fmt.Sprintf("%x", hash.Sum(nil))
-	return fileHash, nil
+	return godocshash.HashFile(fileName)
 }
 
 // CalculateUUID for the incoming file

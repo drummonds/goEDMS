@@ -1,13 +1,12 @@
 package engine
 
 import (
-	"crypto/md5"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
 
+	godocshash "github.com/drummonds/godocs-hash"
 	"github.com/drummonds/godocs/database"
 	"github.com/oklog/ulid/v2"
 )
@@ -99,20 +98,11 @@ func (serverHandler *ServerHandler) IngestDocumentWithSteps(filePath string, db 
 	return nil
 }
 
-// CalculateFileHash computes MD5 hash of a file
+// CalculateFileHash computes MD5 hash of a file.
+// Delegates to github.com/drummonds/godocs-hash so external tools
+// can produce the same hash for deduplication.
 func CalculateFileHash(filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+	return godocshash.HashFile(filePath)
 }
 
 // checkDuplicate checks if a document with the same hash already exists
