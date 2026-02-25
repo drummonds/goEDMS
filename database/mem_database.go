@@ -713,6 +713,40 @@ func (m *MemDB) GetTagUsageCount(tagID int) (int, error) {
 	return count, nil
 }
 
+func (m *MemDB) GetTopTagsByUsage(limit int) ([]TagWithCount, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// Count usage per tag
+	counts := make(map[int]int)
+	for _, tagSet := range m.docTags {
+		for tid := range tagSet {
+			counts[tid]++
+		}
+	}
+
+	// Build TagWithCount slice for tags that have at least one document
+	var result []TagWithCount
+	for tid, count := range counts {
+		if t, ok := m.tags[tid]; ok {
+			result = append(result, TagWithCount{Tag: *t, DocumentCount: count})
+		}
+	}
+
+	// Sort by count desc, then name asc
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].DocumentCount != result[j].DocumentCount {
+			return result[i].DocumentCount > result[j].DocumentCount
+		}
+		return result[i].Name < result[j].Name
+	})
+
+	if limit > len(result) {
+		limit = len(result)
+	}
+	return result[:limit], nil
+}
+
 func (m *MemDB) GetTagGroups() ([]string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

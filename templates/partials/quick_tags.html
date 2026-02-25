@@ -1,0 +1,21 @@
+{% if quick_tags %}
+<div class="mb-5">
+    <h2 class="subtitle is-5">Quick Tags</h2>
+    <div class="buttons">
+        {% for qt in quick_tags %}
+        {% if qt.IsAssigned %}
+        <span class="button is-small is-static" style="opacity: 0.5; background-color: {{ qt.Color }}; color: white; border-color: {{ qt.Color }};">
+            &#10003; {{ qt.Name }}
+        </span>
+        {% else %}
+        <form method="POST" action="{{ form_action_prefix }}/tags" style="display:inline; margin:0;">
+            <input type="hidden" name="tag_id" value="{{ qt.ID }}">
+            <button type="submit" class="button is-small" style="background-color: {{ qt.Color }}; color: white; border-color: {{ qt.Color }};">
+                {{ qt.Name }}
+            </button>
+        </form>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

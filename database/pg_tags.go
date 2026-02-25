@@ -201,6 +201,38 @@ func (p *PGDB) GetTagUsageCount(tagID int) (int, error) {
 	return count, nil
 }
 
+// GetTopTagsByUsage returns the most-used tags sorted by document count descending.
+func (p *PGDB) GetTopTagsByUsage(limit int) ([]TagWithCount, error) {
+	ctx := context.Background()
+	rows, err := p.db.QueryContext(ctx, `
+		SELECT t.id, t.name, t.color, t.description, t.tag_group, t.sort_order, t.created_at, t.updated_at,
+		       COUNT(dt.document_id) AS document_count
+		FROM tags t
+		JOIN document_tags dt ON dt.tag_id = t.id
+		GROUP BY t.id, t.name, t.color, t.description, t.tag_group, t.sort_order, t.created_at, t.updated_at
+		ORDER BY document_count DESC, t.name ASC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top tags by usage: %w", err)
+	}
+	defer rows.Close()
+
+	var result []TagWithCount
+	for rows.Next() {
+		var tc TagWithCount
+		var createdAt, updatedAt timeScanner
+		if err := rows.Scan(&tc.ID, &tc.Name, &tc.Color, &tc.Description,
+			&tc.TagGroup, &tc.SortOrder, &createdAt, &updatedAt,
+			&tc.DocumentCount); err != nil {
+			return nil, err
+		}
+		tc.CreatedAt = createdAt.Time
+		tc.UpdatedAt = updatedAt.Time
+		result = append(result, tc)
+	}
+	return result, rows.Err()
+}
+
 // scanTag scans a single row into a Tag.
 // Uses timeScanner to handle both time.Time (PostgreSQL) and string (pglike/SQLite) timestamps.
 func scanTag(row interface{ Scan(dest ...any) error }) (*Tag, error) {

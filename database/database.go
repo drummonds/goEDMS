@@ -98,6 +98,7 @@ type Repository interface {
 	AddTagToDocument(documentID int, tagID int) error
 	RemoveTagFromDocument(documentID int, tagID int) error
 	GetTagUsageCount(tagID int) (int, error)
+	GetTopTagsByUsage(limit int) ([]TagWithCount, error)
 	GetTagGroups() ([]string, error)
 	GetAllTagAliases() ([]TagAliasEntry, error)
 	InsertTagAlias(tagID int, aliasName string) error

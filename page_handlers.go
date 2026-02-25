@@ -310,6 +310,17 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			}
 		}
 
+		// Fetch top tags by usage for quick-tag buttons
+		topTags, err := tr.db.GetTopTagsByUsage(15)
+		if err != nil {
+			Logger.Error("Failed to fetch top tags", "error", err)
+			topTags = []database.TagWithCount{}
+		}
+		quickTags := make([]QuickTag, len(topTags))
+		for i, tc := range topTags {
+			quickTags[i] = QuickTag{TagWithCount: tc, IsAssigned: tagSet[tc.ID]}
+		}
+
 		// Format document date for HTML date input
 		documentDateValue := ""
 		if document.DocumentDate != nil {
@@ -344,6 +355,8 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"has_thumbnail":       hasThumbnail,
 			"tags":                tags,
 			"available_tags":      availableTags,
+			"quick_tags":          quickTags,
+			"form_action_prefix":  "/document/" + ulidStr,
 			"document_date_value": documentDateValue,
 			"created_date":        createdDate,
 			"updated_date":        updatedDate,
@@ -544,6 +557,12 @@ func HandleNotFound(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		return tr.RenderWithStatus(c, "404.html", http.StatusNotFound, nil)
 	}
+}
+
+// QuickTag wraps TagWithCount with an IsAssigned flag for template rendering
+type QuickTag struct {
+	database.TagWithCount
+	IsAssigned bool
 }
 
 // TagWithUsage wraps a Tag with its usage count for display

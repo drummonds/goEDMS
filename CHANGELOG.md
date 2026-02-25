@@ -2,6 +2,10 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.47.4 2026-02-25
+
+- improving tag layout
+
 ## 0.47.3 2026-02-24
 
 - fix critical job bugs
