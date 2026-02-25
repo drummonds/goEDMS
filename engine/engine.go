@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -57,8 +58,7 @@ func shouldSkipFileForIngestion(filePath string) bool {
 	return false
 }
 
-func (serverHandler *ServerHandler) ingressJobFunc(serverConfig config.ServerConfig, db database.Repository) {
-	// Add panic recovery to prevent entire application crash
+func (serverHandler *ServerHandler) ingressJobFunc(ctx context.Context, serverConfig config.ServerConfig, db database.Repository) {
 	defer func() {
 		if r := recover(); r != nil {
 			Logger.Error("Panic recovered in ingress job", "panic", r)
@@ -79,6 +79,10 @@ func (serverHandler *ServerHandler) ingressJobFunc(serverConfig config.ServerCon
 		Logger.Error("Error reading files in from ingress", "error", err)
 	}
 	for _, filePath := range ingressPath {
+		if ctx.Err() != nil {
+			Logger.Info("Cron ingress job cancelled")
+			return
+		}
 		Logger.Debug("Starting processing for file", "filePath", filePath)
 		fileStats, err := os.Stat(filePath)
 		if err != nil {
@@ -99,12 +103,11 @@ func (serverHandler *ServerHandler) ingressJobFunc(serverConfig config.ServerCon
 		}
 		serverHandler.ingressDocument(filePath, "ingress")
 	}
-	deleteEmptyIngressFolders(serverHandler.ServerConfig.IngressPath) //after ingress clean empty folders
+	deleteEmptyIngressFolders(serverHandler.ServerConfig.IngressPath)
 }
 
-// ingressJobFuncWithTracking wraps the ingress job with progress tracking
-func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig config.ServerConfig, db database.Repository, jobID ulid.ULID) {
-	// Add panic recovery and update job status on panic
+func (serverHandler *ServerHandler) ingressJobFuncWithTracking(ctx context.Context, serverConfig config.ServerConfig, db database.Repository, jobID ulid.ULID) {
+	defer serverHandler.unregisterJob(jobID)
 	defer func() {
 		if r := recover(); r != nil {
 			Logger.Error("Panic recovered in ingress job", "panic", r, "jobID", jobID)
@@ -112,7 +115,6 @@ func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig conf
 		}
 	}()
 
-	// Mark job as running
 	if err := db.UpdateJobStatus(jobID, database.JobStatusRunning, "Scanning ingress folder"); err != nil {
 		Logger.Error("Failed to update job status", "error", err)
 	}
@@ -126,7 +128,6 @@ func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig conf
 
 	Logger.Info("Starting Ingress Job with tracking", "path", serverConfig.IngressPath, "jobID", jobID)
 
-	// Scan for files
 	var ingressFiles []string
 	err = filepath.Walk(serverConfig.IngressPath, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() && path != serverConfig.IngressPath && !shouldSkipFileForIngestion(path) {
@@ -144,7 +145,7 @@ func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig conf
 	totalFiles := len(ingressFiles)
 	if totalFiles == 0 {
 		Logger.Info("No files to process in ingress folder")
-		db.CompleteJob(jobID, fmt.Sprintf(`{"filesProcessed": 0, "message": "No files found"}`))
+		db.CompleteJob(jobID, `{"filesProcessed": 0, "message": "No files found"}`)
 		return
 	}
 
@@ -153,19 +154,23 @@ func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig conf
 	errorCount := 0
 	duplicateCount := 0
 
-	// Process each file with detailed step tracking
 	for i, filePath := range ingressFiles {
-		fileName := filepath.Base(filePath)
+		if ctx.Err() != nil {
+			Logger.Info("Ingestion job cancelled", "jobID", jobID, "processed", i, "total", totalFiles)
+			db.UpdateJobStatus(jobID, database.JobStatusCancelled,
+				fmt.Sprintf("Cancelled after processing %d/%d files", i, totalFiles))
+			return
+		}
 
+		fileName := filepath.Base(filePath)
 		Logger.Info("Processing file with step-based ingestion", "file", fileName, "number", i+1, "total", totalFiles)
 
-		// Process the document using new step-based approach
-		err := serverHandler.IngestDocumentWithSteps(filePath, db, jobID, i, totalFiles)
+		err := serverHandler.IngestDocumentWithSteps(ctx, filePath, db, jobID, i, totalFiles)
 		if err != nil {
-			if len(err.Error()) >= 9 && err.Error()[:9] == "duplicate" {
+			if strings.HasPrefix(err.Error(), "duplicate") {
 				Logger.Info("Skipped duplicate document", "filePath", filePath)
 				duplicateCount++
-				processedFiles++ // Count as processed (successfully skipped)
+				processedFiles++
 			} else {
 				Logger.Error("Failed to process document", "filePath", filePath, "error", err)
 				errorCount++
@@ -175,17 +180,13 @@ func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig conf
 		}
 	}
 
-	// Clean up empty folders
 	deleteEmptyIngressFolders(serverConfig.IngressPath)
 
-	// Recalculate word cloud after ingestion
 	db.UpdateJobProgress(jobID, 95, "Updating word cloud")
-	Logger.Info("Recalculating word cloud after ingestion")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
 		Logger.Error("Word cloud recalculation failed after ingestion", "error", err)
 	}
 
-	// Complete the job
 	result := fmt.Sprintf(`{"filesProcessed": %d, "filesTotal": %d, "errors": %d, "duplicates": %d}`, processedFiles, totalFiles, errorCount, duplicateCount)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark job as complete", "error", err)
@@ -194,8 +195,8 @@ func (serverHandler *ServerHandler) ingressJobFuncWithTracking(serverConfig conf
 	Logger.Info("Ingestion job completed", "jobID", jobID, "processed", processedFiles, "total", totalFiles, "errors", errorCount, "duplicates", duplicateCount)
 }
 
-// cleanupJobFuncWithTracking performs database cleanup with job tracking
-func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repository, jobID ulid.ULID) {
+func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(ctx context.Context, db database.Repository, jobID ulid.ULID) {
+	defer serverHandler.unregisterJob(jobID)
 	defer func() {
 		if r := recover(); r != nil {
 			Logger.Error("Panic recovered in cleanup job", "panic", r, "jobID", jobID)
@@ -203,10 +204,16 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		}
 	}()
 
-	// Mark job as running
+	cancelled := func() bool {
+		if ctx.Err() != nil {
+			db.UpdateJobStatus(jobID, database.JobStatusCancelled, "Cancelled")
+			return true
+		}
+		return false
+	}
+
 	db.UpdateJobStatus(jobID, database.JobStatusRunning, "Fetching documents from database")
 
-	// Get all documents from database
 	documentsPtr, err := database.FetchAllDocuments(db)
 	if err != nil {
 		Logger.Error("Failed to fetch documents for cleanup", "error", err)
@@ -215,8 +222,7 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 
 	if documentsPtr == nil {
-		result := `{"scanned": 0, "deleted": 0, "moved": 0}`
-		db.CompleteJob(jobID, result)
+		db.CompleteJob(jobID, `{"scanned": 0, "deleted": 0, "moved": 0}`)
 		return
 	}
 
@@ -227,24 +233,20 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	Logger.Info("Starting database cleanup", "total_documents", totalDocs)
 	db.UpdateJobProgress(jobID, 10, fmt.Sprintf("Checking %d documents", totalDocs))
 
-	// Step 1: Check each document's file existence and remove orphaned DB entries
-	// Also remove .txt entries that are sidecars (have a corresponding root document)
 	sidecarTxtRemoved := 0
 	for i, doc := range documents {
+		if cancelled() {
+			return
+		}
 		if doc.Path == "" {
-			Logger.Warn("Document has empty path, skipping", "id", doc.ID, "name", doc.Name)
 			continue
 		}
 
-		// Update progress
 		progress := 10 + int((float64(i)/float64(totalDocs))*40)
 		db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking document %d/%d", i+1, totalDocs))
 
-		// Check if file exists
 		if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
 			Logger.Info("File not found, removing from database", "path", doc.Path, "id", doc.ID)
-
-			// Delete from database
 			if err := database.DeleteDocument(doc.ULID.String(), db); err != nil {
 				Logger.Error("Failed to delete document from DB", "error", err, "id", doc.ID)
 				continue
@@ -253,7 +255,6 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 			continue
 		}
 
-		// Check if this is a .txt file that is actually a sidecar (has a root document)
 		if strings.ToLower(filepath.Ext(doc.Path)) == ".txt" {
 			if !isTxtRootDocument(doc.Path) {
 				Logger.Info("Removing .txt sidecar entry from database", "path", doc.Path, "id", doc.ID)
@@ -266,7 +267,6 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		}
 	}
 
-	// Step 1a: Purge incomplete ingestions (DB entries with __temp__ paths)
 	tempPurged := 0
 	for _, doc := range documents {
 		if strings.HasPrefix(doc.Path, "__temp__/") || strings.HasPrefix(doc.Folder, "__temp__/") {
@@ -282,19 +282,20 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		Logger.Info("Purged incomplete ingestion entries", "count", tempPurged)
 	}
 
-	// Step 1b: Restore tag aliases from config (so old .tags.json names resolve during rescan)
+	if cancelled() {
+		return
+	}
+
 	db.UpdateJobProgress(jobID, 55, "Restoring tag aliases from config")
 	if err := ApplyTagAliasesFromConfig(serverHandler.ServerConfig.ConfigPath, db); err != nil {
 		Logger.Error("Failed to apply tag aliases from config", "error", err)
 	}
 
-	// Step 2: Find orphaned files in document storage and rescan them in-place
 	db.UpdateJobProgress(jobID, 60, "Scanning for orphaned files")
 	rescannedCount := 0
 	duplicateCount := 0
-	seenHashes := make(map[string]string) // hash -> first file path (for duplicate detection within batch)
+	seenHashes := make(map[string]string)
 
-	// Also build a hash set from existing documents for faster lookup
 	for _, doc := range documents {
 		if doc.Hash != "" {
 			seenHashes[doc.Hash] = doc.Path
@@ -304,52 +305,49 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	orphanedFiles, err := serverHandler.findOrphanedDocuments(documents)
 	if err != nil {
 		Logger.Error("Failed to scan for orphaned documents", "error", err)
-		// Continue with cleanup even if orphan scan fails
 	} else {
 		totalOrphans := len(orphanedFiles)
 		Logger.Info("Found orphaned files to rescan", "count", totalOrphans)
 		for i, orphanPath := range orphanedFiles {
+			if cancelled() {
+				return
+			}
 			progress := 60 + int((float64(i)/float64(totalOrphans))*20)
 			db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Rescanning orphan %d/%d", i+1, totalOrphans))
 
 			fileHash, err := serverHandler.RescanOrphanedDocument(orphanPath, db, seenHashes)
 			if err != nil {
 				if fileHash != "" {
-					// Duplicate detected
 					duplicateCount++
 					Logger.Info("Skipped duplicate file during rescan", "path", orphanPath, "reason", err.Error())
 				} else {
 					Logger.Error("Failed to rescan orphaned document", "path", orphanPath, "error", err)
 				}
 			} else {
-				// Successfully rescanned - track this hash
 				seenHashes[fileHash] = orphanPath
 				rescannedCount++
 			}
 		}
 	}
 
-	// Step 3: Recreate missing sidecar .txt files from database
+	if cancelled() {
+		return
+	}
+
 	db.UpdateJobProgress(jobID, 70, "Checking sidecar .txt files")
 	sidecarCount := 0
 	if serverHandler.ServerConfig.UseSidecarTxt {
 		Logger.Info("Checking for missing sidecar .txt files")
 		lastSidecarUpdate := time.Now()
 		for i, doc := range documents {
-			// Skip if document was deleted in step 1
 			if doc.Path == "" {
 				continue
 			}
-
-			// Check if file still exists (it might have been deleted in step 1)
 			if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
 				continue
 			}
-
-			// Check if sidecar .txt file exists
 			sidecarPath := getOCRPath(doc.Path)
 			if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
-				// Sidecar doesn't exist but document has text in database
 				if doc.FullText != "" {
 					Logger.Info("Recreating missing sidecar .txt file", "document", doc.Path, "sidecar", sidecarPath)
 					if err := saveOCRFile(doc.Path, doc.FullText); err != nil {
@@ -359,8 +357,6 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 					}
 				}
 			}
-
-			// Update progress every 5 seconds or on last item
 			if time.Since(lastSidecarUpdate) >= 5*time.Second || i == totalDocs-1 {
 				progress := 70 + int((float64(i+1)/float64(totalDocs))*5)
 				db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking sidecar files %d/%d", i+1, totalDocs))
@@ -370,34 +366,25 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 		Logger.Info("Sidecar .txt file check complete", "recreated", sidecarCount)
 	}
 
-	// Step 4: Check for missing thumbnails for PDF documents (only generate if missing)
+	if cancelled() {
+		return
+	}
+
 	db.UpdateJobProgress(jobID, 75, "Checking document thumbnails")
 	thumbnailCount := 0
 	thumbnailsChecked := 0
 	Logger.Info("Checking for missing thumbnails")
 	lastThumbnailUpdate := time.Now()
 	for i, doc := range documents {
-		// Skip if document was deleted in step 1
-		if doc.Path == "" {
+		if doc.Path == "" || !thumbnailSupported(doc.Path) {
 			continue
 		}
-
-		// Only check thumbnails for supported file types
-		if !thumbnailSupported(doc.Path) {
-			continue
-		}
-
-		// Check if file still exists
 		if _, err := os.Stat(doc.Path); os.IsNotExist(err) {
 			continue
 		}
-
 		thumbnailsChecked++
-
-		// Check if thumbnail exists - only generate if missing
 		thumbnailPath := getThumbPath(doc.Path)
 		if _, err := os.Stat(thumbnailPath); os.IsNotExist(err) {
-			// Thumbnail doesn't exist, generate it
 			Logger.Info("Generating missing thumbnail", "document", doc.Path, "thumbnail", thumbnailPath)
 			if err := saveThumbnailFile(doc.Path); err != nil {
 				Logger.Error("Failed to generate thumbnail", "document", doc.Path, "error", err)
@@ -405,8 +392,6 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 				thumbnailCount++
 			}
 		}
-
-		// Update progress every 5 seconds or on last item
 		if time.Since(lastThumbnailUpdate) >= 5*time.Second || i == totalDocs-1 {
 			progress := 75 + int((float64(i+1)/float64(totalDocs))*10)
 			db.UpdateJobProgress(jobID, progress, fmt.Sprintf("Checking thumbnails %d/%d (generated %d)", i+1, totalDocs, thumbnailCount))
@@ -415,18 +400,17 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 	Logger.Info("Thumbnail check complete", "checked", thumbnailsChecked, "generated", thumbnailCount)
 
-	// Step 5: Remove orphaned sidecar files (sidecars without root documents)
 	db.UpdateJobProgress(jobID, 80, "Cleaning orphaned sidecar files")
-	orphanedSidecarsDeleted := 0
-	Logger.Info("Checking for orphaned sidecar files")
-	orphanedSidecarsDeleted = serverHandler.cleanOrphanedSidecars()
+	orphanedSidecarsDeleted := serverHandler.cleanOrphanedSidecars()
 	Logger.Info("Orphaned sidecar cleanup complete", "deleted", orphanedSidecarsDeleted)
 
-	// Step 6: Migrate documents to canonical naming (nested path + ID-based filenames)
+	if cancelled() {
+		return
+	}
+
 	db.UpdateJobProgress(jobID, 83, "Migrating documents to canonical naming")
 	nestedMigratedCount := 0
 	Logger.Info("Checking for documents needing canonical naming migration")
-	// Re-fetch documents (some may have been rescanned/deleted above)
 	freshDocsPtr, err := database.FetchAllDocuments(db)
 	if err == nil && freshDocsPtr != nil {
 		documentRoot := serverHandler.ServerConfig.DocumentPath
@@ -435,9 +419,8 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 			if doc.Path == expectedPath {
 				continue
 			}
-			// File exists at old location — migrate it
 			if _, statErr := os.Stat(doc.Path); statErr != nil {
-				continue // file doesn't exist, nothing to move
+				continue
 			}
 			if err := migrateToCanonicalNaming(doc, expectedPath); err != nil {
 				Logger.Error("Failed to migrate document to canonical naming", "id", doc.ID, "from", doc.Path, "to", expectedPath, "error", err)
@@ -453,32 +436,24 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(db database.Repos
 	}
 	Logger.Info("Canonical naming migration complete", "migrated", nestedMigratedCount)
 
-	// Step 7: Migrate stormid to id in .tags.json files (legacy cleanup)
 	db.UpdateJobProgress(jobID, 87, "Migrating legacy JSON fields")
-	jsonMigratedCount := 0
-	Logger.Info("Checking for legacy stormid fields in .tags.json files")
-	jsonMigratedCount = serverHandler.migrateStormIDInTagsFiles()
+	jsonMigratedCount := serverHandler.migrateStormIDInTagsFiles()
 	Logger.Info("JSON field migration complete", "migrated", jsonMigratedCount)
 
-	// Step 8: Recalculate word cloud
 	db.UpdateJobProgress(jobID, 90, "Recalculating word cloud")
-	Logger.Info("Recalculating word cloud after database cleanup")
 	if err := db.RecalculateAllWordFrequencies(); err != nil {
 		Logger.Error("Word cloud recalculation failed after cleanup", "error", err)
 	}
 
-	// Step 9: Clean ingress folder — remove files that have already been ingested
 	db.UpdateJobProgress(jobID, 93, "Cleaning ingress folder")
 	ingressCleaned := 0
 	ingressPath := serverHandler.ServerConfig.IngressPath
-	Logger.Info("Checking ingress folder for already-ingested files", "path", ingressPath)
 	if ingressPath != "" {
 		ingressCleaned = serverHandler.cleanIngressFolder(db)
 		deleteEmptyIngressFolders(ingressPath)
 	}
 	Logger.Info("Ingress cleanup complete", "deleted", ingressCleaned)
 
-	// Complete the job
 	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "tempPurged": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "nestedMigrated": %d, "jsonFilesMigrated": %d, "ingressCleaned": %d}`, totalDocs, deletedCount, tempPurged, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, nestedMigratedCount, jsonMigratedCount, ingressCleaned)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)

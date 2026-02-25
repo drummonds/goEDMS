@@ -45,6 +45,7 @@ func setupTestServer(t *testing.T) (*echo.Echo, *engine.ServerHandler, func()) {
 		Echo:         e,
 		ServerConfig: serverConfig,
 	}
+	serverHandler.InitJobContext()
 
 	// Setup routes
 	e.Use(middleware.CORSWithConfig(middleware.DefaultCORSConfig))

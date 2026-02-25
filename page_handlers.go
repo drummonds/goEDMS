@@ -11,6 +11,7 @@ import (
 	"github.com/drummonds/godocs/internal/build"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
+	"github.com/oklog/ulid/v2"
 )
 
 // DocumentWithMeta wraps a document with display-related metadata
@@ -763,6 +764,22 @@ func HandleTriggerClean(tr *TemplateRenderer) echo.HandlerFunc {
 		_, err := tr.runCleanupAsync()
 		if err != nil {
 			Logger.Error("Failed to trigger cleanup", "error", err)
+		}
+		return c.Redirect(http.StatusSeeOther, "/jobs")
+	}
+}
+
+// HandleCancelJob cancels a running or pending job
+func HandleCancelJob(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		jobIDStr := c.Param("id")
+		jobID, err := ulid.Parse(jobIDStr)
+		if err != nil {
+			Logger.Error("Invalid job ID for cancel", "id", jobIDStr, "error", err)
+			return c.Redirect(http.StatusSeeOther, "/jobs")
+		}
+		if err := tr.cancelJob(jobID); err != nil {
+			Logger.Error("Failed to cancel job", "id", jobIDStr, "error", err)
 		}
 		return c.Redirect(http.StatusSeeOther, "/jobs")
 	}

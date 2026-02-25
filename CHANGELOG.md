@@ -2,9 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.47.1 2026-02-24
+## 0.47.2 2026-02-24
 
+- fix critical job bugs
 - extract  godocs-hash
+
 
 ## 0.47.0 2026-02-23
 

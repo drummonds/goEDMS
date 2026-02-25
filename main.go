@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -10,8 +11,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -83,6 +86,7 @@ func main() {
 	app.Version = version
 
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitJobContext()
 
 	// Create template renderer with callback functions
 	tr := &TemplateRenderer{
@@ -95,6 +99,7 @@ func main() {
 		writeTagAliases:   engine.WriteTagAliases,
 		runCleanupAsync:   serverHandler.RunCleanupAsync,
 		runIngestionAsync: serverHandler.RunIngestionAsync,
+		cancelJob:         serverHandler.CancelJob,
 	}
 
 	// Custom error handler
@@ -215,6 +220,7 @@ func main() {
 	// Job tracking API routes
 	e.GET("/api/jobs", serverHandler.GetRecentJobs)
 	e.GET("/api/jobs/active", serverHandler.GetActiveJobs)
+	e.POST("/api/jobs/:id/cancel", serverHandler.CancelJobHandler)
 
 	// Tag API routes
 	e.GET("/api/tags", serverHandler.GetAllTags)
@@ -296,6 +302,7 @@ func main() {
 	e.GET("/jobs", HandleJobsPage(tr))
 	e.POST("/jobs/clean", HandleTriggerClean(tr))
 	e.POST("/jobs/ingest", HandleTriggerIngest(tr))
+	e.POST("/jobs/:id/cancel", HandleCancelJob(tr))
 
 	// --- Start server ---
 	if *demo {
@@ -329,9 +336,24 @@ func main() {
 	addr := fmt.Sprintf("%s:%s", serverConfig.ListenAddrIP, serverConfig.ListenAddrPort)
 	Logger.Info("Starting server", "address", addr)
 
-	if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
-		Logger.Error("Server failed", "error", err)
-		os.Exit(1)
+	go func() {
+		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
+			Logger.Error("Server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	Logger.Info("Shutting down...")
+	serverHandler.Shutdown()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		Logger.Error("Server forced to shutdown", "error", err)
 	}
 }
 

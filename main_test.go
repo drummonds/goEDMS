@@ -42,6 +42,7 @@ func setupSSRTestServer(t *testing.T) (*echo.Echo, database.Repository, func()) 
 	app.Version = "test"
 
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitJobContext()
 
 	tr := &TemplateRenderer{
 		templateSet:       NewTemplateSet(),
@@ -396,6 +397,7 @@ func runIngressStartupTest(t *testing.T) {
 	e := echo.New()
 	e.HideBanner = true
 	serverHandler := engine.ServerHandler{DB: db, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitJobContext()
 	serverHandler.InitializeSchedules(db)
 
 	time.Sleep(5 * time.Second)

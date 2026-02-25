@@ -14,6 +14,7 @@ import (
 	"github.com/drummonds/godocs/internal/build"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
+	"github.com/oklog/ulid/v2"
 )
 
 //go:embed templates/*
@@ -57,6 +58,7 @@ type TemplateRenderer struct {
 	writeTagAliases   func(string, database.Repository) error
 	runCleanupAsync   func() (*database.Job, error)
 	runIngestionAsync func() (*database.Job, error)
+	cancelJob         func(ulid.ULID) error
 }
 
 // NewTemplateSet creates a pongo2 template set from embedded templates

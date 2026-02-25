@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	godocshash "github.com/drummonds/godocs-hash"
@@ -16,6 +18,8 @@ import (
 	"github.com/drummonds/godocs/database"
 	"github.com/drummonds/godocs/internal/build"
 	"github.com/labstack/echo/v4"
+	"github.com/oklog/ulid/v2"
+	"github.com/robfig/cron/v3"
 )
 
 // ServerHandler will inject the variables needed into routes
@@ -23,6 +27,73 @@ type ServerHandler struct {
 	DB           database.Repository
 	Echo         *echo.Echo
 	ServerConfig config.ServerConfig
+
+	cron         *cron.Cron
+	jobCtx       context.Context
+	cancelJobs   context.CancelFunc
+	jobCancels   map[string]context.CancelFunc
+	jobCancelsMu sync.Mutex
+}
+
+// InitJobContext sets up the cancellable parent context for all jobs.
+// Must be called before InitializeSchedules.
+func (sh *ServerHandler) InitJobContext() {
+	sh.jobCtx, sh.cancelJobs = context.WithCancel(context.Background())
+	sh.jobCancels = make(map[string]context.CancelFunc)
+}
+
+// RegisterJobCancel creates a child context for a specific job and stores its cancel func.
+func (sh *ServerHandler) RegisterJobCancel(jobID ulid.ULID) context.Context {
+	sh.jobCancelsMu.Lock()
+	defer sh.jobCancelsMu.Unlock()
+	ctx, cancel := context.WithCancel(sh.jobCtx)
+	sh.jobCancels[jobID.String()] = cancel
+	return ctx
+}
+
+// CancelJob cancels a specific job's context and updates the DB.
+func (sh *ServerHandler) CancelJob(jobID ulid.ULID) error {
+	sh.jobCancelsMu.Lock()
+	cancel, ok := sh.jobCancels[jobID.String()]
+	if ok {
+		cancel()
+		delete(sh.jobCancels, jobID.String())
+	}
+	sh.jobCancelsMu.Unlock()
+	return sh.DB.CancelJob(jobID)
+}
+
+func (sh *ServerHandler) unregisterJob(jobID ulid.ULID) {
+	sh.jobCancelsMu.Lock()
+	delete(sh.jobCancels, jobID.String())
+	sh.jobCancelsMu.Unlock()
+}
+
+// HasActiveJobOfType returns true if there's already a pending or running job of the given type.
+func (sh *ServerHandler) HasActiveJobOfType(jobType database.JobType) bool {
+	jobs, err := sh.DB.GetActiveJobs()
+	if err != nil {
+		Logger.Error("Failed to check active jobs", "error", err)
+		return false
+	}
+	for _, j := range jobs {
+		if j.Type == jobType {
+			return true
+		}
+	}
+	return false
+}
+
+// Shutdown stops the cron scheduler and cancels running jobs.
+func (sh *ServerHandler) Shutdown() {
+	Logger.Info("Shutting down scheduler")
+	if sh.cron != nil {
+		ctx := sh.cron.Stop()
+		<-ctx.Done()
+	}
+	if sh.cancelJobs != nil {
+		sh.cancelJobs()
+	}
 }
 
 /* type Node struct {
@@ -974,7 +1045,12 @@ func (serverHandler *ServerHandler) GetAboutInfo(c echo.Context) error {
 func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
 	Logger.Info("Manual ingestion triggered via API")
 
-	// Create a job to track the ingestion
+	if serverHandler.HasActiveJobOfType(database.JobTypeIngestion) {
+		return c.JSON(http.StatusConflict, map[string]interface{}{
+			"error": "An ingestion job is already running",
+		})
+	}
+
 	job, err := serverHandler.DB.CreateJob(database.JobTypeIngestion, "Starting document ingestion")
 	if err != nil {
 		Logger.Error("Failed to create ingestion job", "error", err)
@@ -983,9 +1059,9 @@ func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
 		})
 	}
 
-	// Run ingestion in a goroutine so we can return immediately
+	ctx := serverHandler.RegisterJobCancel(job.ID)
 	go func() {
-		serverHandler.ingressJobFuncWithTracking(serverHandler.ServerConfig, serverHandler.DB, job.ID)
+		serverHandler.ingressJobFuncWithTracking(ctx, serverHandler.ServerConfig, serverHandler.DB, job.ID)
 	}()
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -1007,7 +1083,12 @@ func (serverHandler *ServerHandler) RunIngestNow(c echo.Context) error {
 func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 	Logger.Info("Database cleanup triggered via API")
 
-	// Create a job to track the cleanup
+	if serverHandler.HasActiveJobOfType(database.JobTypeCleanup) {
+		return c.JSON(http.StatusConflict, map[string]interface{}{
+			"error": "A cleanup job is already running",
+		})
+	}
+
 	job, err := serverHandler.DB.CreateJob(database.JobTypeCleanup, "Starting database cleanup")
 	if err != nil {
 		Logger.Error("Failed to create cleanup job", "error", err)
@@ -1016,9 +1097,9 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 		})
 	}
 
-	// Run cleanup in goroutine with job tracking
+	ctx := serverHandler.RegisterJobCancel(job.ID)
 	go func() {
-		serverHandler.cleanupJobFuncWithTracking(serverHandler.DB, job.ID)
+		serverHandler.cleanupJobFuncWithTracking(ctx, serverHandler.DB, job.ID)
 	}()
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -1029,26 +1110,54 @@ func (serverHandler *ServerHandler) CleanDatabase(c echo.Context) error {
 
 // RunCleanupAsync creates a cleanup job and runs it in a background goroutine.
 func (sh *ServerHandler) RunCleanupAsync() (*database.Job, error) {
+	if sh.HasActiveJobOfType(database.JobTypeCleanup) {
+		return nil, fmt.Errorf("a cleanup job is already running")
+	}
 	job, err := sh.DB.CreateJob(database.JobTypeCleanup, "Starting database cleanup")
 	if err != nil {
 		return nil, err
 	}
+	ctx := sh.RegisterJobCancel(job.ID)
 	go func() {
-		sh.cleanupJobFuncWithTracking(sh.DB, job.ID)
+		sh.cleanupJobFuncWithTracking(ctx, sh.DB, job.ID)
 	}()
 	return job, nil
 }
 
 // RunIngestionAsync creates an ingestion job and runs it in a background goroutine.
 func (sh *ServerHandler) RunIngestionAsync() (*database.Job, error) {
+	if sh.HasActiveJobOfType(database.JobTypeIngestion) {
+		return nil, fmt.Errorf("an ingestion job is already running")
+	}
 	job, err := sh.DB.CreateJob(database.JobTypeIngestion, "Starting document ingestion")
 	if err != nil {
 		return nil, err
 	}
+	ctx := sh.RegisterJobCancel(job.ID)
 	go func() {
-		sh.ingressJobFuncWithTracking(sh.ServerConfig, sh.DB, job.ID)
+		sh.ingressJobFuncWithTracking(ctx, sh.ServerConfig, sh.DB, job.ID)
 	}()
 	return job, nil
+}
+
+// CancelJobHandler cancels a running or pending job.
+func (serverHandler *ServerHandler) CancelJobHandler(c echo.Context) error {
+	jobIDStr := c.Param("id")
+	jobID, err := ulid.Parse(jobIDStr)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error": "Invalid job ID format",
+		})
+	}
+	if err := serverHandler.CancelJob(jobID); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Job cancelled",
+		"jobId":   jobIDStr,
+	})
 }
 
 // findOrphanedDocuments scans the document storage directory and finds files

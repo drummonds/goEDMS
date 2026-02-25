@@ -123,6 +123,7 @@ func main() {
 	}
 
 	serverHandler := engine.ServerHandler{DB: repo, Echo: e, ServerConfig: serverConfig}
+	serverHandler.InitJobContext()
 	Logger.Info("Initializing backend services...")
 	serverHandler.InitializeSchedules(repo) //initialize all the cron jobs
 	serverHandler.StartupChecks()           //Run all the sanity checks

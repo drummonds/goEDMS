@@ -137,12 +137,12 @@ func testIngressWithSidecars(t *testing.T) {
 		DB:           db,
 		ServerConfig: serverConfig,
 	}
+	serverHandler.InitJobContext()
 
 	// Run ingestion
 	t.Log("Running ingestion...")
 	jobID := ulid.Make()
 	ctx := context.Background()
-	_ = ctx
 
 	// Use a simpler approach - directly call the ingestion function
 	files, err := filepath.Glob(filepath.Join(ingressDir, "*.pdf"))
@@ -154,7 +154,7 @@ func testIngressWithSidecars(t *testing.T) {
 
 	for i, file := range files {
 		t.Logf("Ingesting %s...", filepath.Base(file))
-		if err := serverHandler.IngestDocumentWithSteps(file, db, jobID, i, len(files)); err != nil {
+		if err := serverHandler.IngestDocumentWithSteps(ctx, file, db, jobID, i, len(files)); err != nil {
 			// Duplicate errors are expected if we run tests multiple times
 			if len(err.Error()) < 9 || err.Error()[:9] != "duplicate" {
 				t.Errorf("Failed to ingest %s: %v", file, err)
@@ -337,6 +337,7 @@ func testIngressPDFsOnly(t *testing.T) {
 		DB:           db,
 		ServerConfig: serverConfig,
 	}
+	serverHandler.InitJobContext()
 
 	// Run ingestion
 	t.Log("Running ingestion...")
@@ -351,7 +352,7 @@ func testIngressPDFsOnly(t *testing.T) {
 
 	for i, file := range files {
 		t.Logf("Ingesting %s...", filepath.Base(file))
-		if err := serverHandler.IngestDocumentWithSteps(file, db, jobID, i, len(files)); err != nil {
+		if err := serverHandler.IngestDocumentWithSteps(context.Background(), file, db, jobID, i, len(files)); err != nil {
 			if len(err.Error()) < 9 || err.Error()[:9] != "duplicate" {
 				t.Errorf("Failed to ingest %s: %v", file, err)
 			}

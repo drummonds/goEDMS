@@ -85,6 +85,8 @@ type Repository interface {
 	GetRecentJobs(limit, offset int) ([]Job, error)
 	GetActiveJobs() ([]Job, error)
 	DeleteOldJobs(olderThan time.Duration) (int, error)
+	CancelJob(jobID ulid.ULID) error
+	RecoverStuckJobs(stuckThreshold time.Duration) (int, error)
 	// Tag methods
 	CreateTag(tag *Tag) error
 	GetAllTags() ([]Tag, error)

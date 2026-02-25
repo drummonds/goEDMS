@@ -42,6 +42,7 @@
             <th>Progress</th>
             <th>Started</th>
             <th>Completed</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -74,6 +75,13 @@
             </td>
             <td>
                 {% if job.CompletedAtFmt %}{{ job.CompletedAtFmt }}{% else %}—{% endif %}
+            </td>
+            <td>
+                {% if job.Status == "running" or job.Status == "pending" %}
+                <form method="POST" action="/jobs/{{ job.ID }}/cancel" style="display:inline;">
+                    <button class="button is-small is-danger is-outlined" type="submit">Cancel</button>
+                </form>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}

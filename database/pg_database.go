@@ -598,6 +598,36 @@ func (p *PGDB) DeleteOldJobs(olderThan time.Duration) (int, error) {
 	return int(count), err
 }
 
+func (p *PGDB) CancelJob(jobID ulid.ULID) error {
+	now := time.Now()
+	result, err := p.db.ExecContext(context.Background(), `
+		UPDATE jobs SET status = $1, message = 'Cancelled by user', updated_at = $2, completed_at = $3
+		WHERE id = $4 AND status IN ($5, $6)`,
+		JobStatusCancelled, now, now, jobID.String(), JobStatusPending, JobStatusRunning)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("job %s not found or already completed", jobID)
+	}
+	return nil
+}
+
+func (p *PGDB) RecoverStuckJobs(stuckThreshold time.Duration) (int, error) {
+	cutoff := time.Now().Add(-stuckThreshold)
+	now := time.Now()
+	result, err := p.db.ExecContext(context.Background(), `
+		UPDATE jobs SET status = $1, error = 'Recovered: exceeded timeout', updated_at = $2, completed_at = $3
+		WHERE status IN ($4, $5) AND updated_at < $6`,
+		JobStatusFailed, now, now, JobStatusPending, JobStatusRunning, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	rows, _ := result.RowsAffected()
+	return int(rows), nil
+}
+
 // ============================================================================
 // WORD CLOUD METHODS
 // ============================================================================

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,11 +12,15 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-// IngestDocumentWithSteps processes a document through explicit steps with progress tracking
+// IngestDocumentWithSteps processes a document through explicit steps with progress tracking.
 // Step 1: Calculate hash and create initial database record
 // Step 2: Move file to documents folder and verify hash
 // Step 3: Extract text and update search/wordcloud
-func (serverHandler *ServerHandler) IngestDocumentWithSteps(filePath string, db database.Repository, jobID ulid.ULID, fileNum, totalFiles int) error {
+func (serverHandler *ServerHandler) IngestDocumentWithSteps(ctx context.Context, filePath string, db database.Repository, jobID ulid.ULID, fileNum, totalFiles int) error {
+	if ctx.Err() != nil {
+		return fmt.Errorf("cancelled before processing")
+	}
+
 	fileName := filepath.Base(filePath)
 	baseProgress := int((float64(fileNum) / float64(totalFiles)) * 90) // Reserve 90% for file processing, 10% for final steps
 

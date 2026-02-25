@@ -516,6 +516,40 @@ func (m *MemDB) DeleteOldJobs(olderThan time.Duration) (int, error) {
 	return count, nil
 }
 
+func (m *MemDB) CancelJob(jobID ulid.ULID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for k, j := range m.jobs {
+		if j.ID == jobID && (j.Status == JobStatusPending || j.Status == JobStatusRunning) {
+			now := time.Now()
+			m.jobs[k].Status = JobStatusCancelled
+			m.jobs[k].Message = "Cancelled by user"
+			m.jobs[k].UpdatedAt = now
+			m.jobs[k].CompletedAt = &now
+			return nil
+		}
+	}
+	return fmt.Errorf("job %s not found or already completed", jobID)
+}
+
+func (m *MemDB) RecoverStuckJobs(stuckThreshold time.Duration) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cutoff := time.Now().Add(-stuckThreshold)
+	now := time.Now()
+	count := 0
+	for k, j := range m.jobs {
+		if (j.Status == JobStatusPending || j.Status == JobStatusRunning) && j.UpdatedAt.Before(cutoff) {
+			m.jobs[k].Status = JobStatusFailed
+			m.jobs[k].Error = "Recovered: exceeded timeout"
+			m.jobs[k].UpdatedAt = now
+			m.jobs[k].CompletedAt = &now
+			count++
+		}
+	}
+	return count, nil
+}
+
 // ----------------------------------------------------------------------------
 // Tags
 // ----------------------------------------------------------------------------
