@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.47.4 2026-02-25
+## 0.47.5 2026-02-25
 
 - improving tag layout
 
