@@ -2,6 +2,7 @@
     <div class="card document-card">
         <div class="card-top-row">
             <div class="card-thumbnail">
+                <a href="/document/view/{{ doc.ULID }}">
                 {% if doc.HasThumbnail %}
                 <img class="thumbnail-img" src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}">
                 {% else %}
@@ -9,12 +10,12 @@
                     <span>{{ doc.DocumentType }}</span>
                 </div>
                 {% endif %}
+                </a>
             </div>
             <div class="card-sidebar">
                 <div class="card-buttons">
-                    <a href="/document/{{ doc.ULID }}" class="button is-small is-link is-outlined" title="View document">&#128065;</a>
-                    <a href="/document/view/{{ doc.ULID }}" class="button is-small is-info is-outlined" title="Download file">&#11015;</a>
-                    <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit tags">&#9998;</a>
+                    <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit">&#9998;</a>
+                    <a href="/documents/bulk-edit?ulids={{ doc.ULID }}" class="button is-small is-outlined" title="Select">&#9744;</a>
                     {% if select_mode %}
                     <label class="button is-small is-outlined" title="Select">
                         <input type="checkbox" name="ulids" value="{{ doc.ULID }}">

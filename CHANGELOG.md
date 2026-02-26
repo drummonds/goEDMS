@@ -2,6 +2,11 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.48.1 2026-02-26
+
+- Adding archive functionality
+- Adding extra buttons for edit and view docs on document card
+
 ## 0.47.6 2026-02-25
 
 - improving tag layout

@@ -96,6 +96,12 @@ func HandleBulkEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 
 		ulidsJoined := strings.Join(ulids, ",")
 
+		// Look up the "Hide" tag for the quick-hide button
+		var hideTagID int
+		if hideTag, err := tr.db.GetTagByName("Hide"); err == nil && hideTag != nil {
+			hideTagID = hideTag.ID
+		}
+
 		return tr.Render(c, "bulk_edit.html", pongo2.Context{
 			"docs":           docs,
 			"ulids":          ulidsJoined,
@@ -103,6 +109,7 @@ func HandleBulkEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"available_tags": availableTags,
 			"stories":        stories,
 			"doc_count":      len(docs),
+			"hide_tag_id":    hideTagID,
 		})
 	}
 }

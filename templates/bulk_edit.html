@@ -104,6 +104,17 @@
         </div>
         {% endif %}
 
+        {% if hide_tag_id %}
+        <div class="mb-5">
+            <h2 class="subtitle is-5">Hide</h2>
+            <form method="POST" action="/documents/bulk-edit/tags">
+                <input type="hidden" name="ulids" value="{{ ulids }}">
+                <input type="hidden" name="tag_id" value="{{ hide_tag_id }}">
+                <button type="submit" class="button is-warning is-outlined">Hide Selected</button>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="mb-5">
             <h2 class="subtitle is-5">Archive</h2>
             <form method="POST" action="/documents/bulk-edit/archive">
