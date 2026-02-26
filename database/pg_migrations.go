@@ -55,6 +55,7 @@ func runMigrations(ctx context.Context, db *sql.DB, isPglike bool) error {
 		{"011", "add_document_metadata", migrate011AddDocumentMetadata},
 		{"012", "add_hide_tag", migrate012AddHideTag},
 		{"013", "add_tag_aliases", migrate013AddTagAliases},
+		{"014", "add_archive_support", migrate014AddArchiveSupport},
 	}
 
 	for _, m := range migrations {
@@ -764,5 +765,39 @@ func migrate013AddTagAliases(ctx context.Context, db *sql.DB, isPglike bool) err
 	}
 
 	Logger.Info("Migration 013 completed successfully")
+	return nil
+}
+
+// Migration 014: Add archive support (archive_status, archived_at columns + system tag)
+func migrate014AddArchiveSupport(ctx context.Context, db *sql.DB, isPglike bool) error {
+	Logger.Info("Running migration 014: Add archive support")
+
+	columns := []string{
+		`ALTER TABLE documents ADD COLUMN archive_status TEXT`,
+		`ALTER TABLE documents ADD COLUMN archived_at TIMESTAMP`,
+	}
+	for _, col := range columns {
+		_, err := db.ExecContext(ctx, col)
+		if err != nil {
+			Logger.Warn("Could not add column (might already exist)", "sql", col, "error", err)
+		}
+	}
+
+	_, err := db.ExecContext(ctx,
+		`CREATE INDEX IF NOT EXISTS idx_documents_archive_status ON documents(archive_status)`)
+	if err != nil {
+		return fmt.Errorf("failed to create archive_status index: %w", err)
+	}
+
+	// Create "Archive Pending" system tag
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO tags (name, color, description, tag_group, sort_order, created_at, updated_at)
+		VALUES ('Archive Pending', '#95a5a6', 'Document queued for archival', 'System', 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (name) DO NOTHING`)
+	if err != nil {
+		return fmt.Errorf("failed to insert Archive Pending tag: %w", err)
+	}
+
+	Logger.Info("Migration 014 completed successfully")
 	return nil
 }

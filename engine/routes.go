@@ -1499,9 +1499,25 @@ func (serverHandler *ServerHandler) LogFromFrontend(c echo.Context) error {
 	})
 }
 
+// archiveGuard checks if a document is archived and returns an error response if so.
+// Returns (document, error). If error is non-nil, the response has already been sent.
+func (serverHandler *ServerHandler) archiveGuard(c echo.Context, ulidStr string) (*database.Document, error) {
+	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
+	if err != nil || doc == nil {
+		return nil, c.JSON(http.StatusNotFound, map[string]string{"error": "document not found"})
+	}
+	if doc.ArchiveStatus != nil {
+		return nil, c.JSON(http.StatusForbidden, map[string]string{"error": "document is archived — edits are frozen"})
+	}
+	return doc, nil
+}
+
 // UpdateDocumentText updates the full text of a document
 func (serverHandler *ServerHandler) UpdateDocumentText(c echo.Context) error {
 	ulidStr := c.Param("id")
+	if _, err := serverHandler.archiveGuard(c, ulidStr); err != nil {
+		return err
+	}
 	var req struct {
 		Text string `json:"text"`
 	}
@@ -1533,6 +1549,9 @@ func (serverHandler *ServerHandler) LookupDocument(c echo.Context) error {
 // Also generates a thumbnail if one doesn't already exist.
 func (serverHandler *ServerHandler) UpdateDocumentMetadata(c echo.Context) error {
 	ulidStr := c.Param("id")
+	if _, err := serverHandler.archiveGuard(c, ulidStr); err != nil {
+		return err
+	}
 	var meta database.DocumentMetadataUpdate
 	if err := c.Bind(&meta); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -1561,6 +1580,9 @@ func (serverHandler *ServerHandler) UpdateDocumentMetadata(c echo.Context) error
 // UpdateDocumentDate updates the document date of a document
 func (serverHandler *ServerHandler) UpdateDocumentDate(c echo.Context) error {
 	ulidStr := c.Param("id")
+	if _, err := serverHandler.archiveGuard(c, ulidStr); err != nil {
+		return err
+	}
 	var req struct {
 		Date string `json:"date"`
 	}
@@ -1596,6 +1618,9 @@ func (serverHandler *ServerHandler) UpdateDocumentDate(c echo.Context) error {
 // @Router /api/document/{id}/ocr [put]
 func (serverHandler *ServerHandler) UpdateDocumentOCR(c echo.Context) error {
 	ulidStr := c.Param("id")
+	if _, err := serverHandler.archiveGuard(c, ulidStr); err != nil {
+		return err
+	}
 	var req struct {
 		Text string `json:"text"`
 	}
@@ -1638,6 +1663,109 @@ func (serverHandler *ServerHandler) UpdateDocumentOCR(c echo.Context) error {
 	})
 }
 
+// ArchiveConfirm marks a pending-archive document as fully archived.
+// Called by the external backup tool after it has moved files to long-term storage.
+// PUT /api/document/:id/archive-confirm
+func (serverHandler *ServerHandler) ArchiveConfirm(c echo.Context) error {
+	ulidStr := c.Param("id")
+	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
+	if err != nil || doc == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "document not found"})
+	}
+	if doc.ArchiveStatus == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "document is not archive-pending"})
+	}
+	if *doc.ArchiveStatus == "archived" {
+		return c.JSON(http.StatusOK, map[string]string{"status": "already archived"})
+	}
+
+	archived := "archived"
+	if err := serverHandler.DB.UpdateDocumentArchiveStatus(ulidStr, &archived, doc.ArchivedAt); err != nil {
+		Logger.Error("ArchiveConfirm failed", "ulid", ulidStr, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	Logger.Info("Document archive confirmed", "ulid", ulidStr)
+	return c.JSON(http.StatusOK, map[string]string{"status": "archived"})
+}
+
+// Unarchive moves a pending-archive document back to the active document folder.
+// Fails if archive_status is 'archived' (files already moved by external tool).
+// PUT /api/document/:id/unarchive
+func (serverHandler *ServerHandler) Unarchive(c echo.Context) error {
+	ulidStr := c.Param("id")
+	doc, err := serverHandler.DB.GetDocumentByULID(ulidStr)
+	if err != nil || doc == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "document not found"})
+	}
+	if doc.ArchiveStatus == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "document is not archived"})
+	}
+	if *doc.ArchiveStatus == "archived" {
+		return c.JSON(http.StatusConflict, map[string]string{"error": "document is fully archived — files have been moved to backup storage"})
+	}
+
+	// Move files back from archive folder to document folder
+	archivePath := serverHandler.ServerConfig.ArchivePath
+	documentPath := serverHandler.ServerConfig.DocumentPath
+
+	relPath, err := filepath.Rel(archivePath, doc.Path)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "cannot compute relative path"})
+	}
+	restoredPath := filepath.ToSlash(filepath.Join(documentPath, relPath))
+	restoredDir := filepath.Dir(restoredPath)
+
+	if err := os.MkdirAll(restoredDir, 0755); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "cannot create document directory"})
+	}
+
+	// Move original and sidecars
+	sidecarBase := SidecarBasePath(doc.Path)
+	restoredSidecarBase := SidecarBasePath(restoredPath)
+	filesToMove := []struct{ src, dst string }{
+		{doc.Path, restoredPath},
+		{sidecarBase + ".ocr.txt", restoredSidecarBase + ".ocr.txt"},
+		{sidecarBase + ".thumb.png", restoredSidecarBase + ".thumb.png"},
+		{sidecarBase + ".tags.json", restoredSidecarBase + ".tags.json"},
+		{sidecarBase + ".lifecycle.json", restoredSidecarBase + ".lifecycle.json"},
+	}
+
+	for _, f := range filesToMove {
+		if _, statErr := os.Stat(f.src); os.IsNotExist(statErr) {
+			continue
+		}
+		if err := os.Rename(f.src, f.dst); err != nil {
+			Logger.Error("Unarchive: failed to move file", "src", f.src, "dst", f.dst, "error", err)
+		}
+	}
+
+	// Remove .lifecycle.json from restored location (no longer needed)
+	os.Remove(restoredSidecarBase + ".lifecycle.json")
+
+	// Update DB: clear archive status, update path
+	if err := serverHandler.DB.UpdateDocumentArchiveStatus(ulidStr, nil, nil); err != nil {
+		Logger.Error("Unarchive: failed to clear status", "ulid", ulidStr, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	restoredFolder := filepath.ToSlash(filepath.Dir(restoredPath))
+	if err := serverHandler.DB.UpdateDocumentPath(ulidStr, restoredPath, restoredFolder); err != nil {
+		Logger.Error("Unarchive: failed to update path", "ulid", ulidStr, "error", err)
+	}
+
+	// Remove "Archive Pending" tag
+	archiveTag, err := serverHandler.DB.GetTagByName("Archive Pending")
+	if err == nil && archiveTag != nil {
+		serverHandler.DB.RemoveTagFromDocument(doc.ID, archiveTag.ID)
+	}
+
+	Logger.Info("Document unarchived", "ulid", ulidStr, "restoredPath", restoredPath)
+	return c.JSON(http.StatusOK, map[string]string{
+		"status": "unarchived",
+		"path":   restoredPath,
+	})
+}
+
 // isSidecarFilename returns true if the filename looks like a sidecar file
 // that should not be uploaded as a standalone document.
 func isSidecarFilename(filename string) bool {
@@ -1661,6 +1789,9 @@ func isSidecarFilename(filename string) bool {
 // Body: {"degrees": 90}
 func (serverHandler *ServerHandler) RotateDocument(c echo.Context) error {
 	ulidStr := c.Param("id")
+	if _, err := serverHandler.archiveGuard(c, ulidStr); err != nil {
+		return err
+	}
 	var req struct {
 		Degrees int `json:"degrees"`
 	}

@@ -32,7 +32,9 @@ type Document struct {
 	UpdatedDate  *time.Time `json:"updated_date,omitempty"`  // original modification date from source
 	Author       string     `json:"author,omitempty"`        // note author
 	SourceURL    string     `json:"source_url,omitempty"`    // original source URL
-	Source       string     `json:"source,omitempty"`        // source system (e.g. "evernote")
+	Source        string     `json:"source,omitempty"`         // source system (e.g. "evernote")
+	ArchiveStatus *string    `json:"archive_status,omitempty"` // nil=active, "pending", "archived"
+	ArchivedAt    *time.Time `json:"archived_at,omitempty"`    // when archival began
 }
 
 // DocumentMetadataUpdate holds optional fields for bulk metadata update via API.
@@ -141,6 +143,9 @@ type Repository interface {
 	UpdateDocumentMetadata(ulid string, meta DocumentMetadataUpdate) error
 	ConvertTagToStory(tagID int) (*Story, error)
 	ConvertStoryToTag(storyID int) error
+	// Archive methods
+	UpdateDocumentArchiveStatus(ulidStr string, status *string, archivedAt *time.Time) error
+	GetArchivedDocuments(page, pageSize int) ([]Document, int, error)
 }
 
 // FetchConfigFromDB pulls the server config from the database

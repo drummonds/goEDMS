@@ -1,12 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/drummonds/godocs/database"
+	"github.com/drummonds/godocs/engine"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
 )
@@ -209,6 +213,180 @@ func HandleBulkSetDate(tr *TemplateRenderer) echo.HandlerFunc {
 		}
 
 		return redirectToBulkEdit(c, ulids)
+	}
+}
+
+// lifecycleMetadata is written to .lifecycle.json at archive time.
+type lifecycleMetadata struct {
+	ArchivedAt    string `json:"archived_at"`
+	ArchivedBy    string `json:"archived_by"`
+	ArchiveReason string `json:"archive_reason"`
+	OriginalPath  string `json:"original_path"`
+	Hash          string `json:"hash"`
+	ULID          string `json:"ulid"`
+	DBID          int    `json:"db_id"`
+	SchemaVersion string `json:"schema_version"`
+}
+
+// HandleBulkArchiveDocuments archives all selected documents:
+// sets archive_status='pending', adds Archive Pending tag, exports .tags.json,
+// writes .lifecycle.json, moves files to archive folder, updates DB path.
+func HandleBulkArchiveDocuments(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ulids := parseULIDs(c)
+		if len(ulids) == 0 {
+			return c.Redirect(http.StatusSeeOther, "/")
+		}
+
+		archivePath := tr.config.ArchivePath
+		documentPath := tr.config.DocumentPath
+
+		// Find the "Archive Pending" system tag
+		archiveTag, err := tr.db.GetTagByName("Archive Pending")
+		if err != nil || archiveTag == nil {
+			Logger.Error("Archive Pending tag not found — run migration")
+			return c.Redirect(http.StatusSeeOther, "/")
+		}
+
+		now := time.Now()
+		pending := "pending"
+
+		for _, ulidStr := range ulids {
+			doc, _, err := database.FetchDocument(ulidStr, tr.db)
+			if err != nil {
+				Logger.Error("Archive: doc not found", "ulid", ulidStr, "error", err)
+				continue
+			}
+			if doc.ArchiveStatus != nil {
+				continue // already archived
+			}
+
+			// 1. Set archive_status='pending', archived_at=now
+			if err := tr.db.UpdateDocumentArchiveStatus(ulidStr, &pending, &now); err != nil {
+				Logger.Error("Archive: failed to set status", "ulid", ulidStr, "error", err)
+				continue
+			}
+
+			// 2. Add Archive Pending tag
+			tr.db.AddTagToDocument(doc.ID, archiveTag.ID)
+
+			// 3. Export final .tags.json
+			exportTagsSidecar(&doc, tr.db)
+
+			// 4. Write .lifecycle.json sidecar (at current doc path, before moving)
+			lifecycle := lifecycleMetadata{
+				ArchivedAt:    now.UTC().Format(time.RFC3339),
+				ArchivedBy:    "godocs",
+				ArchiveReason: "user-initiated",
+				OriginalPath:  doc.Path,
+				Hash:          doc.Hash,
+				ULID:          ulidStr,
+				DBID:          doc.ID,
+				SchemaVersion: "1",
+			}
+			lifecyclePath := engine.GetLifecyclePath(doc.Path)
+			writeLifecycleJSON(lifecyclePath, &lifecycle)
+
+			// 5. Move all files to archive folder
+			// Compute archive destination by replacing documentPath prefix with archivePath
+			relPath, err := filepath.Rel(documentPath, doc.Path)
+			if err != nil {
+				Logger.Error("Archive: cannot compute relative path", "path", doc.Path, "error", err)
+				continue
+			}
+			archiveDocPath := filepath.ToSlash(filepath.Join(archivePath, relPath))
+			archiveDir := filepath.Dir(archiveDocPath)
+
+			if err := os.MkdirAll(archiveDir, 0755); err != nil {
+				Logger.Error("Archive: cannot create archive dir", "dir", archiveDir, "error", err)
+				continue
+			}
+
+			// Move the original document and all sidecars
+			sidecarBase := engine.SidecarBasePath(doc.Path)
+			archiveSidecarBase := engine.SidecarBasePath(archiveDocPath)
+			filesToMove := []struct{ src, dst string }{
+				{doc.Path, archiveDocPath},
+				{sidecarBase + ".ocr.txt", archiveSidecarBase + ".ocr.txt"},
+				{sidecarBase + ".thumb.png", archiveSidecarBase + ".thumb.png"},
+				{sidecarBase + ".tags.json", archiveSidecarBase + ".tags.json"},
+				{sidecarBase + ".lifecycle.json", archiveSidecarBase + ".lifecycle.json"},
+			}
+
+			allMoved := true
+			for _, f := range filesToMove {
+				if _, err := os.Stat(f.src); os.IsNotExist(err) {
+					continue // sidecar may not exist
+				}
+				if err := os.Rename(f.src, f.dst); err != nil {
+					Logger.Error("Archive: failed to move file", "src", f.src, "dst", f.dst, "error", err)
+					allMoved = false
+				}
+			}
+
+			if !allMoved {
+				Logger.Warn("Archive: some files failed to move", "ulid", ulidStr)
+			}
+
+			// 6. Update DB path and folder to archive location
+			archiveFolder := filepath.ToSlash(filepath.Dir(archiveDocPath))
+			if err := tr.db.UpdateDocumentPath(ulidStr, archiveDocPath, archiveFolder); err != nil {
+				Logger.Error("Archive: failed to update path", "ulid", ulidStr, "error", err)
+			}
+		}
+
+		return c.Redirect(http.StatusSeeOther, "/")
+	}
+}
+
+// exportTagsSidecar exports tags for a document to its .tags.json sidecar.
+func exportTagsSidecar(doc *database.Document, db database.Repository) {
+	tags, err := db.GetTagsForDocument(doc.ID)
+	if err != nil {
+		Logger.Error("Export tags: failed to get tags", "docID", doc.ID, "error", err)
+		return
+	}
+
+	tagData := &database.DocumentTagsAndDimensions{
+		Tags:      []string{},
+		TagGroups: make(map[string]string),
+	}
+	for _, tag := range tags {
+		if tag.TagGroup != nil && *tag.TagGroup != "" {
+			tagData.TagGroups[*tag.TagGroup] = tag.Name
+		} else {
+			tagData.Tags = append(tagData.Tags, tag.Name)
+		}
+	}
+
+	tagsPath := engine.SidecarBasePath(doc.Path) + ".tags.json"
+	if err := os.MkdirAll(filepath.Dir(tagsPath), 0755); err != nil {
+		Logger.Error("Export tags: mkdir failed", "path", tagsPath, "error", err)
+		return
+	}
+	data, err := json.MarshalIndent(tagData, "", "  ")
+	if err != nil {
+		Logger.Error("Export tags: marshal failed", "error", err)
+		return
+	}
+	if err := os.WriteFile(tagsPath, data, 0644); err != nil {
+		Logger.Error("Export tags: write failed", "path", tagsPath, "error", err)
+	}
+}
+
+// writeLifecycleJSON writes the .lifecycle.json sidecar file.
+func writeLifecycleJSON(path string, meta *lifecycleMetadata) {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		Logger.Error("Lifecycle: mkdir failed", "path", path, "error", err)
+		return
+	}
+	data, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		Logger.Error("Lifecycle: marshal failed", "error", err)
+		return
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		Logger.Error("Lifecycle: write failed", "path", path, "error", err)
 	}
 }
 

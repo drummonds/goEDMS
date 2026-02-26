@@ -120,9 +120,9 @@ func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int, showHidden ...bo
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
-	hideFilter := ""
+	filter := archiveExcludeAND("d")
 	if shouldExcludeHidden(showHidden) {
-		hideFilter = hideExcludeAND("d")
+		filter += hideExcludeAND("d")
 	}
 
 	var count int
@@ -130,7 +130,7 @@ func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int, showHidden ...bo
 		SELECT COUNT(*)
 		FROM documents d
 		INNER JOIN document_tags dt ON dt.document_id = d.id
-		WHERE dt.tag_id = $1`+hideFilter, tagID).Scan(&count)
+		WHERE dt.tag_id = $1`+filter, tagID).Scan(&count)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count documents by tag: %w", err)
 	}
@@ -139,7 +139,7 @@ func (p *PGDB) GetDocumentsByTag(tagID int, page, pageSize int, showHidden ...bo
 		SELECT `+docColumnsAliased+`
 		FROM documents d
 		INNER JOIN document_tags dt ON dt.document_id = d.id
-		WHERE dt.tag_id = $1`+hideFilter+`
+		WHERE dt.tag_id = $1`+filter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $2 OFFSET $3`, tagID, pageSize, offset)
 	if err != nil {
@@ -156,15 +156,15 @@ func (p *PGDB) GetUntaggedDocuments(page, pageSize int, showHidden ...bool) ([]D
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
-	hideFilter := ""
+	filter := archiveExcludeAND("d")
 	if shouldExcludeHidden(showHidden) {
-		hideFilter = hideExcludeAND("d")
+		filter += hideExcludeAND("d")
 	}
 
 	var count int
 	err := p.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM documents d
-		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter).Scan(&count)
+		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+filter).Scan(&count)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count untagged documents: %w", err)
 	}
@@ -172,7 +172,7 @@ func (p *PGDB) GetUntaggedDocuments(page, pageSize int, showHidden ...bool) ([]D
 	rows, err := p.db.QueryContext(ctx, `
 		SELECT `+docColumnsAliased+`
 		FROM documents d
-		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter+`
+		WHERE NOT EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+filter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $1 OFFSET $2`, pageSize, offset)
 	if err != nil {
@@ -189,15 +189,15 @@ func (p *PGDB) GetTaggedDocuments(page, pageSize int, showHidden ...bool) ([]Doc
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
-	hideFilter := ""
+	filter := archiveExcludeAND("d")
 	if shouldExcludeHidden(showHidden) {
-		hideFilter = hideExcludeAND("d")
+		filter += hideExcludeAND("d")
 	}
 
 	var count int
 	err := p.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM documents d
-		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter).Scan(&count)
+		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+filter).Scan(&count)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count tagged documents: %w", err)
 	}
@@ -205,7 +205,7 @@ func (p *PGDB) GetTaggedDocuments(page, pageSize int, showHidden ...bool) ([]Doc
 	rows, err := p.db.QueryContext(ctx, `
 		SELECT `+docColumnsAliased+`
 		FROM documents d
-		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+hideFilter+`
+		WHERE EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id)`+filter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $1 OFFSET $2`, pageSize, offset)
 	if err != nil {
@@ -239,6 +239,9 @@ func (p *PGDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int, showHidde
 		args       []interface{}
 		argIdx     = 1 // PostgreSQL $1, $2, ... placeholders
 	)
+
+	// Always exclude archived documents
+	conditions = append(conditions, "d.archive_status IS NULL")
 
 	// Add include tag filters (documents must have ALL these tags)
 	for i, tagName := range parsed.IncludeTags {

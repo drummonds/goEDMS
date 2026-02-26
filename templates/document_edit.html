@@ -11,6 +11,14 @@
     </ul>
 </nav>
 
+{% if is_archived %}
+<article class="message is-warning">
+    <div class="message-body">
+        This document is <strong>archived</strong> — all edits are frozen. Tags, dates, and metadata cannot be changed.
+    </div>
+</article>
+{% endif %}
+
 <div class="columns">
     <div class="column is-one-third">
         {% if has_thumbnail %}

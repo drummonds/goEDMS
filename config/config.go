@@ -33,6 +33,7 @@ type ServerConfig struct {
 	IngressPreserve      bool
 	UseSidecarTxt        bool
 	DocumentPath         string
+	ArchivePath          string // archive folder for archived documents (default: sibling of DocumentPath)
 	ConfigPath           string // sibling of DocumentPath for persistent config (tag_aliases.json etc.)
 	NewDocumentFolder    string //absolute path to new document folder
 	NewDocumentFolderRel string //relative path to new document folder
@@ -171,6 +172,18 @@ func SetupServer() (ServerConfig, *slog.Logger) {
 	}
 	serverConfigLive.DocumentPath = documentPathAbs
 	serverConfigLive.ConfigPath = filepath.Join(filepath.Dir(documentPathAbs), "config")
+
+	// Archive path (default: "archive" sibling of document path)
+	archivePathRel := filepath.ToSlash(getEnv("ARCHIVE_PATH", ""))
+	if archivePathRel != "" {
+		archivePathAbs, err := filepath.Abs(archivePathRel)
+		if err != nil {
+			logger.Error("Error creating archive path", "path", archivePathRel, "error", err)
+		}
+		serverConfigLive.ArchivePath = archivePathAbs
+	} else {
+		serverConfigLive.ArchivePath = filepath.Join(filepath.Dir(documentPathAbs), "archive")
+	}
 
 	newDocumentPath := filepath.ToSlash(getEnv("NEW_DOCUMENT_FOLDER", "New"))
 	serverConfigLive.NewDocumentFolderRel = newDocumentPath

@@ -350,6 +350,8 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 		_, ocrErr := os.Stat(ocrSidecarPath)
 		hasOCRSidecar := ocrErr == nil
 
+		isArchived := document.ArchiveStatus != nil
+
 		return tr.Render(c, "document_edit.html", pongo2.Context{
 			"doc":                 document,
 			"has_thumbnail":       hasThumbnail,
@@ -363,8 +365,14 @@ func HandleDocumentEditPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"ingress_time":        ingressTime,
 			"text_excerpt":        textExcerpt,
 			"has_ocr_sidecar":     hasOCRSidecar,
+			"is_archived":         isArchived,
 		})
 	}
+}
+
+// isDocArchived returns true if the document has a non-nil archive_status.
+func isDocArchived(doc *database.Document) bool {
+	return doc != nil && doc.ArchiveStatus != nil
 }
 
 // HandleDocumentAddTag adds a tag to a document
@@ -375,6 +383,9 @@ func HandleDocumentAddTag(tr *TemplateRenderer) echo.HandlerFunc {
 		document, _, err := database.FetchDocument(ulidStr, tr.db)
 		if err != nil {
 			return c.Redirect(http.StatusSeeOther, "/")
+		}
+		if isDocArchived(&document) {
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
 		}
 
 		tagID, err := strconv.Atoi(c.FormValue("tag_id"))
@@ -398,6 +409,9 @@ func HandleDocumentRemoveTag(tr *TemplateRenderer) echo.HandlerFunc {
 		document, _, err := database.FetchDocument(ulidStr, tr.db)
 		if err != nil {
 			return c.Redirect(http.StatusSeeOther, "/")
+		}
+		if isDocArchived(&document) {
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
 		}
 
 		tagID, err := strconv.Atoi(c.Param("tagId"))
@@ -428,6 +442,9 @@ func HandleDocumentRotate(tr *TemplateRenderer) echo.HandlerFunc {
 		document, _, err := database.FetchDocument(ulidStr, tr.db)
 		if err != nil {
 			return c.Redirect(http.StatusSeeOther, "/")
+		}
+		if isDocArchived(&document) {
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
 		}
 
 		// Rotate the file
@@ -470,6 +487,14 @@ func HandleDocumentRotate(tr *TemplateRenderer) echo.HandlerFunc {
 func HandleDocumentUpdateDate(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		ulidStr := c.Param("ulid")
+
+		document, _, err := database.FetchDocument(ulidStr, tr.db)
+		if err != nil {
+			return c.Redirect(http.StatusSeeOther, "/")
+		}
+		if isDocArchived(&document) {
+			return c.Redirect(http.StatusSeeOther, "/document/"+ulidStr+"/edit")
+		}
 
 		if c.FormValue("clear") == "1" {
 			if err := tr.db.UpdateDocumentDate(ulidStr, nil); err != nil {
@@ -812,6 +837,37 @@ func HandleTriggerIngest(tr *TemplateRenderer) echo.HandlerFunc {
 			Logger.Error("Failed to trigger ingestion", "error", err)
 		}
 		return c.Redirect(http.StatusSeeOther, "/jobs")
+	}
+}
+
+// HandleArchivePage renders the archive list page showing archived documents.
+func HandleArchivePage(tr *TemplateRenderer) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		page := 1
+		if p := c.QueryParam("page"); p != "" {
+			if v, err := strconv.Atoi(p); err == nil && v > 0 {
+				page = v
+			}
+		}
+		pageSize := 50
+
+		docs, totalCount, err := tr.db.GetArchivedDocuments(page, pageSize)
+		if err != nil {
+			Logger.Error("Failed to get archived documents", "error", err)
+			docs = []database.Document{}
+		}
+
+		enriched := tr.enrichDocuments(docs)
+		totalPages := (totalCount + pageSize - 1) / pageSize
+
+		return tr.Render(c, "archive.html", pongo2.Context{
+			"active_page": "archive",
+			"documents":   enriched,
+			"total_count": totalCount,
+			"page":        page,
+			"total_pages": totalPages,
+			"page_size":   pageSize,
+		})
 	}
 }
 

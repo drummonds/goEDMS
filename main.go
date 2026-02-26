@@ -196,6 +196,10 @@ func main() {
 	e.PATCH("/api/document/move/*", serverHandler.MoveDocuments)
 	e.POST("/api/document/upload", serverHandler.UploadDocuments)
 
+	// Archive API routes
+	e.PUT("/api/document/:id/archive-confirm", serverHandler.ArchiveConfirm)
+	e.PUT("/api/document/:id/unarchive", serverHandler.Unarchive)
+
 	// Document view route (serves actual files)
 	e.GET("/document/view/:ulid", serverHandler.ViewDocument)
 
@@ -276,6 +280,7 @@ func main() {
 	e.POST("/documents/bulk-edit/tags/:tagId/remove", HandleBulkRemoveTag(tr))
 	e.POST("/documents/bulk-edit/story", HandleBulkAddToStory(tr))
 	e.POST("/documents/bulk-edit/date", HandleBulkSetDate(tr))
+	e.POST("/documents/bulk-edit/archive", HandleBulkArchiveDocuments(tr))
 
 	// Tag management routes
 	e.GET("/tags", HandleTagsPage(tr))
@@ -297,6 +302,9 @@ func main() {
 	e.POST("/stories/:id/tags/:tagId/remove", HandleRemoveStoryTag(tr))
 	e.POST("/stories/:id/documents", HandleAddDocumentToStory(tr))
 	e.POST("/stories/:id/documents/:ulid/remove", HandleRemoveDocumentFromStory(tr))
+
+	// Archive routes
+	e.GET("/archive", HandleArchivePage(tr))
 
 	// Jobs management routes
 	e.GET("/jobs", HandleJobsPage(tr))

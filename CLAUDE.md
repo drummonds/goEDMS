@@ -90,3 +90,5 @@ Key endpoints:
 - `DATABASE_README.md` - Schema details
 - `docs/internal/agents.md` - External uploader agent instructions
 - `docs/internal/file-naming.md` - Canonical file naming convention
+- `docs/internal/tagging.md` - Tagging system, groups, stories, dimensions, external API
+- `docs/internal/lifecycle.md` - Document lifecycle: ingestion, editing, archival

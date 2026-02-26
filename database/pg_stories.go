@@ -285,9 +285,9 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int, showHidden ...bool) 
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
-	hideFilter := ""
+	filter := archiveExcludeAND("d")
 	if shouldExcludeHidden(showHidden) {
-		hideFilter = hideExcludeAND("d")
+		filter += hideExcludeAND("d")
 	}
 
 	// Count
@@ -298,7 +298,7 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int, showHidden ...bool) 
 			SELECT 1 FROM document_tags dt
 			INNER JOIN tags t ON t.id = dt.tag_id
 			WHERE dt.document_id = d.id AND t.tag_group = 'Story'
-		)`+hideFilter).Scan(&totalCount)
+		)`+filter).Scan(&totalCount)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count unstoried documents: %w", err)
 	}
@@ -311,7 +311,7 @@ func (p *PGDB) GetDocumentsWithoutStory(page, pageSize int, showHidden ...bool) 
 			SELECT 1 FROM document_tags dt
 			INNER JOIN tags t ON t.id = dt.tag_id
 			WHERE dt.document_id = d.id AND t.tag_group = 'Story'
-		)`+hideFilter+`
+		)`+filter+`
 		ORDER BY d.ingress_time DESC
 		LIMIT $1 OFFSET $2`, pageSize, offset)
 	if err != nil {

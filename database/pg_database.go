@@ -51,12 +51,13 @@ func scanDocument(row interface{ Scan(dest ...any) error }) (*Document, error) {
 	doc := &Document{}
 	var ulidStr string
 	var ingressTime timeScanner
-	var docDate, createdDate, updatedDate nullTimeScanner
+	var docDate, createdDate, updatedDate, archivedAt nullTimeScanner
 	err := row.Scan(
 		&doc.ID, &doc.Name, &doc.Path, &ingressTime,
 		&doc.Folder, &doc.Hash, &ulidStr, &doc.DocumentType,
 		&doc.FullText, &doc.URL, &docDate,
 		&createdDate, &updatedDate, &doc.Author, &doc.SourceURL, &doc.Source,
+		&doc.ArchiveStatus, &archivedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -65,6 +66,7 @@ func scanDocument(row interface{ Scan(dest ...any) error }) (*Document, error) {
 	doc.DocumentDate = docDate.Time
 	doc.CreatedDate = createdDate.Time
 	doc.UpdatedDate = updatedDate.Time
+	doc.ArchivedAt = archivedAt.Time
 	doc.ULID, err = ulid.Parse(ulidStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ULID: %w", err)
@@ -85,18 +87,23 @@ func scanDocumentRows(rows *sql.Rows) ([]Document, error) {
 	return docs, rows.Err()
 }
 
-const docColumns = `id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date, created_date, updated_date, author, source_url, source`
+const docColumns = `id, name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date, created_date, updated_date, author, source_url, source, archive_status, archived_at`
 
-const docColumnsAliased = `d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url, d.document_date, d.created_date, d.updated_date, d.author, d.source_url, d.source`
+const docColumnsAliased = `d.id, d.name, d.path, d.ingress_time, d.folder, d.hash, d.ulid, d.document_type, d.full_text, d.url, d.document_date, d.created_date, d.updated_date, d.author, d.source_url, d.source, d.archive_status, d.archived_at`
 
 // hideExcludeAND returns " AND NOT EXISTS(...)" to append to a WHERE clause.
 func hideExcludeAND(alias string) string {
 	return fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM document_tags hdt INNER JOIN tags ht ON ht.id = hdt.tag_id WHERE hdt.document_id = %s.id AND ht.name = 'Hide')`, alias)
 }
 
-// hideExcludeWHERE returns " WHERE NOT EXISTS(...)" for queries without a WHERE clause.
-func hideExcludeWHERE(alias string) string {
-	return fmt.Sprintf(` WHERE NOT EXISTS (SELECT 1 FROM document_tags hdt INNER JOIN tags ht ON ht.id = hdt.tag_id WHERE hdt.document_id = %s.id AND ht.name = 'Hide')`, alias)
+// archiveExcludeAND returns " AND archive_status IS NULL" to exclude archived documents.
+func archiveExcludeAND(alias string) string {
+	return fmt.Sprintf(` AND %s.archive_status IS NULL`, alias)
+}
+
+// archiveExcludeWHERE returns " WHERE archive_status IS NULL" for queries without a WHERE clause.
+func archiveExcludeWHERE(alias string) string {
+	return fmt.Sprintf(` WHERE %s.archive_status IS NULL`, alias)
 }
 
 // shouldExcludeHidden returns true if hidden docs should be excluded.
@@ -111,8 +118,8 @@ func (p *PGDB) SaveDocument(doc *Document) error {
 
 	_, err := p.db.ExecContext(ctx, `
 		INSERT INTO documents (name, path, ingress_time, folder, hash, ulid, document_type, full_text, url, document_date,
-			created_date, updated_date, author, source_url, source)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			created_date, updated_date, author, source_url, source, archive_status, archived_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT (path) DO UPDATE SET
 			name = EXCLUDED.name,
 			ingress_time = EXCLUDED.ingress_time,
@@ -128,10 +135,13 @@ func (p *PGDB) SaveDocument(doc *Document) error {
 			author = EXCLUDED.author,
 			source_url = EXCLUDED.source_url,
 			source = EXCLUDED.source,
+			archive_status = EXCLUDED.archive_status,
+			archived_at = EXCLUDED.archived_at,
 			updated_at = CURRENT_TIMESTAMP
 	`, doc.Name, doc.Path, doc.IngressTime, doc.Folder, doc.Hash,
 		doc.ULID.String(), doc.DocumentType, doc.FullText, doc.URL, doc.DocumentDate,
-		doc.CreatedDate, doc.UpdatedDate, doc.Author, doc.SourceURL, doc.Source)
+		doc.CreatedDate, doc.UpdatedDate, doc.Author, doc.SourceURL, doc.Source,
+		doc.ArchiveStatus, doc.ArchivedAt)
 	if err != nil {
 		return err
 	}
@@ -185,18 +195,19 @@ func (p *PGDB) GetNewestDocumentsWithPagination(page int, pageSize int, showHidd
 	ctx := context.Background()
 	offset := (page - 1) * pageSize
 
-	hideFilter := ""
+	// Always exclude archived documents from normal views
+	filter := archiveExcludeWHERE("documents")
 	if shouldExcludeHidden(showHidden) {
-		hideFilter = hideExcludeWHERE("documents")
+		filter += hideExcludeAND("documents")
 	}
 
 	var totalCount int
-	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM documents`+hideFilter).Scan(&totalCount); err != nil {
+	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM documents`+filter).Scan(&totalCount); err != nil {
 		return nil, 0, err
 	}
 
 	rows, err := p.db.QueryContext(ctx,
-		`SELECT `+docColumns+` FROM documents`+hideFilter+` ORDER BY ingress_time DESC LIMIT $1 OFFSET $2`,
+		`SELECT `+docColumns+` FROM documents`+filter+` ORDER BY ingress_time DESC LIMIT $1 OFFSET $2`,
 		pageSize, offset)
 	if err != nil {
 		return nil, 0, err
@@ -316,6 +327,37 @@ func (p *PGDB) UpdateDocumentMetadata(ulidStr string, meta DocumentMetadataUpdat
 
 	_, err := p.db.ExecContext(context.Background(), query, args...)
 	return err
+}
+
+// UpdateDocumentArchiveStatus sets the archive_status and archived_at fields.
+func (p *PGDB) UpdateDocumentArchiveStatus(ulidStr string, status *string, archivedAt *time.Time) error {
+	_, err := p.db.ExecContext(context.Background(),
+		`UPDATE documents SET archive_status = $1, archived_at = $2, updated_at = CURRENT_TIMESTAMP WHERE ulid = $3`,
+		status, archivedAt, ulidStr)
+	return err
+}
+
+// GetArchivedDocuments returns paginated documents with non-null archive_status.
+func (p *PGDB) GetArchivedDocuments(page, pageSize int) ([]Document, int, error) {
+	ctx := context.Background()
+	offset := (page - 1) * pageSize
+
+	var totalCount int
+	if err := p.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM documents WHERE archive_status IS NOT NULL`).Scan(&totalCount); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := p.db.QueryContext(ctx,
+		`SELECT `+docColumns+` FROM documents WHERE archive_status IS NOT NULL ORDER BY archived_at DESC LIMIT $1 OFFSET $2`,
+		pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	docs, err := scanDocumentRows(rows)
+	return docs, totalCount, err
 }
 
 // SaveConfig saves server configuration

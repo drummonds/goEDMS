@@ -70,3 +70,8 @@ func getThumbPath(docPath string) string {
 func getTagsPath(docPath string) string {
 	return SidecarBasePath(docPath) + ".tags.json"
 }
+
+// GetLifecyclePath returns the lifecycle metadata sidecar path for a document.
+func GetLifecyclePath(docPath string) string {
+	return SidecarBasePath(docPath) + ".lifecycle.json"
+}

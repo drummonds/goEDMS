@@ -105,6 +105,17 @@
         {% endif %}
 
         <div class="mb-5">
+            <h2 class="subtitle is-5">Archive</h2>
+            <form method="POST" action="/documents/bulk-edit/archive">
+                <input type="hidden" name="ulids" value="{{ ulids }}">
+                <button type="submit" class="button is-danger is-outlined"
+                    onclick="return confirm('Archive {{ doc_count }} documents? This will move files to the archive folder and freeze metadata.')">
+                    Archive Selected
+                </button>
+            </form>
+        </div>
+
+        <div class="mb-5">
             <h2 class="subtitle is-5">Set Date</h2>
             <form method="POST" action="/documents/bulk-edit/date">
                 <input type="hidden" name="ulids" value="{{ ulids }}">

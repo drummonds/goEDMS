@@ -181,7 +181,7 @@ func (m *MemDB) GetNewestDocumentsWithPagination(page, pageSize int, showHidden 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	all := m.allDocsSorted()
+	all := filterArchived(m.allDocsSorted())
 	if shouldExcludeHidden(showHidden) {
 		all = m.filterHidden(all)
 	}
@@ -306,6 +306,36 @@ func (m *MemDB) updateDoc(ulidStr string, fn func(*Document)) error {
 	}
 	fn(m.docs[id])
 	return nil
+}
+
+func (m *MemDB) UpdateDocumentArchiveStatus(ulidStr string, status *string, archivedAt *time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.updateDoc(ulidStr, func(d *Document) {
+		d.ArchiveStatus = status
+		d.ArchivedAt = archivedAt
+	})
+}
+
+func (m *MemDB) GetArchivedDocuments(page, pageSize int) ([]Document, int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var archived []Document
+	for _, d := range m.docs {
+		if d.ArchiveStatus != nil {
+			archived = append(archived, *d)
+		}
+	}
+	total := len(archived)
+	offset := (page - 1) * pageSize
+	if offset >= total {
+		return nil, total, nil
+	}
+	end := offset + pageSize
+	if end > total {
+		end = total
+	}
+	return archived[offset:end], total, nil
 }
 
 // ----------------------------------------------------------------------------
@@ -987,12 +1017,23 @@ func (m *MemDB) filterHidden(docs []Document) []Document {
 	return out
 }
 
+// filterArchived removes documents with a non-nil ArchiveStatus from a slice.
+func filterArchived(docs []Document) []Document {
+	var out []Document
+	for _, d := range docs {
+		if d.ArchiveStatus == nil {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 func (m *MemDB) GetDocumentsByTag(tagID int, page, pageSize int, showHidden ...bool) ([]Document, int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var docs []Document
-	for _, d := range m.allDocsSorted() {
+	for _, d := range filterArchived(m.allDocsSorted()) {
 		if m.docTags[d.ID][tagID] {
 			docs = append(docs, d)
 		}
@@ -1008,7 +1049,7 @@ func (m *MemDB) GetUntaggedDocuments(page, pageSize int, showHidden ...bool) ([]
 	defer m.mu.RUnlock()
 
 	var docs []Document
-	for _, d := range m.allDocsSorted() {
+	for _, d := range filterArchived(m.allDocsSorted()) {
 		if !m.docHasAnyTag(d.ID) {
 			docs = append(docs, d)
 		}
@@ -1024,7 +1065,7 @@ func (m *MemDB) GetTaggedDocuments(page, pageSize int, showHidden ...bool) ([]Do
 	defer m.mu.RUnlock()
 
 	var docs []Document
-	for _, d := range m.allDocsSorted() {
+	for _, d := range filterArchived(m.allDocsSorted()) {
 		if m.docHasAnyTag(d.ID) {
 			docs = append(docs, d)
 		}
@@ -1056,7 +1097,7 @@ func (m *MemDB) ExecuteSearch(parsed *ParsedSearch, page, pageSize int, showHidd
 		return m.GetTaggedDocuments(page, pageSize, showHidden...)
 	}
 
-	all := m.allDocsSorted()
+	all := filterArchived(m.allDocsSorted())
 	var filtered []Document
 
 	for _, d := range all {
@@ -1384,7 +1425,7 @@ func (m *MemDB) GetDocumentsWithoutStory(page, pageSize int, showHidden ...bool)
 		}
 	}
 
-	all := m.allDocsSorted()
+	all := filterArchived(m.allDocsSorted())
 	var docs []Document
 	for _, d := range all {
 		hasStory := false

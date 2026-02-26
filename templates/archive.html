@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}godocs - Archive{% endblock %}
+
+{% block content %}
+<h1 class="title">Archive</h1>
+<p class="subtitle">{{ total_count }} archived document{{ total_count|pluralize:"s" }}</p>
+
+{% if documents %}
+<table class="table is-fullwidth is-striped is-hoverable">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Tags</th>
+            <th>Status</th>
+            <th>Archived</th>
+            <th>Hash</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td>{{ doc.Name }}</td>
+            <td>
+                {% for tag in doc.Tags %}
+                <span class="tag is-small" style="background-color: {{ tag.Color }}; color: white;">{{ tag.Name }}</span>
+                {% endfor %}
+            </td>
+            <td>
+                {% if doc.ArchiveStatus == "pending" %}
+                <span class="tag is-warning">Pending</span>
+                {% elif doc.ArchiveStatus == "archived" %}
+                <span class="tag is-dark">Archived</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if doc.ArchivedAt %}{{ doc.ArchivedAt|date:"2006-01-02" }}{% endif %}
+            </td>
+            <td><code class="is-size-7">{{ doc.Hash|truncatechars:12 }}</code></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% with base_url="/archive?x=1" has_previous=page > 1 has_next=page < total_pages %}
+{% include "partials/pagination.html" %}
+{% endwith %}
+{% else %}
+<p class="has-text-grey">No archived documents.</p>
+{% endif %}
+{% endblock %}

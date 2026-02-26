@@ -275,6 +275,11 @@ func (serverHandler *ServerHandler) AddDocumentTag(c echo.Context) error {
 			"error": "Document not found",
 		})
 	}
+	if doc.ArchiveStatus != nil {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"error": "document is archived — edits are frozen",
+		})
+	}
 
 	var req struct {
 		TagID int `json:"tag_id"`
@@ -330,6 +335,11 @@ func (serverHandler *ServerHandler) RemoveDocumentTag(c echo.Context) error {
 	if err != nil || doc == nil {
 		return c.JSON(http.StatusNotFound, map[string]interface{}{
 			"error": "Document not found",
+		})
+	}
+	if doc.ArchiveStatus != nil {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"error": "document is archived — edits are frozen",
 		})
 	}
 
@@ -441,6 +451,11 @@ func (serverHandler *ServerHandler) SetDocumentDimension(c echo.Context) error {
 			"error": "Document not found",
 		})
 	}
+	if doc.ArchiveStatus != nil {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"error": "document is archived — edits are frozen",
+		})
+	}
 
 	var req struct {
 		DimensionName string `json:"dimension_name"`
@@ -507,6 +522,11 @@ func (serverHandler *ServerHandler) RemoveDocumentDimension(c echo.Context) erro
 	if err != nil || doc == nil {
 		return c.JSON(http.StatusNotFound, map[string]interface{}{
 			"error": "Document not found",
+		})
+	}
+	if doc.ArchiveStatus != nil {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"error": "document is archived — edits are frozen",
 		})
 	}
 
