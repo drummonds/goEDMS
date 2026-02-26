@@ -17,21 +17,21 @@ import (
 
 // Document is all of the document information stored in the database
 type Document struct {
-	ID           int        `json:"id"`
-	Name         string     `json:"name"`
-	Path         string     `json:"path"` // full path to the file
-	IngressTime  time.Time  `json:"ingress_time"`
-	Folder       string     `json:"folder"`
-	Hash         string     `json:"hash"`
-	ULID         ulid.ULID  `json:"ulid"`          // Have a smaller (than hash) id that can be used in URL's, hopefully speed things up
-	DocumentType string     `json:"document_type"` // type of document (pdf, txt, etc)
-	FullText     string     `json:"full_text"`
-	URL          string     `json:"url"`
-	DocumentDate *time.Time `json:"document_date,omitempty"` // user-assigned document date (e.g. invoice date)
-	CreatedDate  *time.Time `json:"created_date,omitempty"`  // original creation date from source
-	UpdatedDate  *time.Time `json:"updated_date,omitempty"`  // original modification date from source
-	Author       string     `json:"author,omitempty"`        // note author
-	SourceURL    string     `json:"source_url,omitempty"`    // original source URL
+	ID            int        `json:"id"`
+	Name          string     `json:"name"`
+	Path          string     `json:"path"` // full path to the file
+	IngressTime   time.Time  `json:"ingress_time"`
+	Folder        string     `json:"folder"`
+	Hash          string     `json:"hash"`
+	ULID          ulid.ULID  `json:"ulid"`          // Have a smaller (than hash) id that can be used in URL's, hopefully speed things up
+	DocumentType  string     `json:"document_type"` // type of document (pdf, txt, etc)
+	FullText      string     `json:"full_text"`
+	URL           string     `json:"url"`
+	DocumentDate  *time.Time `json:"document_date,omitempty"`  // user-assigned document date (e.g. invoice date)
+	CreatedDate   *time.Time `json:"created_date,omitempty"`   // original creation date from source
+	UpdatedDate   *time.Time `json:"updated_date,omitempty"`   // original modification date from source
+	Author        string     `json:"author,omitempty"`         // note author
+	SourceURL     string     `json:"source_url,omitempty"`     // original source URL
 	Source        string     `json:"source,omitempty"`         // source system (e.g. "evernote")
 	ArchiveStatus *string    `json:"archive_status,omitempty"` // nil=active, "pending", "archived"
 	ArchivedAt    *time.Time `json:"archived_at,omitempty"`    // when archival began

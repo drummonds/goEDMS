@@ -2245,6 +2245,14 @@ const docTemplate = `{
         "database.Document": {
             "type": "object",
             "properties": {
+                "archive_status": {
+                    "description": "nil=active, \"pending\", \"archived\"",
+                    "type": "string"
+                },
+                "archived_at": {
+                    "description": "when archival began",
+                    "type": "string"
+                },
                 "author": {
                     "description": "note author",
                     "type": "string"
