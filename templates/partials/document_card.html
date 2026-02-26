@@ -1,5 +1,5 @@
 <div class="column is-one-third-desktop is-half-tablet">
-    <div class="card document-card">
+    <div class="card document-card{% if doc.IsSelected %} is-selected{% endif %}">
         <div class="card-top-row">
             <div class="card-thumbnail">
                 <a href="/document/view/{{ doc.ULID }}">
@@ -15,12 +15,10 @@
             <div class="card-sidebar">
                 <div class="card-buttons">
                     <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit">&#9998;</a>
-                    <a href="/documents/bulk-edit?ulids={{ doc.ULID }}" class="button is-small is-outlined" title="Select">&#9744;</a>
-                    {% if select_mode %}
-                    <label class="button is-small is-outlined" title="Select">
-                        <input type="checkbox" name="ulids" value="{{ doc.ULID }}">
-                    </label>
-                    {% endif %}
+                    <a href="{{ doc.SelectToggleURL }}" class="button is-small{% if doc.IsSelected %} is-primary{% else %} is-outlined{% endif %}" title="Select">{% if doc.IsSelected %}&#9745;{% else %}&#9744;{% endif %}</a>
+                </div>
+                <div class="card-buttons">
+                    <a href="/documents/bulk-edit?ulids={% if selected_ulids %}{{ selected_ulids }}{% else %}{{ doc.ULID }}{% endif %}" class="button is-small is-outlined" title="Bulk Edit">&#9881;</a>
                 </div>
                 {% for tag in doc.Tags %}
                 <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;" title="{{ tag.Name }}">{{ tag.Name }}</span>

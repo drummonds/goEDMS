@@ -9,17 +9,6 @@
             <h1 class="title">Search Documents</h1>
         </div>
     </div>
-    {% if query %}
-    <div class="level-right">
-        <div class="level-item">
-            {% if select_mode %}
-            <a class="button is-small is-warning" href="/search?q={{ query|urlencode }}{% if show_hidden %}&show_hidden=1{% endif %}">Cancel Select</a>
-            {% else %}
-            <a class="button is-small" href="/search?q={{ query|urlencode }}{% if show_hidden %}&show_hidden=1{% endif %}&select=1">Select</a>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 {% if saved_searches %}
@@ -45,7 +34,6 @@
 {% endif %}
 
 <form method="GET" action="/search" class="mb-5">
-    {% if select_mode %}<input type="hidden" name="select" value="1">{% endif %}
     <div class="field has-addons">
         <div class="control is-expanded">
             <input class="input is-medium" type="text" name="q" value="{{ query }}"
@@ -90,22 +78,11 @@
     {% if documents %}
     <p class="subtitle">{{ total_count }} result{{ total_count|pluralize }} for "{{ query }}"</p>
 
-    {% if select_mode %}
-    <form method="POST" action="/documents/bulk-edit">
-    {% endif %}
-
     <div class="columns is-multiline">
         {% for doc in documents %}
         {% include "partials/document_card.html" %}
         {% endfor %}
     </div>
-
-    {% if select_mode %}
-    <div class="mt-4">
-        <button type="submit" class="button is-primary">Bulk Edit Selected</button>
-    </div>
-    </form>
-    {% endif %}
 
     {% include "partials/pagination.html" %}
     {% else %}

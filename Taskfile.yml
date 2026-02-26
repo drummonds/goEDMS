@@ -253,6 +253,17 @@ tasks:
     cmds:
       - go run cmd/md2html/main.go
 
+  demo:card:
+    desc: Run document card demo server for visual inspection
+    cmds:
+      - go run cmd/demo/main.go
+
+  demo:card:svg:
+    desc: Capture document card demo as SVG (requires task demo:card running)
+    cmds:
+      - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8080 -width 900 -height 700 -mode compact -o docs/demo-card.svg
+      - echo "Saved to docs/demo-card.svg"
+
   pages:
     desc: Serve docs locally for GitHub Pages preview
     deps: [docs:md2html]

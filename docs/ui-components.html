@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>godocs - UI Components</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="index.html">godocs</a></li>
+                    <li class="is-active"><a href="#">UI Components</a></li>
+                </ul>
+            </nav>
+
+            <h1 class="title">UI Components</h1>
+            <p class="subtitle">Visual reference for godocs interface elements.</p>
+
+            <h2 class="title is-4">Document Card</h2>
+            <p class="mb-4">The document card is the primary way documents are displayed in grid views. It shows a thumbnail or placeholder, action buttons, tags, filename, and document type.</p>
+
+            <div class="box" style="display: inline-block;">
+                <img src="demo-card.svg" alt="Document card variants and annotated breakdown" style="max-width: 900px; height: auto;">
+            </div>
+
+            <div class="content mt-4">
+                <h3>Card Structure</h3>
+                <ul>
+                    <li><strong>Thumbnail</strong> (75% width) &mdash; clickable image or type placeholder linking to document view</li>
+                    <li><strong>Sidebar</strong> (25% width) &mdash; edit and select buttons, plus coloured tag chips (truncated to 7 characters)</li>
+                    <li><strong>Bottom row</strong> &mdash; filename (ellipsis overflow) and uppercase type badge</li>
+                </ul>
+
+                <h3>Variants</h3>
+                <ul>
+                    <li>With thumbnail and multiple tags</li>
+                    <li>Placeholder (no thumbnail) with single tag</li>
+                    <li>With thumbnail, no tags</li>
+                </ul>
+            </div>
+
+            <p><a href="index.html">&larr; Back to home</a></p>
+        </div>
+    </section>
+</body>
+</html>
