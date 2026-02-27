@@ -233,9 +233,28 @@ func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error 
 		})
 	}
 
-	//Upload it to the ingress folder so if there is an issue it will stick there and not in the documents folder which will cause issues.
+	body, err := io.ReadAll(file)
+	if err != nil {
+		Logger.Error("Unable to read uploaded file", "error", err)
+		return err
+	}
+
+	// Check for duplicate before writing to disk
+	fileHash := godocshash.HashBytes(body)
+	existingDoc, err := serverHandler.DB.GetDocumentByHash(fileHash)
+	if err == nil && existingDoc != nil {
+		return context.JSON(http.StatusConflict, map[string]interface{}{
+			"error": "duplicate document",
+			"hash":  fileHash,
+			"ulid":  existingDoc.ULID.String(),
+			"name":  existingDoc.Name,
+			"id":    existingDoc.ID,
+		})
+	}
+
+	// Write to ingress folder
 	path := filepath.ToSlash(serverHandler.ServerConfig.IngressPath + "/" + uploadPath + fileHeader.Filename)
-	_, err = os.Stat(filepath.Dir(path)) //since this is the ingress folder we MAY need to create the directory path.
+	_, err = os.Stat(filepath.Dir(path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(filepath.Dir(path), os.ModePerm)
@@ -246,26 +265,21 @@ func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error 
 		}
 	}
 	Logger.Debug("Creating path for file upload to ingress", "dir", filepath.Dir(path))
-	body, err := io.ReadAll(file) //get the file, write it to the filesystem
-	if err != nil {
-		Logger.Error("Unable to read uploaded file", "error", err)
-		return err
-	}
 	err = os.WriteFile(path, body, 0644)
 	if err != nil {
 		Logger.Error("Unable to write uploaded file", "path", path, "error", err)
 		return err
 	}
-	serverHandler.ingressDocument(path, "upload") //ingress the document into the database
+	serverHandler.ingressDocument(path, "upload")
 
 	// Look up the ingested document by hash to return its ULID
-	fileHash := godocshash.HashBytes(body)
 	doc, err := serverHandler.DB.GetDocumentByHash(fileHash)
 	if err == nil && doc != nil {
-		return context.JSON(http.StatusOK, map[string]interface{}{
-			"path": path,
+		return context.JSON(http.StatusCreated, map[string]interface{}{
 			"ulid": doc.ULID.String(),
 			"name": doc.Name,
+			"hash": fileHash,
+			"id":   doc.ID,
 		})
 	}
 

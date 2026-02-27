@@ -92,3 +92,4 @@ Key endpoints:
 - `docs/internal/file-naming.md` - Canonical file naming convention
 - `docs/internal/tagging.md` - Tagging system, groups, stories, dimensions, external API
 - `docs/internal/lifecycle.md` - Document lifecycle: ingestion, editing, archival
+- `docs/internal/upload-dedup.md` - Efficient upload deduplication strategy
