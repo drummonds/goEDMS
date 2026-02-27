@@ -929,6 +929,21 @@ func (tr *TemplateRenderer) enrichDocumentsWithSelection(docs []database.Documen
 	return result
 }
 
+// HandleSelectToggle handles POST toggle of document selection, redirecting back with anchor
+func HandleSelectToggle() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		redirect := c.FormValue("redirect")
+		ulidStr := c.FormValue("ulid")
+		if redirect == "" || !strings.HasPrefix(redirect, "/") {
+			redirect = "/"
+		}
+		if ulidStr != "" {
+			redirect += "#card-" + ulidStr
+		}
+		return c.Redirect(http.StatusSeeOther, redirect)
+	}
+}
+
 // parseSelectedULIDs parses a comma-separated list of ULIDs into a set
 func parseSelectedULIDs(sel string) map[string]bool {
 	if sel == "" {

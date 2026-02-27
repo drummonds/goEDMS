@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Card</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+    <style>
+        body { margin: 0; padding: 8px; background: white; }
+        .document-card { max-width: 320px; transition: box-shadow 0.2s; overflow: hidden; }
+        .card-top-row { display: flex; }
+        .card-thumbnail { width: 75%; flex-shrink: 0; overflow: hidden; }
+        .thumbnail-img { width: 100%; height: 100%; object-fit: cover; background: #f5f5f5; display: block; }
+        .thumbnail-placeholder {
+            width: 100%; height: 150px; background: #f0f0f0;
+            display: flex; align-items: center; justify-content: center;
+            color: #999; font-size: 1.5rem;
+        }
+        .card-sidebar { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.4rem; flex: 1; }
+        .card-buttons { display: flex; gap: 0.25rem; }
+        .card-buttons .button.is-outlined { background: #f5f5f5; border-width: 2px; }
+        .card-buttons .button.is-small { line-height: 1; vertical-align: middle; }
+        .card-bottom-content { padding: 0.3rem 0.5rem; display: flex; align-items: center; }
+        .card-bottom-content a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .tag-chip {
+            font-size: 0.7rem; display: inline-block;
+            max-width: 7ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            vertical-align: middle;
+        }
+        .doc-type-badge { text-transform: uppercase; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; }
+        .document-card.is-selected { border-left: 3px solid #3273dc; }
+    </style>
+</head>
+<body>
+    <div class="card document-card{% if doc.IsSelected %} is-selected{% endif %}" id="card-{{ doc.ULID }}" style="width: 320px;">
+        <div class="card-top-row">
+            <div class="card-thumbnail">
+                <a href="/document/view/{{ doc.ULID }}">
+                {% if doc.HasThumbnail %}
+                <img class="thumbnail-img" src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}">
+                {% else %}
+                <div class="thumbnail-placeholder">
+                    <span>{{ doc.DocumentType }}</span>
+                </div>
+                {% endif %}
+                </a>
+            </div>
+            <div class="card-sidebar">
+                <div class="card-buttons">
+                    <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit">&#9998;</a>
+                    <form method="POST" action="/documents/select-toggle" style="display:inline;">
+                        <input type="hidden" name="redirect" value="{{ doc.SelectToggleURL }}">
+                        <input type="hidden" name="ulid" value="{{ doc.ULID }}">
+                        <button type="submit" class="button is-small{% if doc.IsSelected %} is-primary{% else %} is-outlined{% endif %}" title="Select">{% if doc.IsSelected %}&#9745;{% else %}&#9744;{% endif %}</button>
+                    </form>
+                </div>
+                <div class="card-buttons">
+                    <a href="/document/view/{{ doc.ULID }}" class="button is-small is-info is-outlined" title="View">&#128065;</a>
+                    <a href="/document/view/{{ doc.ULID }}?dl=1" class="button is-small is-outlined" title="Download">&#11015;</a>
+                </div>
+                {% for tag in doc.Tags %}
+                <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;" title="{{ tag.Name }}">{{ tag.Name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-bottom-content">
+            <a href="/document/{{ doc.ULID }}/edit" class="is-size-6" title="{{ doc.Name }}">{{ doc.DisplayName }}</a>
+            <span class="tag doc-type-badge is-info is-light ml-2">{{ doc.DocumentType }}</span>
+        </div>
+    </div>
+</body>
+</html>

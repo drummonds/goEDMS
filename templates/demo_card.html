@@ -4,40 +4,6 @@
 
 {% block extra_head %}
 <style>
-    .annotation-wrap { position: relative; display: inline-block; }
-    .annotation {
-        position: absolute; z-index: 10;
-        background: #fffde7; border: 1px solid #f5c518;
-        padding: 2px 6px; font-size: 0.7rem; font-weight: 600;
-        white-space: nowrap; border-radius: 3px;
-        color: #333;
-    }
-    .annotation::before {
-        content: ''; position: absolute;
-        border: 1px dashed #f5c518;
-    }
-    /* Thumbnail label — top-left, line goes down-right */
-    .ann-thumbnail { top: -22px; left: 0; }
-    .ann-thumbnail::before { top: 100%; left: 20px; width: 0; height: 12px; border-left: 1px dashed #f5c518; border-top: none; }
-    /* Edit button — top-right area */
-    .ann-edit { top: -22px; right: 40px; }
-    .ann-edit::before { top: 100%; right: 10px; width: 0; height: 12px; border-left: 1px dashed #f5c518; border-top: none; }
-    /* Select toggle */
-    .ann-select { top: -22px; right: -50px; }
-    .ann-select::before { top: 100%; right: 10px; width: 0; height: 12px; border-left: 1px dashed #f5c518; border-top: none; }
-    /* Bulk Edit button */
-    .ann-bulk-edit { top: 30px; right: -80px; }
-    .ann-bulk-edit::before { top: 50%; right: 100%; width: 12px; height: 0; border-top: 1px dashed #f5c518; border-left: none; }
-    /* Tags — right side */
-    .ann-tags { top: 70px; right: -90px; }
-    .ann-tags::before { top: 50%; right: 100%; width: 12px; height: 0; border-top: 1px dashed #f5c518; border-left: none; }
-    /* Filename — bottom-left */
-    .ann-filename { bottom: -22px; left: 0; }
-    .ann-filename::before { bottom: 100%; left: 20px; width: 0; height: 12px; border-left: 1px dashed #f5c518; border-top: none; }
-    /* Type badge — bottom-right */
-    .ann-type { bottom: -22px; right: 0; }
-    .ann-type::before { bottom: 100%; right: 20px; width: 0; height: 12px; border-left: 1px dashed #f5c518; border-top: none; }
-
     .demo-section { margin-bottom: 3rem; }
 </style>
 {% endblock %}
@@ -51,47 +17,6 @@
         {% for doc in documents %}
             {% include "partials/document_card.html" %}
         {% endfor %}
-    </div>
-</div>
-
-<div class="demo-section">
-    <h2 class="subtitle">Annotated Card</h2>
-    <div class="annotation-wrap" style="margin: 30px 100px;">
-        <div class="annotation ann-thumbnail">Thumbnail (click to view)</div>
-        <div class="annotation ann-edit">Edit</div>
-        <div class="annotation ann-select">Select toggle</div>
-        <div class="annotation ann-bulk-edit">Bulk Edit</div>
-        <div class="annotation ann-tags">Tags</div>
-        <div class="annotation ann-filename">Filename</div>
-        <div class="annotation ann-type">Type badge</div>
-
-        <div style="max-width: 320px;">
-            <div class="card document-card is-selected">
-                <div class="card-top-row">
-                    <div class="card-thumbnail">
-                        <a href="#">
-                            <img class="thumbnail-img" src="/api/document/01J0000000AAAA/thumbnail" alt="Demo document">
-                        </a>
-                    </div>
-                    <div class="card-sidebar">
-                        <div class="card-buttons">
-                            <a href="#" class="button is-small is-warning is-outlined" title="Edit">&#9998;</a>
-                            <a href="#" class="button is-small is-primary" title="Select">&#9745;</a>
-                        </div>
-                        <div class="card-buttons">
-                            <a href="#" class="button is-small is-outlined" title="Bulk Edit">&#9881;</a>
-                        </div>
-                        <span class="tag tag-chip" style="background-color: #3273dc; color: white;" title="Finance">Finance</span>
-                        <span class="tag tag-chip" style="background-color: #ff3860; color: white;" title="Tax">Tax</span>
-                        <span class="tag tag-chip" style="background-color: #23d160; color: white;" title="2024">2024</span>
-                    </div>
-                </div>
-                <div class="card-bottom-content">
-                    <a href="#" class="is-size-6">Invoice-2024-March.pdf</a>
-                    <span class="tag doc-type-badge is-info is-light ml-2">pdf</span>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>godocs - UI Components</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
 </head>
 <body>
     <section class="section">
@@ -20,26 +20,36 @@
             <p class="subtitle">Visual reference for godocs interface elements.</p>
 
             <h2 class="title is-4">Document Card</h2>
-            <p class="mb-4">The document card is the primary way documents are displayed in grid views. It shows a thumbnail or placeholder, action buttons, tags, filename, and document type.</p>
+            <p class="mb-4">The document card is the primary way documents are displayed in grid views. It shows a thumbnail or placeholder, action buttons (edit, select toggle, bulk edit), tags, filename, and document type.</p>
 
+            <h3 class="title is-5">Card Variants</h3>
             <div class="box" style="display: inline-block;">
-                <img src="demo-card.svg" alt="Document card variants and annotated breakdown" style="max-width: 900px; height: auto;">
+                <img src="demo-card.svg" alt="Document card variants" style="max-width: 900px; height: auto;">
+            </div>
+
+            <h3 class="title is-5 mt-5">Annotated Breakdown</h3>
+            <div class="box" style="display: inline-block;">
+                <img src="annotated-card.svg" alt="Annotated card breakdown" style="max-width: 600px; height: auto;">
             </div>
 
             <div class="content mt-4">
                 <h3>Card Structure</h3>
                 <ul>
                     <li><strong>Thumbnail</strong> (75% width) &mdash; clickable image or type placeholder linking to document view</li>
-                    <li><strong>Sidebar</strong> (25% width) &mdash; edit and select buttons, plus coloured tag chips (truncated to 7 characters)</li>
+                    <li><strong>Sidebar</strong> (25% width) &mdash; two button rows plus coloured tag chips (truncated to 7 characters)</li>
+                    <li><strong>Button row 1</strong> &mdash; Edit (&#9998;) and Select toggle (&#9744;/&#9745;)</li>
+                    <li><strong>Button row 2</strong> &mdash; Bulk Edit (&#9881;)</li>
                     <li><strong>Bottom row</strong> &mdash; filename (ellipsis overflow) and uppercase type badge</li>
                 </ul>
 
                 <h3>Variants</h3>
                 <ul>
-                    <li>With thumbnail and multiple tags</li>
-                    <li>Placeholder (no thumbnail) with single tag</li>
-                    <li>With thumbnail, no tags</li>
+                    <li>With thumbnail + multiple tags + selected (blue left border)</li>
+                    <li>Placeholder (no thumbnail) + single tag + unselected</li>
+                    <li>With thumbnail + no tags + unselected</li>
                 </ul>
+
+                <p><a href="document-card.html" class="button is-info is-outlined">Full Document Card Specification &rarr;</a></p>
             </div>
 
             <p><a href="index.html">&larr; Back to home</a></p>

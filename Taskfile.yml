@@ -255,14 +255,20 @@ tasks:
 
   demo:card:
     desc: Run document card demo server for visual inspection
+    deps: [demo:card:svg]
     cmds:
       - go run cmd/demo/main.go
 
   demo:card:svg:
-    desc: Capture document card demo as SVG (requires task demo:card running)
+    desc: Capture card variants + annotated card as SVGs
     cmds:
+      - go run cmd/demo/main.go &
+      - sleep 1
       - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8080 -width 900 -height 700 -mode compact -o docs/demo-card.svg
-      - echo "Saved to docs/demo-card.svg"
+      - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8080/card -width 340 -height 300 -mode compact -o /tmp/godocs-card.svg
+      - kill $(lsof -ti :8080) 2>/dev/null || true
+      - go run cmd/annotate-card/main.go -input /tmp/godocs-card.svg -output docs/annotated-card.svg
+      - echo "Saved demo-card.svg and annotated-card.svg"
 
   pages:
     desc: Serve docs locally for GitHub Pages preview

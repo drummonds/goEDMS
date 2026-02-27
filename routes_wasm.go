@@ -23,6 +23,9 @@ func registerWASMRoutes(e *echo.Echo, tr *TemplateRenderer) {
 	e.POST("/document/:ulid/tags/:tagId/remove", HandleDocumentRemoveTag(tr))
 	e.GET("/about", HandleAboutPage(tr))
 
+	// Select toggle route
+	e.POST("/documents/select-toggle", HandleSelectToggle())
+
 	// Bulk edit routes
 	e.POST("/documents/bulk-edit", HandleBulkEditPage(tr))
 	e.GET("/documents/bulk-edit", HandleBulkEditPage(tr))

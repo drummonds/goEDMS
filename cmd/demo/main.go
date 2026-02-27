@@ -23,6 +23,7 @@ type MockTag struct {
 type MockDocument struct {
 	ULID            string
 	Name            string
+	DisplayName     string
 	DocumentType    string
 	HasThumbnail    bool
 	Tags            []MockTag
@@ -32,7 +33,7 @@ type MockDocument struct {
 
 var mockDocs = []MockDocument{
 	{
-		ULID: "01J0000000AAAA", Name: "Invoice-2024-March.pdf", DocumentType: "pdf",
+		ULID: "01J0000000AAAA", Name: "Invoice-2024-March.pdf", DisplayName: "March Invoice", DocumentType: "pdf",
 		HasThumbnail: true,
 		Tags: []MockTag{
 			{Name: "Finance", Color: "#3273dc"},
@@ -43,7 +44,7 @@ var mockDocs = []MockDocument{
 		SelectToggleURL: "/?view=flat",
 	},
 	{
-		ULID: "01J0000000BBBB", Name: "Meeting-Notes.docx", DocumentType: "docx",
+		ULID: "01J0000000BBBB", Name: "Meeting-Notes.docx", DisplayName: "Team Meeting Notes", DocumentType: "docx",
 		HasThumbnail: false,
 		Tags: []MockTag{
 			{Name: "Work", Color: "#ffdd57"},
@@ -51,7 +52,7 @@ var mockDocs = []MockDocument{
 		SelectToggleURL: "/?view=flat&sel=01J0000000AAAA,01J0000000BBBB",
 	},
 	{
-		ULID: "01J0000000CCCC", Name: "Photo-Holiday.jpg", DocumentType: "jpg",
+		ULID: "01J0000000CCCC", Name: "Photo-Holiday.jpg", DisplayName: "Holiday Photo", DocumentType: "jpg",
 		HasThumbnail:    true,
 		Tags:            nil,
 		SelectToggleURL: "/?view=flat&sel=01J0000000AAAA,01J0000000CCCC",
@@ -108,6 +109,21 @@ func main() {
 		return c.HTML(http.StatusOK, out)
 	})
 
+	e.GET("/card", func(c echo.Context) error {
+		tpl, err := tplSet.FromFile("demo_single_card.html")
+		if err != nil {
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+		out, err := tpl.Execute(pongo2.Context{
+			"doc":            mockDocs[0],
+			"selected_ulids": "01J0000000AAAA",
+		})
+		if err != nil {
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+		return c.HTML(http.StatusOK, out)
+	})
+
 	e.GET("/api/document/:ulid/thumbnail", func(c echo.Context) error {
 		img := image.NewRGBA(image.Rect(0, 0, 256, 256))
 		col := color.RGBA{R: 180, G: 200, B: 220, A: 255}
@@ -118,6 +134,11 @@ func main() {
 		}
 		c.Response().Header().Set("Content-Type", "image/png")
 		return png.Encode(c.Response().Writer, img)
+	})
+
+	e.GET("/annotated", func(c echo.Context) error {
+		svgPath := filepath.Join(root, "docs", "annotated-card.svg")
+		return c.File(svgPath)
 	})
 
 	e.GET("/favicon.ico", func(c echo.Context) error {

@@ -1,4 +1,4 @@
-<div class="column is-one-third-desktop is-half-tablet">
+<div class="column is-one-third-desktop is-half-tablet" id="card-{{ doc.ULID }}">
     <div class="card document-card{% if doc.IsSelected %} is-selected{% endif %}">
         <div class="card-top-row">
             <div class="card-thumbnail">
@@ -15,10 +15,15 @@
             <div class="card-sidebar">
                 <div class="card-buttons">
                     <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit">&#9998;</a>
-                    <a href="{{ doc.SelectToggleURL }}" class="button is-small{% if doc.IsSelected %} is-primary{% else %} is-outlined{% endif %}" title="Select">{% if doc.IsSelected %}&#9745;{% else %}&#9744;{% endif %}</a>
+                    <form method="POST" action="/documents/select-toggle" style="display:inline;">
+                        <input type="hidden" name="redirect" value="{{ doc.SelectToggleURL }}">
+                        <input type="hidden" name="ulid" value="{{ doc.ULID }}">
+                        <button type="submit" class="button is-small{% if doc.IsSelected %} is-primary{% else %} is-outlined{% endif %}" title="Select">{% if doc.IsSelected %}&#9745;{% else %}&#9744;{% endif %}</button>
+                    </form>
                 </div>
                 <div class="card-buttons">
-                    <a href="/documents/bulk-edit?ulids={% if selected_ulids %}{{ selected_ulids }}{% else %}{{ doc.ULID }}{% endif %}" class="button is-small is-outlined" title="Bulk Edit">&#9881;</a>
+                    <a href="/document/view/{{ doc.ULID }}" class="button is-small is-info is-outlined" title="View">&#128065;</a>
+                    <a href="/document/view/{{ doc.ULID }}?dl=1" class="button is-small is-outlined" title="Download">&#11015;</a>
                 </div>
                 {% for tag in doc.Tags %}
                 <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;" title="{{ tag.Name }}">{{ tag.Name }}</span>
@@ -26,7 +31,7 @@
             </div>
         </div>
         <div class="card-bottom-content">
-            <a href="/document/view/{{ doc.ULID }}" class="is-size-6">{{ doc.Name }}</a>
+            <a href="/document/{{ doc.ULID }}/edit" class="is-size-6" title="{{ doc.Name }}">{{ doc.DisplayName }}</a>
             <span class="tag doc-type-badge is-info is-light ml-2">{{ doc.DocumentType }}</span>
         </div>
     </div>
