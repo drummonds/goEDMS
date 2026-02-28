@@ -12,13 +12,20 @@
     <div class="level-right">
         <div class="level-item">
             <div class="buttons has-addons">
-                <a class="button is-small{% if view == "collapsed" %} is-primary{% endif %}" href="/?view=collapsed{% if show_hidden %}&show_hidden=1{% endif %}">Stories</a>
-                <a class="button is-small{% if view == "flat" %} is-primary{% endif %}" href="/?view=flat{% if show_hidden %}&show_hidden=1{% endif %}">All</a>
+                <a class="button is-small{% if view == "collapsed" %} is-primary{% endif %}" href="/?view=collapsed{% if show_hidden %}&show_hidden=1{% endif %}{% if page_size != 25 %}&page_size={{ page_size }}{% endif %}">Stories</a>
+                <a class="button is-small{% if view == "flat" %} is-primary{% endif %}" href="/?view=flat{% if show_hidden %}&show_hidden=1{% endif %}{% if page_size != 25 %}&page_size={{ page_size }}{% endif %}">All</a>
+            </div>
+        </div>
+        <div class="level-item">
+            <div class="buttons has-addons">
+                {% for s in valid_page_sizes %}
+                <a class="button is-small{% if page_size == s %} is-primary{% endif %}" href="/?view={{ view }}{% if show_hidden %}&show_hidden=1{% endif %}&page_size={{ s }}">{{ s }}</a>
+                {% endfor %}
             </div>
         </div>
         <div class="level-item">
             <label class="checkbox is-size-7">
-                <input type="checkbox" {% if show_hidden %}checked{% endif %} onchange="location.href='/?view={{ view }}&show_hidden=' + (this.checked ? '1' : '0')">
+                <input type="checkbox" {% if show_hidden %}checked{% endif %} onchange="location.href='/?view={{ view }}&show_hidden=' + (this.checked ? '1' : '0') + '{% if page_size != 25 %}&page_size={{ page_size }}{% endif %}'">
                 Show hidden
             </label>
         </div>
