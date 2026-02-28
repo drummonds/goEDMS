@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>godocs - Document Management System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        .content ol.legal, .content ol.legal ol { list-style: none !important; }
+        ol.legal { counter-reset: item; padding-left: 0; }
+        ol.legal > li { counter-increment: item; }
+        ol.legal > li::before { content: counter(item) ". "; font-weight: bold; }
+        ol.legal ol { counter-reset: subitem; padding-left: 1.5em; margin-top: 0.25em; }
+        ol.legal ol > li { counter-increment: subitem; }
+        ol.legal ol > li::before { content: counter(item) "." counter(subitem) " "; }
+    </style>
 </head>
 <body>
     <section class="section">
@@ -14,6 +23,7 @@
 
             <div class="box" style="display: inline-block;">
                 <img src="screenshot.svg" alt="godocs screenshot" style="max-width: 800px; height: auto;">
+                <p class="has-text-centered is-size-7 mt-2"><em>Demo snapshot &mdash; <a href="demo/">try the live demo &rarr;</a></em></p>
             </div>
 
             <div class="columns">
@@ -25,31 +35,45 @@
                 </div>
             </div>
 
-            <h2 class="title is-4">Internal Documentation</h2>
-            <div class="columns">
-                <div class="column">
-                    <a href="internal/file-naming.html" class="button is-info is-fullwidth">File Naming Convention</a>
-                </div>
-                <div class="column">
-                    <a href="internal/agents.html" class="button is-info is-fullwidth">External Agent API Guide</a>
-                </div>
-                <div class="column">
-                    <a href="internal/upload-dedup.html" class="button is-info is-fullwidth">Upload Deduplication</a>
-                </div>
-            </div>
-
-            <h2 class="title is-4">UI Reference</h2>
-            <div class="columns">
-                <div class="column">
-                    <a href="ui-components.html" class="button is-warning is-fullwidth">UI Components</a>
-                </div>
-                <div class="column">
-                    <a href="document-card.html" class="button is-warning is-fullwidth">Document Card Spec</a>
-                </div>
-            </div>
-
+            <h2 class="title is-4">Contents</h2>
             <div class="content">
-                <p>Source code: <a href="https://github.com/drummonds/godocs">github.com/drummonds/godocs</a></p>
+                <ol class="legal">
+                    <li><a href="getting-started.html">Getting Started</a>
+                        <ol>
+                            <li><a href="getting-started.html#configuration-modes">Configuration Modes</a></li>
+                            <li><a href="getting-started.html#environment-variables">Environment Variables</a></li>
+                            <li><a href="getting-started.html#technology-stack">Technology Stack</a></li>
+                        </ol>
+                    </li>
+                    <li>Internal Documentation
+                        <ol>
+                            <li><a href="internal/file-naming.html">File Naming Convention</a></li>
+                            <li><a href="internal/agents.html">External Agent API Guide</a></li>
+                            <li><a href="internal/upload-dedup.html">Upload Deduplication</a></li>
+                            <li><a href="internal/tagging.html">Tagging System</a></li>
+                            <li><a href="internal/lifecycle.html">Document Lifecycle</a></li>
+                        </ol>
+                    </li>
+                    <li>UI Reference
+                        <ol>
+                            <li><a href="document-card.html">Document Card Spec</a></li>
+                        </ol>
+                    </li>
+                    <li><a href="development.html">Development</a>
+                        <ol>
+                            <li><a href="development.html#building-from-source">Building from Source</a></li>
+                            <li><a href="development.html#running-tests">Running Tests</a></li>
+                            <li><a href="development.html#docker">Docker</a></li>
+                            <li><a href="development.html#gokrazy-deployment">gokrazy Deployment</a></li>
+                        </ol>
+                    </li>
+                    <li><a href="api.html">API &mdash; OpenAPI / Swagger</a></li>
+                </ol>
+            </div>
+
+            <div class="content mt-5">
+                <p>Source code: <a href="https://github.com/drummonds/godocs">github.com/drummonds/godocs</a>
+                | Pages: <a href="https://drummonds.github.io/godocs/">drummonds.github.io/godocs</a></p>
             </div>
         </div>
     </section>

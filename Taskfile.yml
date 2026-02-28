@@ -248,6 +248,12 @@ tasks:
       - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8080 -width 800 -height 600 -mode compact -o docs/screenshot.svg
       - echo "Screenshot saved to docs/screenshot.svg"
 
+  docs:build:
+    desc: Rebuild all generated documentation
+    cmds:
+      - task: docs:md2html
+      - go run cmd/md2html/main.go -src docs -dst docs -label Documentation
+
   docs:md2html:
     desc: Convert internal markdown docs to HTML
     cmds:

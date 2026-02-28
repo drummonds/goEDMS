@@ -38,6 +38,7 @@ type PageData struct {
 func main() {
 	src := flag.String("src", "docs/internal", "source markdown directory")
 	dst := flag.String("dst", "docs/internal", "destination HTML directory")
+	label := flag.String("label", "Internal Docs", "breadcrumb label for this doc set")
 	flag.Parse()
 
 	tmplBytes, err := templateFS.ReadFile("template.html")
@@ -72,14 +73,14 @@ func main() {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
 		}
-		if err := convertFile(md, tmpl, *src, *dst, entry.Name()); err != nil {
+		if err := convertFile(md, tmpl, *src, *dst, entry.Name(), *label); err != nil {
 			fmt.Fprintf(os.Stderr, "convert %s: %v\n", entry.Name(), err)
 			os.Exit(1)
 		}
 	}
 }
 
-func convertFile(md goldmark.Markdown, tmpl *template.Template, src, dst, name string) error {
+func convertFile(md goldmark.Markdown, tmpl *template.Template, src, dst, name, label string) error {
 	content, err := os.ReadFile(filepath.Join(src, name))
 	if err != nil {
 		return err
@@ -98,7 +99,7 @@ func convertFile(md goldmark.Markdown, tmpl *template.Template, src, dst, name s
 		Content: template.HTML(buf.String()),
 		Breadcrumbs: []Breadcrumb{
 			{Label: "godocs", URL: "../index.html"},
-			{Label: "Internal Docs", URL: ""},
+			{Label: label, URL: ""},
 			{Label: title, URL: ""},
 		},
 	}

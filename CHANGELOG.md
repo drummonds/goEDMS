@@ -2,10 +2,13 @@
 
 All notable changes to godocs will be documented in this file.
 
+## 0.48.6 2026-02-27
+
+- improving documentation
+
 ## 0.48.5 2026-02-27
 
 - improving document card format
-
 
 ## 0.48.4 2026-02-26
 
