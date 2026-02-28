@@ -76,13 +76,26 @@
     </div>
 
     {% if documents %}
-    <p class="subtitle">{{ total_count }} result{{ total_count|pluralize }} for "{{ query }}"</p>
+    <div class="level">
+        <div class="level-left">
+            <div class="level-item">
+                <p class="subtitle">{{ total_count }} result{{ total_count|pluralize }} for "{{ query }}"</p>
+            </div>
+        </div>
+        <div class="level-right">
+            <div class="level-item">
+                <button type="submit" form="bulk-select-form" class="button is-small is-link is-outlined">Bulk Edit</button>
+            </div>
+        </div>
+    </div>
 
+    <form id="bulk-select-form" method="POST" action="/documents/bulk-edit">
     <div class="columns is-multiline">
         {% for doc in documents %}
         {% include "partials/document_card.html" %}
         {% endfor %}
     </div>
+    </form>
 
     {% include "partials/pagination.html" %}
     {% else %}

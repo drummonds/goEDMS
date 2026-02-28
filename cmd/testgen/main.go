@@ -11,8 +11,11 @@ import (
 
 func main() {
 	testDir := "testdocs"
+	if len(os.Args) > 1 {
+		testDir = os.Args[1]
+	}
 
-	fmt.Println("Generating test documents in testdocs/ directory...")
+	fmt.Printf("Generating test documents in %s/ directory...\n", testDir)
 	if err := testdocs.Generate(testDir); err != nil {
 		fmt.Printf("Error generating test docs: %v\n", err)
 		os.Exit(1)

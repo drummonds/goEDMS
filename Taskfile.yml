@@ -203,18 +203,20 @@ tasks:
   demo:
     desc: Run app with pglike database and generated test documents
     cmds:
-      - go run cmd/testgen/main.go 
+      - go run cmd/testgen/main.go demo/documents
       - >-
         DATABASE_TYPE=pglike
-        DATABASE_NAME=testdocs/demo.db
-        DOCUMENT_PATH=testdocs
+        DATABASE_NAME=demo/demo.db
+        DOCUMENT_PATH=demo/documents
+        ARCHIVE_PATH=demo/archive
+        INGRESS_PATH=demo/ingress
         LOG_OUTPUT=stdout
         go run . -demo
 
   demo:clean:
     desc: Remove generated demo data
     cmds:
-      - rm -rf testdocs/
+      - rm -rf demo/
       - echo "Demo data cleaned"
 
   build:wasm:

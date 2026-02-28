@@ -27,10 +27,12 @@ test_output.log
 
 # Files for local testing
 .env
-/demo
 test_godocs*
 testdocs
-
+# Demo files
+/demo
+/archive
+/ingress
 node_modules
 
 # Generated docs

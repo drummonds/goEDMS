@@ -1,5 +1,5 @@
 <div class="column is-one-third-desktop is-half-tablet" id="card-{{ doc.ULID }}">
-    <div class="card document-card{% if doc.IsSelected %} is-selected{% endif %}">
+    <div class="card document-card">
         <div class="card-top-row">
             <div class="card-thumbnail">
                 <a href="/document/view/{{ doc.ULID }}">
@@ -15,11 +15,9 @@
             <div class="card-sidebar">
                 <div class="card-buttons">
                     <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit">&#9998;</a>
-                    <form method="POST" action="/documents/select-toggle" style="display:inline;">
-                        <input type="hidden" name="redirect" value="{{ doc.SelectToggleURL }}">
-                        <input type="hidden" name="ulid" value="{{ doc.ULID }}">
-                        <button type="submit" class="button is-small{% if doc.IsSelected %} is-primary{% else %} is-outlined{% endif %}" title="Select">{% if doc.IsSelected %}&#9745;{% else %}&#9744;{% endif %}</button>
-                    </form>
+                    <label class="button is-small is-outlined" title="Select">
+                        <input type="checkbox" name="ulids" value="{{ doc.ULID }}" style="margin-right:2px;">&#9744;
+                    </label>
                 </div>
                 <div class="card-buttons">
                     <a href="/document/view/{{ doc.ULID }}" class="button is-small is-info is-outlined" title="View">&#128065;</a>

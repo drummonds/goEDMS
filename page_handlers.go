@@ -2,11 +2,8 @@ package main
 
 import (
 	"net/http"
-	"net/url"
 	"os"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/drummonds/godocs/database"
@@ -17,13 +14,34 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
+// validPageSizes are the allowed page size options
+var validPageSizes = []int{25, 100, 500}
+
+// defaultPageSize is used when no page_size param is provided
+const defaultPageSize = 25
+
+// parsePageSize reads page_size from the query and clamps to valid values
+func parsePageSize(raw string) int {
+	if raw == "" {
+		return defaultPageSize
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultPageSize
+	}
+	for _, s := range validPageSizes {
+		if v == s {
+			return v
+		}
+	}
+	return defaultPageSize
+}
+
 // DocumentWithMeta wraps a document with display-related metadata
 type DocumentWithMeta struct {
 	database.Document
-	HasThumbnail    bool
-	Tags            []database.Tag
-	IsSelected      bool
-	SelectToggleURL string
+	HasThumbnail bool
+	Tags         []database.Tag
 }
 
 // HandleHomePage renders the home page with paginated documents.
@@ -36,25 +54,23 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 				page = v
 			}
 		}
-		pageSize := 20
+		pageSize := parsePageSize(c.QueryParam("page_size"))
 		view := c.QueryParam("view")
 		if view == "" {
 			view = "collapsed"
 		}
 		showHidden := c.QueryParam("show_hidden") == "1"
-		selectedSet := parseSelectedULIDs(c.QueryParam("sel"))
-		selectedCSV := joinSelectedULIDs(selectedSet)
 
 		ctx := pongo2.Context{
-			"view":           view,
-			"show_hidden":    showHidden,
-			"selected_ulids": selectedCSV,
+			"view":             view,
+			"show_hidden":      showHidden,
+			"page_size":        pageSize,
+			"valid_page_sizes": validPageSizes,
 		}
 
-		baseParams := url.Values{}
-		baseParams.Set("view", view)
-		if showHidden {
-			baseParams.Set("show_hidden", "1")
+		pageSizeSuffix := ""
+		if pageSize != defaultPageSize {
+			pageSizeSuffix = "&page_size=" + strconv.Itoa(pageSize)
 		}
 
 		if view == "flat" {
@@ -64,12 +80,11 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 				documents = []database.Document{}
 				totalCount = 0
 			}
-			docsWithMeta := tr.enrichDocumentsWithSelection(documents, selectedSet, "/", baseParams)
+			docsWithMeta := tr.enrichDocuments(documents)
 			totalPages := (totalCount + pageSize - 1) / pageSize
 
 			ctx["documents"] = docsWithMeta
 			ctx["page"] = page
-			ctx["page_size"] = pageSize
 			ctx["total_count"] = totalCount
 			ctx["total_pages"] = totalPages
 			ctx["has_next"] = page < totalPages
@@ -78,9 +93,7 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 			if showHidden {
 				baseURL += "&show_hidden=1"
 			}
-			if selectedCSV != "" {
-				baseURL += "&sel=" + selectedCSV
-			}
+			baseURL += pageSizeSuffix
 			ctx["base_url"] = baseURL
 		} else {
 			// Collapsed view: stories + unstoried documents
@@ -97,12 +110,11 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 				documents = []database.Document{}
 				totalCount = 0
 			}
-			docsWithMeta := tr.enrichDocumentsWithSelection(documents, selectedSet, "/", baseParams)
+			docsWithMeta := tr.enrichDocuments(documents)
 			totalPages := (totalCount + pageSize - 1) / pageSize
 
 			ctx["documents"] = docsWithMeta
 			ctx["page"] = page
-			ctx["page_size"] = pageSize
 			ctx["total_count"] = totalCount
 			ctx["total_pages"] = totalPages
 			ctx["has_next"] = page < totalPages
@@ -111,9 +123,7 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 			if showHidden {
 				baseURL += "&show_hidden=1"
 			}
-			if selectedCSV != "" {
-				baseURL += "&sel=" + selectedCSV
-			}
+			baseURL += pageSizeSuffix
 			ctx["base_url"] = baseURL
 		}
 
@@ -125,32 +135,23 @@ func HandleHomePage(tr *TemplateRenderer) echo.HandlerFunc {
 func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		query := c.QueryParam("q")
-
 		showHidden := c.QueryParam("show_hidden") == "1"
-		selectedSet := parseSelectedULIDs(c.QueryParam("sel"))
-		selectedCSV := joinSelectedULIDs(selectedSet)
+		pageSize := parsePageSize(c.QueryParam("page_size"))
 
 		baseURL := "/search?q=" + query
 		if showHidden {
 			baseURL += "&show_hidden=1"
 		}
-		if selectedCSV != "" {
-			baseURL += "&sel=" + selectedCSV
+		if pageSize != defaultPageSize {
+			baseURL += "&page_size=" + strconv.Itoa(pageSize)
 		}
 
 		ctx := pongo2.Context{
-			"query":          query,
-			"base_url":       baseURL,
-			"show_hidden":    showHidden,
-			"selected_ulids": selectedCSV,
-		}
-
-		baseParams := url.Values{}
-		if query != "" {
-			baseParams.Set("q", query)
-		}
-		if showHidden {
-			baseParams.Set("show_hidden", "1")
+			"query":            query,
+			"base_url":         baseURL,
+			"show_hidden":      showHidden,
+			"page_size":        pageSize,
+			"valid_page_sizes": validPageSizes,
 		}
 
 		// Load saved searches
@@ -168,7 +169,6 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 					page = v
 				}
 			}
-			pageSize := 20
 
 			parsed := database.ParseSearchQuery(query)
 			documents, totalCount, err := tr.db.ExecuteSearch(parsed, page, pageSize, showHidden)
@@ -178,7 +178,7 @@ func HandleSearchPage(tr *TemplateRenderer) echo.HandlerFunc {
 				totalCount = 0
 			}
 
-			docsWithMeta := tr.enrichDocumentsWithSelection(documents, selectedSet, "/search", baseParams)
+			docsWithMeta := tr.enrichDocuments(documents)
 			totalPages := (totalCount + pageSize - 1) / pageSize
 
 			ctx["documents"] = docsWithMeta
@@ -598,6 +598,7 @@ func HandleAboutPage(tr *TemplateRenderer) echo.HandlerFunc {
 			"database_port":  tr.config.DatabasePort,
 			"database_name":  tr.config.DatabaseDbname,
 			"document_path":  tr.config.DocumentPath,
+			"archive_path":   tr.config.ArchivePath,
 			"ingress_path":   tr.config.IngressPath,
 			"document_count": documentCount,
 			"tag_count":      tagCount,
@@ -902,21 +903,11 @@ func HandleArchivePage(tr *TemplateRenderer) echo.HandlerFunc {
 
 // enrichDocuments adds thumbnail and tag info to documents for display
 func (tr *TemplateRenderer) enrichDocuments(docs []database.Document) []DocumentWithMeta {
-	return tr.enrichDocumentsWithSelection(docs, nil, "", nil)
-}
-
-// enrichDocumentsWithSelection adds thumbnail, tag, and selection info to documents
-func (tr *TemplateRenderer) enrichDocumentsWithSelection(docs []database.Document, selectedSet map[string]bool, basePath string, baseParams url.Values) []DocumentWithMeta {
 	result := make([]DocumentWithMeta, len(docs))
 	for i, doc := range docs {
-		ulidStr := doc.ULID.String()
 		result[i] = DocumentWithMeta{
 			Document:     doc,
 			HasThumbnail: tr.checkThumbnail(doc.Path),
-			IsSelected:   selectedSet[ulidStr],
-		}
-		if basePath != "" {
-			result[i].SelectToggleURL = buildSelectToggleURL(basePath, baseParams, ulidStr, selectedSet)
 		}
 		tags, err := tr.db.GetTagsForDocument(doc.ID)
 		if err != nil {
@@ -927,76 +918,4 @@ func (tr *TemplateRenderer) enrichDocumentsWithSelection(docs []database.Documen
 		}
 	}
 	return result
-}
-
-// HandleSelectToggle handles POST toggle of document selection, redirecting back with anchor
-func HandleSelectToggle() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		redirect := c.FormValue("redirect")
-		ulidStr := c.FormValue("ulid")
-		if redirect == "" || !strings.HasPrefix(redirect, "/") {
-			redirect = "/"
-		}
-		if ulidStr != "" {
-			redirect += "#card-" + ulidStr
-		}
-		return c.Redirect(http.StatusSeeOther, redirect)
-	}
-}
-
-// parseSelectedULIDs parses a comma-separated list of ULIDs into a set
-func parseSelectedULIDs(sel string) map[string]bool {
-	if sel == "" {
-		return nil
-	}
-	parts := strings.Split(sel, ",")
-	m := make(map[string]bool, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			m[p] = true
-		}
-	}
-	if len(m) == 0 {
-		return nil
-	}
-	return m
-}
-
-// joinSelectedULIDs joins a set of ULIDs into a sorted comma-separated string
-func joinSelectedULIDs(m map[string]bool) string {
-	if len(m) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return strings.Join(keys, ",")
-}
-
-// buildSelectToggleURL returns a URL that toggles the given ULID in/out of the selection set
-func buildSelectToggleURL(basePath string, baseParams url.Values, ulid string, selectedSet map[string]bool) string {
-	newSet := make(map[string]bool, len(selectedSet)+1)
-	for k := range selectedSet {
-		newSet[k] = true
-	}
-	if newSet[ulid] {
-		delete(newSet, ulid)
-	} else {
-		newSet[ulid] = true
-	}
-
-	params := url.Values{}
-	for k, vs := range baseParams {
-		for _, v := range vs {
-			params.Add(k, v)
-		}
-	}
-	csv := joinSelectedULIDs(newSet)
-	if csv != "" {
-		params.Set("sel", csv)
-	}
-	return basePath + "?" + params.Encode()
 }
