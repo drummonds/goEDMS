@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ingestion Process Refactoring - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="../index.html">godocs</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Documentation</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Ingestion Process Refactoring</a></li>
+                </ul>
+            </nav>
+
+            <div class="content">
+                <h1 id="ingestion-process-refactoring">Ingestion Process Refactoring</h1>
+<h2 id="overview">Overview</h2>
+<p>The document ingestion process has been refactored to use a step-based approach with hash verification and improved job tracking.</p>
+<h2 id="key-changes">Key Changes</h2>
+<h3 id="1-default-behavior-change">1. Default Behavior Change</h3>
+<ul>
+<li><strong><code>INGRESS_DELETE</code> now defaults to <code>true</code></strong> - Source files are deleted after successful ingestion</li>
+<li><strong>No &quot;done&quot; folder by default</strong> - Files are not moved to an archive folder</li>
+<li><strong>Backwards compatible</strong> - Users can still set <code>INGRESS_DELETE=false</code> and <code>INGRESS_MOVE_FOLDER</code> if needed</li>
+</ul>
+<h3 id="2-step-based-ingestion-process">2. Step-Based Ingestion Process</h3>
+<p>Each file now goes through three explicit steps with progress tracking:</p>
+<h4 id="step-1-hash-and-database-record">Step 1: Hash and Database Record</h4>
+<ul>
+<li>Calculate MD5 hash of source file</li>
+<li>Check for duplicates by hash</li>
+<li>Create initial database record with hash</li>
+<li><strong>Rollback</strong>: Nothing to rollback (file unchanged)</li>
+</ul>
+<h4 id="step-2-move-and-verify">Step 2: Move and Verify</h4>
+<ul>
+<li>Copy file to documents folder</li>
+<li>Calculate hash of copied file</li>
+<li>Verify hash matches original</li>
+<li>Delete source file from ingress folder</li>
+<li><strong>Rollback</strong>: Delete database record if verification fails</li>
+</ul>
+<h4 id="step-3-text-extraction-and-indexing">Step 3: Text Extraction and Indexing</h4>
+<ul>
+<li>Extract text based on file type (PDF, images, text files)</li>
+<li>Update database record with full text</li>
+<li>PostgreSQL full-text search automatically indexed</li>
+<li>Register document view route</li>
+<li><strong>Fallback</strong>: Store document even if text extraction fails</li>
+</ul>
+<h3 id="3-hash-verification">3. Hash Verification</h3>
+<p><strong>Before</strong>: Hash calculated during database insert, file moved first
+<strong>After</strong>: Hash calculated BEFORE moving, then verified AFTER moving</p>
+<p>This ensures:</p>
+<ul>
+<li>No corrupted files in document storage</li>
+<li>Duplicate detection before processing</li>
+<li>Integrity verification at each step</li>
+</ul>
+<h3 id="4-job-tracking-improvements">4. Job Tracking Improvements</h3>
+<p>Jobs now show detailed per-file progress:</p>
+<p><strong>Example Progress Messages:</strong></p>
+<pre><code>[1/5] invoice_2024.pdf - Step 1: Calculating hash
+[1/5] invoice_2024.pdf - Step 2: Moving file
+[1/5] invoice_2024.pdf - Step 3: Extracting text
+</code></pre>
+<p><strong>Result Format:</strong></p>
+<pre><code class="language-json">{
+  &quot;filesProcessed&quot;: 10,
+  &quot;filesTotal&quot;: 12,
+  &quot;duplicates&quot;: 2,
+  &quot;errors&quot;: 0
+}
+</code></pre>
+<h3 id="5-benefits">5. Benefits</h3>
+<p>✅ <strong>More Robust</strong>: Hash verification prevents corrupted files
+✅ <strong>No Duplicates</strong>: Files without duplicates on disk (deleted from ingress)
+✅ <strong>Better Tracking</strong>: See exactly which step a file is on
+✅ <strong>Easier Debugging</strong>: Each step logged separately
+✅ <strong>Disk Space</strong>: No &quot;done&quot; folder duplicating all ingested files
+✅ <strong>Rollback Support</strong>: Failed steps can rollback changes</p>
+<h2 id="files-changed">Files Changed</h2>
+<h3 id="backend">Backend</h3>
+<ul>
+<li><code>config/config.go</code> - Changed <code>INGRESS_DELETE</code> default to <code>true</code></li>
+<li><code>engine/ingestion_steps.go</code> (NEW) - Step-based ingestion functions</li>
+<li><code>engine/engine.go</code> - Updated <code>ingressJobFuncWithTracking</code> to use new process</li>
+<li><code>engine/engine.go</code> - Deprecated <code>ingressCleanup</code> function (kept for compatibility)</li>
+</ul>
+<h3 id="frontend">Frontend</h3>
+<ul>
+<li><code>webapp/jobspage.go</code> - Added duplicate count display in job results</li>
+</ul>
+<h3 id="tests">Tests</h3>
+<ul>
+<li><code>engine/engine_test.go</code> - Updated to use temp directories and <code>INGRESS_DELETE=true</code></li>
+</ul>
+<h2 id="migration-guide">Migration Guide</h2>
+<h3 id="for-existing-users">For Existing Users</h3>
+<p><strong>If you want the old behavior</strong> (move to &quot;done&quot; folder):</p>
+<pre><code class="language-bash">export INGRESS_DELETE=false
+export INGRESS_MOVE_FOLDER=/path/to/done
+</code></pre>
+<p><strong>If you want the new behavior</strong> (delete source files):</p>
+<pre><code class="language-bash"># No changes needed - this is now the default
+# Or explicitly set:
+export INGRESS_DELETE=true
+</code></pre>
+<h3 id="cleaning-up-old-done-folder">Cleaning Up Old &quot;done&quot; Folder</h3>
+<p>If you have an existing <code>done/</code> folder with archived files:</p>
+<pre><code class="language-bash"># Check the size
+du -sh done/
+
+# If you don't need the archives, remove them
+rm -rf done/
+</code></pre>
+<h2 id="api-changes">API Changes</h2>
+<h3 id="ingestion-endpoint-response">Ingestion Endpoint Response</h3>
+<p><strong>Before:</strong></p>
+<pre><code class="language-json">{
+  &quot;message&quot;: &quot;Ingestion completed&quot;,
+  &quot;scanned&quot;: 10,
+  &quot;errors&quot;: 0
+}
+</code></pre>
+<p><strong>After:</strong></p>
+<pre><code class="language-json">{
+  &quot;message&quot;: &quot;Ingestion started&quot;,
+  &quot;jobId&quot;: &quot;01K8GSMYD7DF7G6KP82S3Y032G&quot;
+}
+</code></pre>
+<p>Use the Jobs API to track progress:</p>
+<pre><code class="language-bash">GET /api/jobs/{jobId}
+GET /api/jobs/active
+</code></pre>
+<h2 id="example-job-progress">Example Job Progress</h2>
+<pre><code>2025-10-26 17:00:00 - Scanning ingress folder
+2025-10-26 17:00:01 - [1/3] invoice.pdf - Step 1: Calculating hash
+2025-10-26 17:00:02 - [1/3] invoice.pdf - Step 2: Moving file
+2025-10-26 17:00:03 - [1/3] invoice.pdf - Step 3: Extracting text
+2025-10-26 17:00:05 - [2/3] contract.pdf - Step 1: Calculating hash
+2025-10-26 17:00:06 - Duplicate document detected, skipping
+2025-10-26 17:00:07 - [3/3] report.pdf - Step 1: Calculating hash
+2025-10-26 17:00:08 - [3/3] report.pdf - Step 2: Moving file
+2025-10-26 17:00:09 - [3/3] report.pdf - Step 3: Extracting text
+2025-10-26 17:00:10 - Updating word cloud
+2025-10-26 17:00:11 - Complete: Processed 2 of 3 files (1 duplicate)
+</code></pre>
+<h2 id="technical-details">Technical Details</h2>
+<h3 id="hash-verification-flow">Hash Verification Flow</h3>
+<pre><code>Source File (ingress/)
+    ↓
+Calculate Hash (MD5)
+    ↓
+Check Duplicate
+    ↓
+Create DB Record
+    ↓
+Copy to Documents
+    ↓
+Verify Hash Matches
+    ↓
+Delete Source File
+    ↓
+Extract Text
+    ↓
+Update DB + Search Index
+</code></pre>
+<h3 id="error-handling">Error Handling</h3>
+<ul>
+<li><strong>Step 1 Fails</strong>: Nothing to clean up, source file remains in ingress</li>
+<li><strong>Step 2 Fails</strong>: Delete DB record, source file remains in ingress</li>
+<li><strong>Step 3 Fails</strong>: Document stored without text, can be reprocessed later</li>
+</ul>
+<h3 id="duplicate-detection">Duplicate Detection</h3>
+<p>Files are considered duplicates if:</p>
+<ul>
+<li>MD5 hash matches existing document</li>
+<li>Source file is automatically deleted</li>
+<li>Counted in job results as &quot;duplicates&quot;</li>
+<li>No error - duplicate is expected behavior</li>
+</ul>
+<h2 id="testing">Testing</h2>
+<p>Run the test suite to verify the new process:</p>
+<pre><code class="language-bash">go test ./engine -v -run TestOCRProcessingAndDatabaseStorage
+go test ./... -timeout 2m
+</code></pre>
+<p>All tests should pass with the new step-based ingestion.</p>
+
+            </div>
+        </div>
+    </section>
+</body>
+</html>

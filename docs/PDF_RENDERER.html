@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PDF Renderer - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="../index.html">godocs</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Documentation</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">PDF Renderer</a></li>
+                </ul>
+            </nav>
+
+            <div class="content">
+                <h1 id="pdf-renderer">PDF Renderer</h1>
+<p>godocs uses a pure Go PDF rendering engine for converting PDF pages to images for OCR processing.</p>
+<h2 id="pdfium-renderer-pure-go">PDFium Renderer (Pure Go)</h2>
+<p>The PDFium renderer uses go-pdfium with WebAssembly to provide a pure Go solution with no CGo dependencies.</p>
+<p><strong>Advantages:</strong></p>
+<ul>
+<li>✅ <strong>Pure Go</strong> - No CGo, no external C dependencies</li>
+<li>✅ <strong>Single binary deployment</strong> - Everything embedded in one executable</li>
+<li>✅ <strong>Cross-platform</strong> - Works on any platform Go supports</li>
+<li>✅ <strong>Safer</strong> - WebAssembly sandboxing prevents crashes from affecting the main process</li>
+<li>✅ <strong>No external libraries</strong> - No need to install MuPDF or other system libraries</li>
+<li>✅ <strong>Easier deployment</strong> - Especially useful for Docker, cloud, and embedded systems</li>
+<li>✅ <strong>CGO_ENABLED=0 compatible</strong> - Works without C compiler</li>
+</ul>
+<p><strong>Use cases:</strong></p>
+<ul>
+<li>Production deployments where simplicity and reliability are priorities</li>
+<li>Docker containers and cloud environments</li>
+<li>Systems where installing native libraries is difficult</li>
+<li>Embedded systems and IoT devices running gokrazy</li>
+<li>Cross-compilation for multiple platforms</li>
+</ul>
+<h2 id="implementation-details">Implementation Details</h2>
+<h3 id="pdfium-renderer">PDFium Renderer</h3>
+<ul>
+<li><strong>Library:</strong> github.com/klippa-app/go-pdfium</li>
+<li><strong>Backend:</strong> PDFium (Google Chrome's PDF library) compiled to WebAssembly</li>
+<li><strong>Runtime:</strong> Wazero (pure Go WebAssembly runtime)</li>
+<li><strong>Licenses:</strong> MIT, BSD, Apache 2.0</li>
+<li><strong>DPI:</strong> 150 (optimized for OCR quality vs. performance)</li>
+</ul>
+<h2 id="architecture">Architecture</h2>
+<p>The PDF renderer is located in <code>engine/pdfrenderer/</code>:</p>
+<pre><code>engine/pdfrenderer/
+├── renderer.go           # Interface definition
+└── pdfium_renderer.go    # Pure Go WebAssembly implementation
+</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="common-issues">Common Issues</h3>
+<p><strong>Problem:</strong> &quot;failed to initialize PDFium WebAssembly&quot;</p>
+<ul>
+<li><strong>Solution:</strong> Ensure sufficient memory is available. PDFium WASM requires ~50MB to initialize the pool.</li>
+</ul>
+<p><strong>Problem:</strong> Slow rendering performance</p>
+<ul>
+<li><strong>Solution:</strong> This is expected for WebAssembly. Performance is adequate for typical home/small business use (~4 seconds per document including OCR).</li>
+</ul>
+<p><strong>Problem:</strong> Build failures with CGO_ENABLED=0</p>
+<ul>
+<li><strong>Solution:</strong> This renderer fully supports CGO_ENABLED=0. Ensure you've removed any go-fitz references.</li>
+</ul>
+<h2 id="performance">Performance</h2>
+<p>On typical documents:</p>
+<ul>
+<li><strong>Initialization:</strong> ~200ms (one-time pool setup)</li>
+<li><strong>Per-page rendering:</strong> ~500-800ms at 150 DPI</li>
+<li><strong>Memory overhead:</strong> ~50-100MB for WebAssembly pool</li>
+<li><strong>Concurrent rendering:</strong> Thread-safe via pool management</li>
+</ul>
+<h2 id="future-improvements">Future Improvements</h2>
+<p>Potential enhancements to consider:</p>
+<ol>
+<li><strong>Configurable DPI</strong> - Allow runtime DPI configuration for quality vs. speed trade-offs</li>
+<li><strong>Page selection</strong> - Render specific pages instead of all pages</li>
+<li><strong>Parallel rendering</strong> - Render multiple pages concurrently using pool workers</li>
+<li><strong>Caching</strong> - Cache rendered images for repeated requests</li>
+<li><strong>Lazy initialization</strong> - Only initialize WebAssembly pool when first PDF is encountered</li>
+</ol>
+
+            </div>
+        </div>
+    </section>
+</body>
+</html>

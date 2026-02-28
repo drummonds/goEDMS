@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tagging System Documentation - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="../index.html">godocs</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Documentation</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Tagging System Documentation</a></li>
+                </ul>
+            </nav>
+
+            <div class="content">
+                <h1 id="tagging-system-documentation">Tagging System Documentation</h1>
+<h2 id="overview">Overview</h2>
+<p>The godocs tagging system provides comprehensive document organization through:</p>
+<ul>
+<li><strong>Free-form tags</strong> - Flexible categorization</li>
+<li><strong>Dimensions</strong> - Structured metadata with predefined values</li>
+<li><strong>JSON sidecar files</strong> - Portable tag storage alongside documents</li>
+</ul>
+<h2 id="quick-start">Quick Start</h2>
+<h3 id="1-apply-migration">1. Apply Migration</h3>
+<p>The tagging system requires database migration <code>000005</code>:</p>
+<pre><code class="language-bash"># Migration will be applied automatically on next startup
+# Or manually trigger it through your migration process
+</code></pre>
+<h3 id="2-create-a-sample-document-with-tags">2. Create a Sample Document with Tags</h3>
+<p>Create a file <code>example.tags.json</code> alongside your document:</p>
+<pre><code class="language-json">{
+  &quot;tags&quot;: [&quot;invoice&quot;, &quot;personal&quot;, &quot;important&quot;],
+  &quot;dimensions&quot;: {
+    &quot;person&quot;: &quot;husband&quot;,
+    &quot;location&quot;: &quot;home&quot;,
+    &quot;year&quot;: &quot;2024&quot;,
+    &quot;importance&quot;: &quot;high&quot;,
+    &quot;retention&quot;: &quot;keep_7_years&quot;
+  }
+}
+</code></pre>
+<h3 id="3-ingest-the-document">3. Ingest the Document</h3>
+<p>Place both <code>example.pdf</code> and <code>example.tags.json</code> in the ingress folder. The tags will be automatically imported.</p>
+<h2 id="predefined-dimensions">Predefined Dimensions</h2>
+<h3 id="person">Person</h3>
+<ul>
+<li><code>husband</code>, <code>wife</code>, <code>child1</code>, <code>child2</code>, <code>child3</code>, <code>family</code>, <code>business</code>, <code>other</code></li>
+</ul>
+<h3 id="location">Location</h3>
+<ul>
+<li><code>home</code>, <code>office</code>, <code>bank</code>, <code>medical</code>, <code>legal</code>, <code>insurance</code>, <code>tax</code>, <code>education</code>, <code>other</code></li>
+</ul>
+<h3 id="importance">Importance</h3>
+<ul>
+<li><code>low</code>, <code>medium</code>, <code>high</code>, <code>critical</code></li>
+</ul>
+<h3 id="retention-for-future-archival">Retention (for future archival)</h3>
+<ul>
+<li><code>temporary</code> - &lt; 1 year</li>
+<li><code>keep_1_year</code> - Keep for 1 year</li>
+<li><code>keep_3_years</code> - Keep for 3 years</li>
+<li><code>keep_7_years</code> - Keep for 7 years (tax records)</li>
+<li><code>keep_10_years</code> - Keep for 10 years</li>
+<li><code>keep_permanent</code> - Keep forever (birth certificates, etc.)</li>
+</ul>
+<h3 id="year">Year</h3>
+<ul>
+<li>Values can be any year string (e.g., &quot;2024&quot;, &quot;2023&quot;)</li>
+<li>Used for archival organization</li>
+</ul>
+<h2 id="api-endpoints">API Endpoints</h2>
+<h3 id="tags">Tags</h3>
+<p><strong>Get all tags:</strong></p>
+<pre><code>GET /api/tags
+</code></pre>
+<p><strong>Create tag:</strong></p>
+<pre><code>POST /api/tags
+Body: {&quot;name&quot;: &quot;invoice&quot;, &quot;color&quot;: &quot;#3498db&quot;, &quot;description&quot;: &quot;Invoice documents&quot;}
+</code></pre>
+<p><strong>Update tag:</strong></p>
+<pre><code>PUT /api/tags/{id}
+Body: {&quot;name&quot;: &quot;invoice&quot;, &quot;color&quot;: &quot;#e74c3c&quot;}
+</code></pre>
+<p><strong>Delete tag:</strong></p>
+<pre><code>DELETE /api/tags/{id}
+</code></pre>
+<h3 id="document-tags">Document Tags</h3>
+<p><strong>Get document tags:</strong></p>
+<pre><code>GET /api/documents/{ulid}/tags
+</code></pre>
+<p><strong>Add tag to document:</strong></p>
+<pre><code>POST /api/documents/{ulid}/tags
+Body: {&quot;tag_id&quot;: 1}
+</code></pre>
+<p><strong>Remove tag from document:</strong></p>
+<pre><code>DELETE /api/documents/{ulid}/tags/{tagId}
+</code></pre>
+<h3 id="dimensions">Dimensions</h3>
+<p><strong>Get all dimensions with values:</strong></p>
+<pre><code>GET /api/dimensions
+</code></pre>
+<p><strong>Get document dimensions:</strong></p>
+<pre><code>GET /api/documents/{ulid}/dimensions
+</code></pre>
+<p><strong>Set document dimension:</strong></p>
+<pre><code>POST /api/documents/{ulid}/dimensions
+Body: {&quot;dimension_name&quot;: &quot;person&quot;, &quot;value&quot;: &quot;husband&quot;}
+</code></pre>
+<p><strong>Remove document dimension:</strong></p>
+<pre><code>DELETE /api/documents/{ulid}/dimensions/{dimensionName}
+</code></pre>
+<h2 id="json-sidecar-file-format">JSON Sidecar File Format</h2>
+<p>Sidecar files are named <code>{document_name}.tags.json</code>:</p>
+<p><strong>Example: <code>invoice-2024.pdf</code> → <code>invoice-2024.tags.json</code></strong></p>
+<pre><code class="language-json">{
+  &quot;tags&quot;: [
+    &quot;invoice&quot;,
+    &quot;utilities&quot;,
+    &quot;electricity&quot;
+  ],
+  &quot;dimensions&quot;: {
+    &quot;person&quot;: &quot;family&quot;,
+    &quot;location&quot;: &quot;home&quot;,
+    &quot;year&quot;: &quot;2024&quot;,
+    &quot;importance&quot;: &quot;medium&quot;,
+    &quot;retention&quot;: &quot;keep_7_years&quot;
+  }
+}
+</code></pre>
+<h3 id="automatic-sidecar-updates">Automatic Sidecar Updates</h3>
+<ul>
+<li><strong>During ingestion</strong>: Tags from sidecar files are imported to database</li>
+<li><strong>After API changes</strong>: Any tag/dimension changes via API automatically update the sidecar file</li>
+<li><strong>Portability</strong>: Sidecar files travel with documents for backup/migration</li>
+</ul>
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="example-1-medical-document">Example 1: Medical Document</h3>
+<p><strong>File:</strong> <code>medical-record.pdf</code>
+<strong>Sidecar:</strong> <code>medical-record.tags.json</code></p>
+<pre><code class="language-json">{
+  &quot;tags&quot;: [&quot;medical&quot;, &quot;test-results&quot;, &quot;annual-checkup&quot;],
+  &quot;dimensions&quot;: {
+    &quot;person&quot;: &quot;wife&quot;,
+    &quot;location&quot;: &quot;medical&quot;,
+    &quot;year&quot;: &quot;2024&quot;,
+    &quot;importance&quot;: &quot;high&quot;,
+    &quot;retention&quot;: &quot;keep_permanent&quot;
+  }
+}
+</code></pre>
+<h3 id="example-2-tax-document">Example 2: Tax Document</h3>
+<p><strong>File:</strong> <code>tax-return-2024.pdf</code>
+<strong>Sidecar:</strong> <code>tax-return-2024.tags.json</code></p>
+<pre><code class="language-json">{
+  &quot;tags&quot;: [&quot;tax&quot;, &quot;irs&quot;, &quot;federal&quot;],
+  &quot;dimensions&quot;: {
+    &quot;person&quot;: &quot;family&quot;,
+    &quot;location&quot;: &quot;tax&quot;,
+    &quot;year&quot;: &quot;2024&quot;,
+    &quot;importance&quot;: &quot;critical&quot;,
+    &quot;retention&quot;: &quot;keep_7_years&quot;
+  }
+}
+</code></pre>
+<h3 id="example-3-childs-school-document">Example 3: Child's School Document</h3>
+<p><strong>File:</strong> <code>report-card.pdf</code>
+<strong>Sidecar:</strong> <code>report-card.tags.json</code></p>
+<pre><code class="language-json">{
+  &quot;tags&quot;: [&quot;school&quot;, &quot;grades&quot;, &quot;semester1&quot;],
+  &quot;dimensions&quot;: {
+    &quot;person&quot;: &quot;child1&quot;,
+    &quot;location&quot;: &quot;education&quot;,
+    &quot;year&quot;: &quot;2024&quot;,
+    &quot;importance&quot;: &quot;medium&quot;,
+    &quot;retention&quot;: &quot;keep_3_years&quot;
+  }
+}
+</code></pre>
+<h2 id="testing-the-system">Testing the System</h2>
+<h3 id="1-test-via-api">1. Test via API</h3>
+<pre><code class="language-bash"># Get all dimensions
+curl http://localhost:8000/api/dimensions
+
+# Get all tags
+curl http://localhost:8000/api/tags
+
+# Create a new tag
+curl -X POST http://localhost:8000/api/tags \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;name&quot;: &quot;test-tag&quot;, &quot;color&quot;: &quot;#ff0000&quot;}'
+</code></pre>
+<h3 id="2-test-via-ingestion">2. Test via Ingestion</h3>
+<pre><code class="language-bash"># Create test document and sidecar
+cd /path/to/ingress
+
+# Create a simple text document
+echo &quot;Test document&quot; &gt; test.txt
+
+# Create tags sidecar
+cat &gt; test.tags.json &lt;&lt; 'EOF'
+{
+  &quot;tags&quot;: [&quot;test&quot;, &quot;sample&quot;],
+  &quot;dimensions&quot;: {
+    &quot;person&quot;: &quot;husband&quot;,
+    &quot;importance&quot;: &quot;low&quot;,
+    &quot;retention&quot;: &quot;temporary&quot;
+  }
+}
+EOF
+
+# Trigger ingestion
+curl -X POST http://localhost:8000/api/ingest
+</code></pre>
+<h3 id="3-verify-tags-were-applied">3. Verify Tags Were Applied</h3>
+<pre><code class="language-bash"># Get document ULID from the response or database
+# Then query its tags
+curl http://localhost:8000/api/documents/{ulid}/tags
+curl http://localhost:8000/api/documents/{ulid}/dimensions
+</code></pre>
+<h2 id="future-enhancements">Future Enhancements</h2>
+<p>The tagging system is designed to support:</p>
+<ol>
+<li><strong>Search by tags</strong> - Find documents by tag combinations</li>
+<li><strong>Filter by dimensions</strong> - Filter by person, location, importance, etc.</li>
+<li><strong>Auto-archival</strong> - Automatic cleanup based on retention periods</li>
+<li><strong>Tag suggestions</strong> - ML-based tag suggestions during upload</li>
+<li><strong>Custom dimensions</strong> - User-defined dimension types</li>
+<li><strong>Tag hierarchies</strong> - Parent/child tag relationships</li>
+</ol>
+<h2 id="database-schema">Database Schema</h2>
+<p>See <a href="../database/migrations/000005_add_tagging_system.up.sql">000005_add_tagging_system.up.sql</a> for complete schema.</p>
+<p><strong>Key tables:</strong></p>
+<ul>
+<li><code>tags</code> - Tag definitions</li>
+<li><code>document_tags</code> - Document-tag associations</li>
+<li><code>dimensions</code> - Dimension type definitions</li>
+<li><code>dimension_values</code> - Allowed values per dimension</li>
+<li><code>document_dimensions</code> - Document dimension assignments</li>
+</ul>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>Tags are case-sensitive</li>
+<li>Dimension values must match predefined values exactly</li>
+<li>Sidecar files use UTF-8 encoding</li>
+<li>Invalid tags/dimensions in sidecar files are logged as warnings but don't fail ingestion</li>
+<li>All API operations automatically sync with sidecar files</li>
+</ul>
+
+            </div>
+        </div>
+    </section>
+</body>
+</html>

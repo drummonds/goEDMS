@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Development - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="../index.html">godocs</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Documentation</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Development</a></li>
+                </ul>
+            </nav>
+
+            <div class="content">
+                <h1 id="development">Development</h1>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Go 1.22 or later</li>
+<li><a href="https://taskfile.dev/installation/">Task</a> (build automation)</li>
+<li>PostgreSQL (for production mode, optional for development)</li>
+<li>Tesseract OCR (optional, for document OCR)</li>
+</ul>
+<h2 id="building-from-source">Building from Source</h2>
+<pre><code class="language-bash"># Build everything (backend + swagger assets + openapi spec)
+task build
+
+# Build backend only
+task build:backend
+
+# Build WASM demo
+task build:wasm
+</code></pre>
+<h2 id="task-commands-reference">Task Commands Reference</h2>
+<p><strong>Development:</strong></p>
+<ul>
+<li><code>task dev</code> — run the application locally</li>
+<li><code>task demo</code> — run with pglike database and generated test documents</li>
+</ul>
+<p><strong>Testing:</strong></p>
+<ul>
+<li><code>task test</code> — run all Go tests</li>
+<li><code>task test:coverage</code> — run tests with coverage report (generates HTML)</li>
+<li><code>task test:race</code> — run tests with race detector</li>
+<li><code>task test:api</code> — run API endpoint tests</li>
+</ul>
+<p><strong>Building:</strong></p>
+<ul>
+<li><code>task build</code> — build the full application</li>
+<li><code>task build:backend</code> — build backend only</li>
+<li><code>task build:wasm</code> — build WASM demo binary</li>
+</ul>
+<p><strong>Code Quality:</strong></p>
+<ul>
+<li><code>task fmt</code> — format Go code</li>
+<li><code>task vet</code> — run go vet</li>
+<li><code>task check</code> — run fmt, vet, and tests</li>
+</ul>
+<p><strong>Documentation:</strong></p>
+<ul>
+<li><code>task openapi</code> — generate OpenAPI specification</li>
+<li><code>task docs:build</code> — rebuild all generated documentation</li>
+<li><code>task docs:md2html</code> — convert internal markdown docs to HTML</li>
+<li><code>task pages</code> — serve docs locally for GitHub Pages preview</li>
+</ul>
+<p><strong>Cleanup:</strong></p>
+<ul>
+<li><code>task clean</code> — remove build artifacts</li>
+<li><code>task clean:all</code> — remove all generated files including Swagger UI</li>
+</ul>
+<p><strong>Release:</strong></p>
+<ul>
+<li><code>task release VERSION=v0.x.x COMMENT='description'</code> — full release process</li>
+</ul>
+<h2 id="running-tests">Running Tests</h2>
+<pre><code class="language-bash"># All tests
+task test
+
+# Specific test suites
+go test -v -run TestSearch              # Search functionality
+go test -v -run TestSearchEndpoint      # API endpoints
+go test -v -run TestSearchPerformance   # Performance tests
+</code></pre>
+<p>Tests use ephemeral PostgreSQL instances (auto-created/destroyed). No database setup needed.</p>
+<h2 id="docker">Docker</h2>
+<pre><code class="language-bash">task docker:build    # Build Docker image
+task docker:run      # Run container on port 8000
+</code></pre>
+<h2 id="gokrazy-deployment">gokrazy Deployment</h2>
+<p>godocs can be deployed to <a href="https://gokrazy.org/">gokrazy</a>, a pure Go appliance platform for Raspberry Pi and other devices.</p>
+<p>The binary is self-contained with all static assets embedded. You only need to:</p>
+<ol>
+<li>Add the godocs binary to your gokrazy instance</li>
+<li>Provide a configuration file at <code>/etc/godocs.env</code> or use environment variables</li>
+</ol>
+<pre><code class="language-bash"># Add godocs to your gokrazy instance
+gok add github.com/drummonds/godocs@latest
+
+# Update and deploy
+gok update
+</code></pre>
+<p>For a complete gokrazy setup example, see: <a href="https://github.com/drummonds/gokrazy-godocs">github.com/drummonds/gokrazy-godocs</a></p>
+<h2 id="performance">Performance</h2>
+<p>Ingestion speed is approximately 4 seconds per document on a typical laptop.</p>
+
+            </div>
+        </div>
+    </section>
+</body>
+</html>

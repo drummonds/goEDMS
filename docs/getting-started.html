@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Getting Started - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="../index.html">godocs</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Documentation</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Getting Started</a></li>
+                </ul>
+            </nav>
+
+            <div class="content">
+                <h1 id="getting-started">Getting Started</h1>
+<h2 id="quick-install">Quick Install</h2>
+<pre><code class="language-bash">go install github.com/drummonds/godocs@latest
+godocs
+</code></pre>
+<p>Starts with pglike (SQLite via go-postgres) by default — no external database needed. Open <a href="http://localhost:8000">http://localhost:8000</a> in your browser.</p>
+<h2 id="configuration-modes">Configuration Modes</h2>
+<p>godocs supports three database modes:</p>
+<h3 id="1-pglike-mode-simplest--no-external-database">1. pglike Mode (Simplest — No External Database)</h3>
+<pre><code class="language-bash">DATABASE_TYPE=pglike ./godocs
+</code></pre>
+<p>Uses <a href="https://github.com/drummonds/go-postgres">go-postgres</a> which translates PostgreSQL SQL to SQLite. The database is stored locally in a <code>databases/</code> directory. Supports all features except PostgreSQL full-text search (falls back to LIKE-based search).</p>
+<h3 id="2-ephemeral-postgresql-testing">2. Ephemeral PostgreSQL (Testing)</h3>
+<pre><code class="language-bash">DATABASE_TYPE=ephemeral ./godocs
+</code></pre>
+<p>Starts with an ephemeral PostgreSQL database that is automatically created and destroyed when the application exits.</p>
+<h3 id="3-local-postgresql-with-env-file-production">3. Local PostgreSQL with .env File (Production)</h3>
+<ol>
+<li>
+<p><strong>Install and start PostgreSQL</strong></p>
+<pre><code class="language-bash"># Ubuntu/Debian
+sudo apt install postgresql
+sudo systemctl start postgresql
+
+# macOS
+brew install postgresql
+brew services start postgresql
+</code></pre>
+</li>
+<li>
+<p><strong>Create a database and user</strong></p>
+<pre><code class="language-bash">sudo -u postgres psql
+CREATE DATABASE godocs;
+CREATE USER godocs WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE godocs TO godocs;
+\q
+</code></pre>
+</li>
+<li>
+<p><strong>Configure .env file</strong></p>
+<pre><code class="language-bash"># Production:
+sudo cp .env.example /etc/godocs.env
+sudo nano /etc/godocs.env
+
+# Local development:
+cp .env.example .env
+</code></pre>
+</li>
+<li>
+<p><strong>Edit configuration</strong> with your database credentials:</p>
+<pre><code class="language-bash">GODOCS_DATABASE_TYPE=postgres
+GODOCS_DATABASE_HOST=localhost
+GODOCS_DATABASE_PORT=5432
+GODOCS_DATABASE_NAME=godocs
+GODOCS_DATABASE_USER=godocs
+GODOCS_DATABASE_PASSWORD=your_password
+GODOCS_DATABASE_SSLMODE=disable
+</code></pre>
+</li>
+<li>
+<p><strong>Run godocs</strong></p>
+<pre><code class="language-bash">./godocs
+</code></pre>
+</li>
+</ol>
+<h2 id="configuration-priority">Configuration Priority</h2>
+<p>Database connection settings load in this order (later overrides earlier):</p>
+<ol>
+<li><code>/etc/godocs.env</code> file (production)</li>
+<li><code>.env</code> file (local development)</li>
+<li><code>config.env</code> file (alternative local config)</li>
+<li>Environment variables (highest priority)</li>
+</ol>
+<h2 id="environment-variables">Environment Variables</h2>
+<ul>
+<li><code>DATABASE_TYPE</code> — postgres, pglike, ephemeral, cockroachdb</li>
+<li><code>DATABASE_HOST</code> — hostname (not needed for ephemeral)</li>
+<li><code>DATABASE_PORT</code> — port (not needed for ephemeral)</li>
+<li><code>DATABASE_NAME</code> — database name (not needed for ephemeral)</li>
+<li><code>DATABASE_USER</code> — username (not needed for ephemeral)</li>
+<li><code>DATABASE_PASSWORD</code> — password (not needed for ephemeral)</li>
+<li><code>DATABASE_SSLMODE</code> — disable, require, etc.</li>
+</ul>
+<p>See <code>.env.example</code> for a complete list.</p>
+<h2 id="technology-stack">Technology Stack</h2>
+<ul>
+<li><strong>Backend</strong>: Go 1.22+ with Echo framework</li>
+<li><strong>Frontend</strong>: SSR using lofigui + pongo2 templates + Bulma CSS</li>
+<li><strong>Database</strong>: PostgreSQL with full-text search (tsvector), or SQLite via <a href="https://github.com/drummonds/go-postgres">go-postgres</a></li>
+<li><strong>OCR</strong>: Tesseract for image and scanned PDF processing</li>
+<li><strong>PDF Processing</strong>: Pure Go PDF rendering via PDFium WebAssembly (no CGo)</li>
+<li><strong>Job Tracking</strong>: ULID-based job system with real-time progress</li>
+</ul>
+<p>All application settings beyond the database connection are stored in the database, not in configuration files.</p>
+
+            </div>
+        </div>
+    </section>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>godocs Architecture Diagrams - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="../index.html">godocs</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Documentation</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">godocs Architecture Diagrams</a></li>
+                </ul>
+            </nav>
+
+            <div class="content">
+                <h1 id="godocs-architecture-diagrams">godocs Architecture Diagrams</h1>
+<p>This directory contains architecture diagrams for godocs created using <a href="https://d2lang.com/">D2</a>, a modern diagram scripting language.</p>
+<h2 id="available-diagrams">Available Diagrams</h2>
+<h3 id="document-ingestion-flow">Document Ingestion Flow</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Source: <a href="ingestion-flow.d2">ingestion-flow.d2</a></li>
+<li>SVG: <a href="ingestion-flow.svg">ingestion-flow.svg</a></li>
+<li>PNG: <a href="ingestion-flow.png">ingestion-flow.png</a></li>
+</ul>
+<p><strong>Description:</strong>
+This diagram illustrates the complete document ingestion and storage pipeline in godocs, including:</p>
+<ol>
+<li>
+<p><strong>Document Sources</strong></p>
+<ul>
+<li>Ingress folder (scheduled scanning)</li>
+<li>Web upload (user-triggered)</li>
+</ul>
+</li>
+<li>
+<p><strong>Processing Pipeline</strong></p>
+<ul>
+<li>File type detection</li>
+<li>PDF text extraction</li>
+<li>OCR processing for scanned documents and images</li>
+<li>Text/document format handling</li>
+</ul>
+</li>
+<li>
+<p><strong>Validation</strong></p>
+<ul>
+<li>SHA256 hash calculation</li>
+<li>Duplicate detection</li>
+<li>ULID (Universally Unique Lexicographically Sortable Identifier) generation</li>
+</ul>
+</li>
+<li>
+<p><strong>Storage</strong></p>
+<ul>
+<li>PostgreSQL database for metadata</li>
+<li>File system storage for documents</li>
+<li>Full-text search indexing (tsvector)</li>
+</ul>
+</li>
+<li>
+<p><strong>Post-Processing</strong></p>
+<ul>
+<li>URL generation and route registration</li>
+<li>File organization</li>
+<li>Ingress cleanup</li>
+<li>Word cloud updates</li>
+</ul>
+</li>
+</ol>
+<h2 id="regenerating-diagrams">Regenerating Diagrams</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<p>Install D2:</p>
+<pre><code class="language-bash"># Using go install
+go install oss.terrastruct.com/d2@latest
+
+# Or using curl script (Linux/macOS)
+curl -fsSL https://d2lang.com/install.sh | sh -s --
+</code></pre>
+<h3 id="generate-svg-recommended-for-web">Generate SVG (Recommended for Web)</h3>
+<pre><code class="language-bash">d2 docs/ingestion-flow.d2 docs/ingestion-flow.svg
+</code></pre>
+<p>SVG files are:</p>
+<ul>
+<li>Vector-based (scalable without quality loss)</li>
+<li>Small file size (~65KB)</li>
+<li>Best for documentation and web pages</li>
+</ul>
+<h3 id="generate-png-for-presentations">Generate PNG (For Presentations)</h3>
+<pre><code class="language-bash">d2 docs/ingestion-flow.d2 docs/ingestion-flow.png
+</code></pre>
+<p>PNG files are:</p>
+<ul>
+<li>Raster-based (fixed resolution)</li>
+<li>Larger file size (~1.8MB)</li>
+<li>Better for presentations and offline viewing</li>
+</ul>
+<p><strong>Note:</strong> PNG generation requires Chromium/Playwright, which D2 will download automatically on first use (~166MB).</p>
+<h3 id="generate-with-different-themes">Generate with Different Themes</h3>
+<p>D2 supports multiple themes:</p>
+<pre><code class="language-bash"># Neutral theme (default)
+d2 --theme=0 docs/ingestion-flow.d2 docs/ingestion-flow.svg
+
+# Dark theme
+d2 --theme=200 docs/ingestion-flow.d2 docs/ingestion-flow-dark.svg
+
+# Cool classics
+d2 --theme=1 docs/ingestion-flow.d2 docs/ingestion-flow-cool.svg
+</code></pre>
+<h3 id="generate-with-different-layouts">Generate with Different Layouts</h3>
+<pre><code class="language-bash"># ELK layout (hierarchical, good for flows)
+d2 --layout=elk docs/ingestion-flow.d2 docs/ingestion-flow-elk.svg
+
+# TALA layout (D2's default, force-directed)
+d2 --layout=tala docs/ingestion-flow.d2 docs/ingestion-flow-tala.svg
+
+# Dagre layout (hierarchical, compact)
+d2 --layout=dagre docs/ingestion-flow.d2 docs/ingestion-flow-dagre.svg
+</code></pre>
+<h2 id="d2-syntax-overview">D2 Syntax Overview</h2>
+<p>The ingestion flow diagram uses several D2 features:</p>
+<h3 id="containers">Containers</h3>
+<pre><code class="language-d2">processing: {
+  label: &quot;Document Processing&quot;
+  pdf_proc: {
+    label: &quot;PDF Processing&quot;
+  }
+}
+</code></pre>
+<h3 id="connections">Connections</h3>
+<pre><code class="language-d2">source -&gt; destination: &quot;Label&quot;
+source -&gt; destination: &quot;Error case&quot; {
+  style.stroke-dash: 3  # Dashed line
+}
+</code></pre>
+<h3 id="shapes">Shapes</h3>
+<pre><code class="language-d2">database: {shape: cylinder}
+decision: {shape: diamond}
+process: {shape: hexagon}
+file: {shape: page}
+</code></pre>
+<h3 id="styling">Styling</h3>
+<pre><code class="language-d2">element: {
+  style.fill: &quot;#ff0000&quot;      # Background color
+  style.stroke: &quot;#00ff00&quot;    # Border color
+  style.font-size: 24        # Font size
+  style.bold: true           # Bold text
+}
+</code></pre>
+<h2 id="best-practices">Best Practices</h2>
+<ol>
+<li><strong>Keep source files in version control</strong> - The <code>.d2</code> source files are small (~5KB) and should be committed</li>
+<li><strong>Generate outputs as needed</strong> - SVG/PNG files can be regenerated from source</li>
+<li><strong>Use SVG for documentation</strong> - Better quality and smaller size for web viewing</li>
+<li><strong>Document diagram changes</strong> - Update this file when adding new diagrams</li>
+<li><strong>Test rendering</strong> - Always regenerate after editing <code>.d2</code> files to verify syntax</li>
+</ol>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a href="https://d2lang.com/">D2 Documentation</a></li>
+<li><a href="https://play.d2lang.com/">D2 Playground</a> - Test diagrams online</li>
+<li><a href="https://d2lang.com/tour/intro/">D2 Examples</a></li>
+<li><a href="https://github.com/terrastruct/d2">D2 GitHub</a></li>
+</ul>
+<h2 id="future-diagrams">Future Diagrams</h2>
+<p>Planned diagrams to add:</p>
+<ul>
+<li><input disabled="" type="checkbox"> System architecture overview (frontend, backend, database)</li>
+<li><input disabled="" type="checkbox"> Search query flow</li>
+<li><input disabled="" type="checkbox"> Word cloud generation process</li>
+<li><input disabled="" type="checkbox"> User authentication and authorization flow</li>
+<li><input disabled="" type="checkbox"> Deployment architecture (Docker, Kubernetes)</li>
+</ul>
+
+            </div>
+        </div>
+    </section>
+</body>
+</html>

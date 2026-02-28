@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Building godocs - godocs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        pre {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25em 1.5em;
+            overflow-x: auto;
+        }
+        pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+            font-size: 0.875em;
+        }
+        code {
+            background-color: #f5f5f5;
+            color: #e83e8c;
+            padding: 0.125em 0.375em;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <nav class="breadcrumb" aria-label="breadcrumbs">
+                <ul>
+                    <li><a href="../index.html">godocs</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Documentation</a></li>
+                    <li class="is-active"><a href="#" aria-current="page">Building godocs</a></li>
+                </ul>
+            </nav>
+
+            <div class="content">
+                <h1 id="building-godocs">Building godocs</h1>
+<p>This document describes how to build godocs from source.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Go 1.22 or later</li>
+<li>Git (for version tagging)</li>
+<li>Node.js/npm (optional, for development tools)</li>
+</ul>
+<h2 id="quick-build">Quick Build</h2>
+<h3 id="build-frontend-webassembly">Build Frontend (WebAssembly)</h3>
+<pre><code class="language-bash">./build-wasm.sh
+</code></pre>
+<p>This will:</p>
+<ul>
+<li>Automatically detect the version from git tags</li>
+<li>Embed the version and build date into the binary</li>
+<li>Create <code>web/app.wasm</code> with version information</li>
+</ul>
+<h3 id="build-backend">Build Backend</h3>
+<pre><code class="language-bash">go build -o godocs main.go
+</code></pre>
+<p>Or for a specific output directory:</p>
+<pre><code class="language-bash">mkdir -p build
+go build -o build/godocs main.go
+</code></pre>
+<h3 id="build-both-using-taskfile">Build Both (Using Taskfile)</h3>
+<p>If you have <a href="https://taskfile.dev/">Task</a> installed:</p>
+<pre><code class="language-bash">task build
+</code></pre>
+<p>This will build both the WASM frontend and backend binary.</p>
+<h2 id="manual-build-with-version-information">Manual Build with Version Information</h2>
+<h3 id="frontend-wasm">Frontend (WASM)</h3>
+<pre><code class="language-bash">VERSION=$(git describe --tags --always)
+BUILD_DATE=$(date -u +&quot;%Y-%m-%d&quot;)
+
+GOOS=js GOARCH=wasm go build \
+  -ldflags=&quot;-X 'github.com/drummonds/godocs/webapp.Version=$VERSION' \
+            -X 'github.com/drummonds/godocs/webapp.BuildDate=$BUILD_DATE'&quot; \
+  -o web/app.wasm \
+  ./cmd/webapp
+</code></pre>
+<h3 id="backend">Backend</h3>
+<pre><code class="language-bash">VERSION=$(git describe --tags --always)
+BUILD_DATE=$(date -u +&quot;%Y-%m-%d&quot;)
+
+go build \
+  -ldflags=&quot;-X 'main.Version=$VERSION' \
+            -X 'main.BuildDate=$BUILD_DATE'&quot; \
+  -o godocs \
+  main.go
+</code></pre>
+<h2 id="version-information">Version Information</h2>
+<p>The version is automatically determined from git:</p>
+<pre><code class="language-bash">git describe --tags --always
+# Output example: v0.7.0-5-ge774e6d2
+#   v0.7.0 = last tag
+#   5 = commits since tag
+#   ge774e6d2 = current commit hash
+</code></pre>
+<p>This version appears in:</p>
+<ul>
+<li>Frontend navbar: <code>v0.7.0-5-ge774e6d2 | 2025-10-26</code></li>
+<li>About page</li>
+<li>API responses</li>
+</ul>
+<h2 id="development-builds">Development Builds</h2>
+<p>For development, you can build without version information (will show &quot;dev&quot;):</p>
+<pre><code class="language-bash"># Frontend
+GOOS=js GOARCH=wasm go build -o web/app.wasm ./cmd/webapp
+
+# Backend
+go build -o godocs main.go
+</code></pre>
+<h2 id="using-taskfile">Using Taskfile</h2>
+<p>The project includes a Taskfile for common build tasks:</p>
+<pre><code class="language-bash"># List all available tasks
+task --list
+
+# Build everything
+task build
+
+# Build only WASM frontend
+task build:wasm
+
+# Build only backend
+task build:backend
+
+# Run tests
+task test
+
+# Clean build artifacts
+task clean
+
+# Generate OpenAPI docs
+task openapi
+</code></pre>
+<h2 id="release-builds">Release Builds</h2>
+<p>For official releases:</p>
+<ol>
+<li>
+<p><strong>Tag the release:</strong></p>
+<pre><code class="language-bash">git tag -a v0.8.0 -m &quot;Release v0.8.0&quot;
+git push origin v0.8.0
+</code></pre>
+</li>
+<li>
+<p><strong>Build with the new tag:</strong></p>
+<pre><code class="language-bash">./build-wasm.sh
+task build
+</code></pre>
+</li>
+<li>
+<p><strong>Verify version:</strong></p>
+<pre><code class="language-bash">strings web/app.wasm | grep &quot;v0.8.0&quot;
+./build/godocs --version  # (if version flag is implemented)
+</code></pre>
+</li>
+</ol>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="dev-appears-as-version">&quot;dev&quot; Appears as Version</h3>
+<p>If you see &quot;dev&quot; in the frontend:</p>
+<ul>
+<li>Make sure you built with <code>./build-wasm.sh</code> or <code>task build:wasm</code></li>
+<li>Check if git is available: <code>git --version</code></li>
+<li>Verify git tags exist: <code>git describe --tags --always</code></li>
+</ul>
+<h3 id="wasm-file-not-found">WASM File Not Found</h3>
+<p>Make sure the WASM file is in the correct location:</p>
+<pre><code class="language-bash">ls -lh web/app.wasm
+</code></pre>
+<h3 id="version-doesnt-update">Version Doesn't Update</h3>
+<p>Clear browser cache or do a hard refresh (Ctrl+F5) to reload the WASM file.</p>
+<h2 id="build-artifacts">Build Artifacts</h2>
+<p>After building, you'll have:</p>
+<pre><code>build/
+  └── godocs          # Backend binary
+
+web/
+  ├── app.wasm        # Frontend WASM (7.2MB)
+  └── wasm_exec.js    # WASM runtime
+
+docs/
+  ├── openapi.yaml    # API documentation
+  └── swagger.yaml    # Swagger docs
+</code></pre>
+<h2 id="cicd-integration">CI/CD Integration</h2>
+<p>Example GitHub Actions workflow:</p>
+<pre><code class="language-yaml">name: Build
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Needed for git describe
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        run: |
+          ./build-wasm.sh
+          go build -o godocs main.go
+
+      - name: Test
+        run: go test ./...
+</code></pre>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="INGESTION_REFACTOR.md">INGESTION_REFACTOR.md</a> - Recent changes to ingestion process</li>
+<li><a href="DIAGRAMS.md">DIAGRAMS.md</a> - System architecture diagrams</li>
+<li><a href="../README.md">README.md</a> - Main project documentation</li>
+</ul>
+
+            </div>
+        </div>
+    </section>
+</body>
+</html>
