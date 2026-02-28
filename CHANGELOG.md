@@ -2,7 +2,7 @@
 
 All notable changes to godocs will be documented in this file.
 
-## 0.48.8 2026-02-28
+## 0.48.9 2026-02-28
 
 - improving documentation
 - improve multi-select
