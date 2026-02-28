@@ -286,6 +286,38 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(ctx context.Conte
 		return
 	}
 
+	// Auto-archive documents with blocked file extensions
+	db.UpdateJobProgress(jobID, 52, "Archiving blocked file types")
+	blockedArchived := 0
+	archivePath := serverHandler.ServerConfig.ArchivePath
+	documentPath := serverHandler.ServerConfig.DocumentPath
+	if archivePath != "" {
+		freshDocs, err := database.FetchAllDocuments(db)
+		if err == nil && freshDocs != nil {
+			for _, doc := range *freshDocs {
+				if doc.ArchiveStatus != nil {
+					continue
+				}
+				if !IsBlockedExtension(doc.Path) {
+					continue
+				}
+				Logger.Info("Auto-archiving blocked file type", "path", doc.Path, "id", doc.ID)
+				if err := ArchiveDocument(doc, db, documentPath, archivePath, "blocked-file-type"); err != nil {
+					Logger.Error("Failed to auto-archive blocked file", "path", doc.Path, "error", err)
+				} else {
+					blockedArchived++
+				}
+			}
+		}
+	}
+	if blockedArchived > 0 {
+		Logger.Info("Auto-archived blocked file types", "count", blockedArchived)
+	}
+
+	if cancelled() {
+		return
+	}
+
 	db.UpdateJobProgress(jobID, 55, "Restoring tag aliases from config")
 	if err := ApplyTagAliasesFromConfig(serverHandler.ServerConfig.ConfigPath, db); err != nil {
 		Logger.Error("Failed to apply tag aliases from config", "error", err)
@@ -454,12 +486,12 @@ func (serverHandler *ServerHandler) cleanupJobFuncWithTracking(ctx context.Conte
 	}
 	Logger.Info("Ingress cleanup complete", "deleted", ingressCleaned)
 
-	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "tempPurged": %d, "sidecarTxtRemoved": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "nestedMigrated": %d, "jsonFilesMigrated": %d, "ingressCleaned": %d}`, totalDocs, deletedCount, tempPurged, sidecarTxtRemoved, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, nestedMigratedCount, jsonMigratedCount, ingressCleaned)
+	result := fmt.Sprintf(`{"scanned": %d, "deleted": %d, "tempPurged": %d, "sidecarTxtRemoved": %d, "blockedArchived": %d, "rescanned": %d, "duplicatesSkipped": %d, "sidecarRecreated": %d, "thumbnailsChecked": %d, "thumbnailsGenerated": %d, "orphanedSidecarsDeleted": %d, "nestedMigrated": %d, "jsonFilesMigrated": %d, "ingressCleaned": %d}`, totalDocs, deletedCount, tempPurged, sidecarTxtRemoved, blockedArchived, rescannedCount, duplicateCount, sidecarCount, thumbnailsChecked, thumbnailCount, orphanedSidecarsDeleted, nestedMigratedCount, jsonMigratedCount, ingressCleaned)
 	if err := db.CompleteJob(jobID, result); err != nil {
 		Logger.Error("Failed to mark cleanup job as complete", "error", err)
 	}
 
-	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "tempPurged", tempPurged, "sidecarTxtRemoved", sidecarTxtRemoved, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted, "nestedMigrated", nestedMigratedCount, "jsonFilesMigrated", jsonMigratedCount, "ingressCleaned", ingressCleaned)
+	Logger.Info("Database cleanup job completed", "jobID", jobID, "scanned", totalDocs, "deleted", deletedCount, "tempPurged", tempPurged, "sidecarTxtRemoved", sidecarTxtRemoved, "blockedArchived", blockedArchived, "rescanned", rescannedCount, "duplicatesSkipped", duplicateCount, "orphanedSidecarsDeleted", orphanedSidecarsDeleted, "nestedMigrated", nestedMigratedCount, "jsonFilesMigrated", jsonMigratedCount, "ingressCleaned", ingressCleaned)
 }
 
 // migrateToCanonicalNaming moves a document file to its canonical path and renames
@@ -1122,4 +1154,141 @@ func migrateStormIDRecursive(data interface{}) bool {
 	}
 
 	return modified
+}
+
+// LifecycleMetadata is written to .lifecycle.json at archive time.
+type LifecycleMetadata struct {
+	ArchivedAt    string `json:"archived_at"`
+	ArchivedBy    string `json:"archived_by"`
+	ArchiveReason string `json:"archive_reason"`
+	OriginalPath  string `json:"original_path"`
+	Hash          string `json:"hash"`
+	ULID          string `json:"ulid"`
+	DBID          int    `json:"db_id"`
+	SchemaVersion string `json:"schema_version"`
+}
+
+// ArchiveDocument archives a single document: sets DB status, adds tag, exports
+// sidecars, moves files to archivePath, updates DB path. Returns nil on success.
+func ArchiveDocument(doc database.Document, db database.Repository, documentPath, archivePath, reason string) error {
+	ulidStr := doc.ULID.String()
+	now := time.Now()
+	pending := "pending"
+
+	// 1. Set archive_status='pending', archived_at=now
+	if err := db.UpdateDocumentArchiveStatus(ulidStr, &pending, &now); err != nil {
+		return fmt.Errorf("set archive status: %w", err)
+	}
+
+	// 2. Add "Archive Pending" tag
+	archiveTag, err := db.GetTagByName("Archive Pending")
+	if err == nil && archiveTag != nil {
+		db.AddTagToDocument(doc.ID, archiveTag.ID)
+	}
+
+	// 3. Export .tags.json sidecar
+	ExportTagsSidecar(&doc, db)
+
+	// 4. Write .lifecycle.json
+	lifecycle := LifecycleMetadata{
+		ArchivedAt:    now.UTC().Format(time.RFC3339),
+		ArchivedBy:    "godocs",
+		ArchiveReason: reason,
+		OriginalPath:  doc.Path,
+		Hash:          doc.Hash,
+		ULID:          ulidStr,
+		DBID:          doc.ID,
+		SchemaVersion: "1",
+	}
+	lifecyclePath := GetLifecyclePath(doc.Path)
+	WriteLifecycleJSON(lifecyclePath, &lifecycle)
+
+	// 5. Move files to archive folder
+	relPath, err := filepath.Rel(documentPath, doc.Path)
+	if err != nil {
+		return fmt.Errorf("compute relative path: %w", err)
+	}
+	archiveDocPath := filepath.ToSlash(filepath.Join(archivePath, relPath))
+	archiveDir := filepath.Dir(archiveDocPath)
+	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+		return fmt.Errorf("create archive dir: %w", err)
+	}
+
+	sidecarBase := SidecarBasePath(doc.Path)
+	archiveSidecarBase := SidecarBasePath(archiveDocPath)
+	filesToMove := []struct{ src, dst string }{
+		{doc.Path, archiveDocPath},
+		{sidecarBase + ".ocr.txt", archiveSidecarBase + ".ocr.txt"},
+		{sidecarBase + ".thumb.png", archiveSidecarBase + ".thumb.png"},
+		{sidecarBase + ".tags.json", archiveSidecarBase + ".tags.json"},
+		{sidecarBase + ".lifecycle.json", archiveSidecarBase + ".lifecycle.json"},
+	}
+
+	for _, f := range filesToMove {
+		if _, err := os.Stat(f.src); os.IsNotExist(err) {
+			continue
+		}
+		if err := os.Rename(f.src, f.dst); err != nil {
+			Logger.Error("Archive: failed to move file", "src", f.src, "dst", f.dst, "error", err)
+		}
+	}
+
+	// 6. Update DB path
+	archiveFolder := filepath.ToSlash(filepath.Dir(archiveDocPath))
+	if err := db.UpdateDocumentPath(ulidStr, archiveDocPath, archiveFolder); err != nil {
+		return fmt.Errorf("update DB path: %w", err)
+	}
+
+	return nil
+}
+
+// ExportTagsSidecar exports tags for a document to its .tags.json sidecar.
+func ExportTagsSidecar(doc *database.Document, db database.Repository) {
+	tags, err := db.GetTagsForDocument(doc.ID)
+	if err != nil {
+		Logger.Error("Export tags: failed to get tags", "docID", doc.ID, "error", err)
+		return
+	}
+
+	tagData := &database.DocumentTagsAndDimensions{
+		Tags:      []string{},
+		TagGroups: make(map[string]string),
+	}
+	for _, tag := range tags {
+		if tag.TagGroup != nil && *tag.TagGroup != "" {
+			tagData.TagGroups[*tag.TagGroup] = tag.Name
+		} else {
+			tagData.Tags = append(tagData.Tags, tag.Name)
+		}
+	}
+
+	tagsPath := SidecarBasePath(doc.Path) + ".tags.json"
+	if err := os.MkdirAll(filepath.Dir(tagsPath), 0755); err != nil {
+		Logger.Error("Export tags: mkdir failed", "path", tagsPath, "error", err)
+		return
+	}
+	data, err := json.MarshalIndent(tagData, "", "  ")
+	if err != nil {
+		Logger.Error("Export tags: marshal failed", "error", err)
+		return
+	}
+	if err := os.WriteFile(tagsPath, data, 0644); err != nil {
+		Logger.Error("Export tags: write failed", "path", tagsPath, "error", err)
+	}
+}
+
+// WriteLifecycleJSON writes the .lifecycle.json sidecar file.
+func WriteLifecycleJSON(path string, meta *LifecycleMetadata) {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		Logger.Error("Lifecycle: mkdir failed", "path", path, "error", err)
+		return
+	}
+	data, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		Logger.Error("Lifecycle: marshal failed", "error", err)
+		return
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		Logger.Error("Lifecycle: write failed", "path", path, "error", err)
+	}
 }

@@ -233,6 +233,12 @@ func (serverHandler *ServerHandler) UploadDocuments(context echo.Context) error 
 		})
 	}
 
+	if IsBlockedExtension(fileHeader.Filename) {
+		return context.JSON(http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("file type %q is not allowed", filepath.Ext(fileHeader.Filename)),
+		})
+	}
+
 	body, err := io.ReadAll(file)
 	if err != nil {
 		Logger.Error("Unable to read uploaded file", "error", err)
@@ -1251,6 +1257,20 @@ func (serverHandler *ServerHandler) findOrphanedDocuments(documents []database.D
 	}
 
 	return orphanedFiles, nil
+}
+
+// blockedExtensions are file types that should never enter the document store.
+var blockedExtensions = []string{".lnk", ".exe", ".dll"}
+
+// IsBlockedExtension returns true if the filename has a blocked extension.
+func IsBlockedExtension(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	for _, blocked := range blockedExtensions {
+		if ext == blocked {
+			return true
+		}
+	}
+	return false
 }
 
 // rootDocumentExtensions are extensions that can be primary/root documents
