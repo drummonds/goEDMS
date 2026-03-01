@@ -1,6 +1,9 @@
 # Changelog
 
 All notable changes to godocs will be documented in this file.
+## 0.48.11 2026-03-01
+
+ - Prevent some files eg .dll and .exe as inputs also clean them out
 
 ## 0.48.10 2026-02-28
 
