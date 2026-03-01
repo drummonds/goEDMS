@@ -83,26 +83,26 @@ tasks:
       - go clean -cache
       - echo "Cleaned all generated files"
 
-  release:
-    desc: 'Release process eg task release VERSION=v0.22.1 COMMENT="fix jobs"'
-    requires:
-      vars: [VERSION, COMMENT]
-    preconditions:
-      - sh: echo "{{.VERSION}}" | grep -q '^v'
-        msg: "VERSION must start with 'v' (e.g. v0.45.1)"
-    cmds:
-      - task: clean:all
-      - task: build
-        vars:
-          VERSION: "{{.VERSION}}"
-      - task: check
-      - git add .
-      - git commit -am "{{.COMMENT}}"
-      - git tag "{{.VERSION}}"
-      - git push origin "{{.VERSION}}"
-      - git push
-      - goreleaser release --clean
-      - go install github.com/drummonds/godocs
+  # release:
+  #   desc: 'Release process eg task release VERSION=v0.22.1 COMMENT="fix jobs"'
+  #   requires:
+  #     vars: [VERSION, COMMENT]
+  #   preconditions:
+  #     - sh: echo "{{.VERSION}}" | grep -q '^v'
+  #       msg: "VERSION must start with 'v' (e.g. v0.45.1)"
+  #   cmds:
+  #     - task: clean:all
+  #     - task: build
+  #       vars:
+  #         VERSION: "{{.VERSION}}"
+  #     - task: check
+  #     - git add .
+  #     - git commit -am "{{.COMMENT}}"
+  #     - git tag "{{.VERSION}}"
+  #     - git push origin "{{.VERSION}}"
+  #     - git push
+  #     - goreleaser release --clean
+  #     - go install github.com/drummonds/godocs
 
   # Dependency management
   deps:install:
