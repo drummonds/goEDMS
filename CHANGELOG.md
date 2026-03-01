@@ -1,6 +1,9 @@
 # Changelog
 
-All notable changes to godocs will be documented in this file.
+All notable changes to godocs will be documented in this file.## 0.48.12 2026-03-01
+
+ - avoiding goreleaser
+
 ## 0.48.11 2026-03-01
 
  - Prevent some files eg .dll and .exe as inputs also clean them out
