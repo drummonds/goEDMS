@@ -4,7 +4,10 @@ All notable changes to godocs will be documented in this file.## 0.48.12 2026-03
 
  - avoiding goreleaser## 0.48.14 2026-03-02
 
- - Adding internal/testdocs
+ - Adding internal/testdocs## 0.48.16 2026-03-02
+
+ - Adding name editing
+
 ## 0.48.15 2026-03-02
 
  - improving release
