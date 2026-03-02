@@ -2,7 +2,10 @@
 
 All notable changes to godocs will be documented in this file.## 0.48.12 2026-03-01
 
- - avoiding goreleaser
+ - avoiding goreleaser## 0.48.14 2026-03-02
+
+ - Adding internal/testdocs
+
 ## 0.48.13 2026-03-02
 
  - Updating gothumbnails for gifs
