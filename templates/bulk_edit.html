@@ -37,48 +37,9 @@
     </div>
 
     <div class="column">
-        <div class="mb-5">
-            <h2 class="subtitle is-5">Common Tags</h2>
-            {% if common_tags %}
-            <div class="tags are-medium">
-                {% for tag in common_tags %}
-                <span class="tag" style="background-color: {{ tag.Color }}; color: white;">
-                    {{ tag.Name }}
-                    <form method="POST" action="/documents/bulk-edit/tags/{{ tag.ID }}/remove" style="display:inline; margin:0; padding:0;">
-                        <input type="hidden" name="ulids" value="{{ ulids }}">
-                        <button type="submit" class="delete is-small" aria-label="Remove {{ tag.Name }}"></button>
-                    </form>
-                </span>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="has-text-grey">No tags common to all selected documents.</p>
-            {% endif %}
-        </div>
-
-        {% if available_tags %}
-        <div class="mb-5">
-            <h2 class="subtitle is-5">Add Tag</h2>
-            <form method="POST" action="/documents/bulk-edit/tags">
-                <input type="hidden" name="ulids" value="{{ ulids }}">
-                <div class="field has-addons">
-                    <div class="control is-expanded">
-                        <div class="select is-fullwidth">
-                            <select name="tag_id" required>
-                                <option value="">Select a tag...</option>
-                                {% for tag in available_tags %}
-                                <option value="{{ tag.ID }}">{{ tag.Name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="control">
-                        <button type="submit" class="button is-primary">Add to All</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-        {% endif %}
+        {% with tags=common_tags remove_action_prefix="/documents/bulk-edit/tags" add_action="/documents/bulk-edit/tags" add_button_text="Add to All" no_tags_message="No tags common to all selected documents." extra_hidden_name="ulids" extra_hidden_value=ulids %}
+        {% include "partials/tag_editor.html" %}
+        {% endwith %}
 
         {% if stories %}
         <div class="mb-5">

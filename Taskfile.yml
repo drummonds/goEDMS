@@ -250,7 +250,7 @@ tasks:
       - /home/hum3/nibble/url2svg/url2svg -url http://localhost:8080 -width 800 -height 600 -mode compact -o docs/screenshot.svg
       - echo "Screenshot saved to docs/screenshot.svg"
 
-  docs:build:
+  build:docs:
     desc: Rebuild all generated documentation
     cmds:
       - task: docs:md2html
@@ -278,9 +278,3 @@ tasks:
       - go run cmd/annotate-card/main.go -input /tmp/godocs-card.svg -output docs/annotated-card.svg
       - echo "Saved demo-card.svg and annotated-card.svg"
 
-  pages:
-    desc: Serve docs locally for GitHub Pages preview
-    deps: [docs:md2html]
-    cmds:
-      - echo "Serving at http://localhost:8080"
-      - python3 -m http.server 8080 --directory docs

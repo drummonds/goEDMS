@@ -1,0 +1,63 @@
+{# Tag editor partial — reusable across single-doc and bulk-edit pages.
+   Required context:
+     tags              — list of currently assigned tags (each has .ID, .Name, .Color)
+     available_tags    — list of tags not yet assigned
+     remove_action_prefix — e.g. "/document/{ulid}/tags" or "/documents/bulk-edit/tags"
+     add_action        — form action for adding a tag, e.g. "/document/{ulid}/tags"
+   Optional context:
+     add_button_text   — default "Add"
+     no_tags_message   — default "No tags assigned."
+     extra_hidden_name  — hidden field name (e.g. "ulids" for bulk edit)
+     extra_hidden_value — hidden field value
+     quick_tags         — passed through to quick_tags.html
+     form_action_prefix — passed through to quick_tags.html
+#}
+
+<div class="mb-5">
+    <h2 class="subtitle is-5">Current Tags</h2>
+    {% if tags %}
+    <div class="tags are-medium">
+        {% for tag in tags %}
+        <span class="tag" style="background-color: {{ tag.Color }}; color: white;">
+            {{ tag.Name }}
+            <form method="POST" action="{{ remove_action_prefix }}/{{ tag.ID }}/remove" style="display:inline; margin:0; padding:0;">
+                {% if extra_hidden_name %}
+                <input type="hidden" name="{{ extra_hidden_name }}" value="{{ extra_hidden_value }}">
+                {% endif %}
+                <button type="submit" class="delete is-small" aria-label="Remove {{ tag.Name }}"></button>
+            </form>
+        </span>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="has-text-grey">{{ no_tags_message|default:"No tags assigned." }}</p>
+    {% endif %}
+</div>
+
+{% include "partials/quick_tags.html" %}
+
+{% if available_tags %}
+<div class="mb-5">
+    <h2 class="subtitle is-5">Add Tag</h2>
+    <form method="POST" action="{{ add_action }}">
+        {% if extra_hidden_name %}
+        <input type="hidden" name="{{ extra_hidden_name }}" value="{{ extra_hidden_value }}">
+        {% endif %}
+        <div class="field has-addons">
+            <div class="control is-expanded">
+                <div class="select is-fullwidth">
+                    <select name="tag_id" required>
+                        <option value="">Select a tag...</option>
+                        {% for tag in available_tags %}
+                        <option value="{{ tag.ID }}">{{ tag.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="control">
+                <button type="submit" class="button is-primary">{{ add_button_text|default:"Add" }}</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endif %}

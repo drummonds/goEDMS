@@ -31,39 +31,8 @@
     </style>
 </head>
 <body>
-    <div class="card document-card{% if doc.IsSelected %} is-selected{% endif %}" id="card-{{ doc.ULID }}" style="width: 320px;">
-        <div class="card-top-row">
-            <div class="card-thumbnail">
-                <a href="/document/view/{{ doc.ULID }}">
-                {% if doc.HasThumbnail %}
-                <img class="thumbnail-img" src="/api/document/{{ doc.ULID }}/thumbnail" alt="{{ doc.Name }}">
-                {% else %}
-                <div class="thumbnail-placeholder">
-                    <span>{{ doc.DocumentType }}</span>
-                </div>
-                {% endif %}
-                </a>
-            </div>
-            <div class="card-sidebar">
-                <div class="card-buttons">
-                    <a href="/document/{{ doc.ULID }}/edit" class="button is-small is-warning is-outlined" title="Edit">&#9998;</a>
-                    <label class="button is-small is-outlined" title="Select">
-                        <input type="checkbox" name="ulids" value="{{ doc.ULID }}" style="margin-right:2px;">&#9744;
-                    </label>
-                </div>
-                <div class="card-buttons">
-                    <a href="/document/view/{{ doc.ULID }}" class="button is-small is-info is-outlined" title="View">&#128065;</a>
-                    <a href="/document/view/{{ doc.ULID }}?dl=1" class="button is-small is-outlined" title="Download">&#11015;</a>
-                </div>
-                {% for tag in doc.Tags %}
-                <span class="tag tag-chip" style="background-color: {{ tag.Color }}; color: white;" title="{{ tag.Name }}">{{ tag.Name }}</span>
-                {% endfor %}
-            </div>
-        </div>
-        <div class="card-bottom-content">
-            <a href="/document/{{ doc.ULID }}/edit" class="is-size-6" title="{{ doc.Name }}">{{ doc.DisplayName }}</a>
-            <span class="tag doc-type-badge is-info is-light ml-2">{{ doc.DocumentType }}</span>
-        </div>
+    <div class="columns is-multiline" style="width: 320px;">
+        {% include "partials/document_card.html" %}
     </div>
 </body>
 </html>

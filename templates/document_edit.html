@@ -92,48 +92,9 @@
         </div>
         {% endif %}
 
-        <div class="mb-5">
-            <h2 class="subtitle is-5">Current Tags</h2>
-            {% if tags %}
-            <div class="tags are-medium">
-                {% for tag in tags %}
-                <span class="tag" style="background-color: {{ tag.Color }}; color: white;">
-                    {{ tag.Name }}
-                    <form method="POST" action="/document/{{ doc.ULID }}/tags/{{ tag.ID }}/remove" style="display:inline; margin:0; padding:0;">
-                        <button type="submit" class="delete is-small" aria-label="Remove {{ tag.Name }}"></button>
-                    </form>
-                </span>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="has-text-grey">No tags assigned.</p>
-            {% endif %}
-        </div>
-
-        {% include "partials/quick_tags.html" %}
-
-        {% if available_tags %}
-        <div class="mb-5">
-            <h2 class="subtitle is-5">Add Tag</h2>
-            <form method="POST" action="/document/{{ doc.ULID }}/tags">
-                <div class="field has-addons">
-                    <div class="control is-expanded">
-                        <div class="select is-fullwidth">
-                            <select name="tag_id" required>
-                                <option value="">Select a tag...</option>
-                                {% for tag in available_tags %}
-                                <option value="{{ tag.ID }}">{{ tag.Name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="control">
-                        <button type="submit" class="button is-primary">Add</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-        {% endif %}
+        {% with remove_action_prefix="/document/"+doc.ULID.String+"/tags" add_action="/document/"+doc.ULID.String+"/tags" %}
+        {% include "partials/tag_editor.html" %}
+        {% endwith %}
 
         <div class="mb-5">
             <h2 class="subtitle is-5">Document Identity</h2>

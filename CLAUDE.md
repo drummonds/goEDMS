@@ -91,5 +91,7 @@ Key endpoints:
 - `docs/internal/agents.md` - External uploader agent instructions
 - `docs/internal/file-naming.md` - Canonical file naming convention
 - `docs/internal/tagging.md` - Tagging system, groups, stories, dimensions, external API
+- `docs/internal/tag-visualisation.md` - Tag rendering patterns, composability with godocs-inbox
+- `docs/internal/tag-editor-spec.md` - Tag editor partial spec and usage guide
 - `docs/internal/lifecycle.md` - Document lifecycle: ingestion, editing, archival
 - `docs/internal/upload-dedup.md` - Efficient upload deduplication strategy
