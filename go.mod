@@ -11,8 +11,8 @@ retract (
 require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/drummonds/go-postgres v0.3.0
-	github.com/drummonds/go-thumbnails v0.6.1
-	github.com/drummonds/lofigui v0.13.4
+	github.com/drummonds/go-thumbnails v0.6.2
+	github.com/drummonds/lofigui v0.17.9
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/jung-kurt/gofpdf v1.16.2
@@ -67,7 +67,7 @@ require (
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
 	golang.org/x/image v0.36.0 // indirect
 	golang.org/x/mod v0.33.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
@@ -75,7 +75,7 @@ require (
 	golang.org/x/tools v0.42.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.68.0 // indirect
+	modernc.org/libc v1.69.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.46.1 // indirect
