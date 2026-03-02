@@ -290,6 +290,11 @@ func (p *PGDB) UpdateDocumentMetadata(ulidStr string, meta DocumentMetadataUpdat
 	var args []interface{}
 	argIdx := 1
 
+	if meta.Name != nil {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		args = append(args, *meta.Name)
+		argIdx++
+	}
 	if meta.CreatedDate != nil {
 		setClauses = append(setClauses, fmt.Sprintf("created_date = $%d", argIdx))
 		args = append(args, *meta.CreatedDate)

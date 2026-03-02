@@ -60,12 +60,15 @@ All fields are optional. Only non-null fields are updated.
 curl -X PUT "http://localhost:8000/api/document/$ULID/metadata" \
   -H 'Content-Type: application/json' \
   -d '{
+    "name": "Better Document Title.pdf",
     "author": "John Smith",
     "source": "evernote",
     "source_url": "https://www.evernote.com/...",
     "created_date": "2024-03-15T10:30:00Z"
   }'
 ```
+
+The `name` field updates the display name only (DB). It does not rename the file on disk.
 
 Also generates a thumbnail if one is missing.
 
@@ -131,7 +134,7 @@ curl -s -X POST "http://localhost:8000/api/documents/$ULID/tags" \
 | `PUT` | `/api/document/:id/ocr` | Set OCR text (writes sidecar + DB) |
 | `PUT` | `/api/document/:id/text` | Update DB text only (no sidecar) |
 | `GET` | `/api/document/:id/text` | Get extracted text |
-| `PUT` | `/api/document/:id/metadata` | Set import metadata |
+| `PUT` | `/api/document/:id/metadata` | Set import metadata (name, author, source, dates) |
 | `PUT` | `/api/document/:id/date` | Set document date |
 | `POST` | `/api/documents/:ulid/tags` | Add tag to document |
 | `GET` | `/api/tags` | List all tags |

@@ -40,6 +40,7 @@ type Document struct {
 // DocumentMetadataUpdate holds optional fields for bulk metadata update via API.
 // Pointer fields are omitted from the update when nil.
 type DocumentMetadataUpdate struct {
+	Name        *string    `json:"name,omitempty"`
 	CreatedDate *time.Time `json:"created_date,omitempty"`
 	UpdatedDate *time.Time `json:"updated_date,omitempty"`
 	Author      *string    `json:"author,omitempty"`

@@ -35,7 +35,7 @@ L/00/12/34/001234.tags.json    # Tags metadata (optional)
 
 - Root documents: `.pdf`, `.jpg`, `.jpeg`, `.png`, `.tiff`, `.doc`, `.docx`, `.odf`, `.rtf`, `.text`
 - ID padding matches tier: 6-digit (L), 8-digit (K), 10-digit (J)
-- DB `Name` field preserves the original filename for display
+- DB `Name` field preserves the original filename for display (editable via metadata API)
 - `.orig.` unambiguously marks the primary document
 - `.ocr.txt`: extracted/OCR text sidecar
 - `.thumb.png`: uniform thumbnail generated from first page
@@ -80,7 +80,7 @@ Key endpoints:
 - `POST /api/document/upload` — upload a document (rejects sidecar files)
 - `GET /api/document/lookup?hash=<md5>` — find document by file hash
 - `PUT /api/document/:id/ocr` — set OCR text (writes sidecar + updates DB + search index)
-- `PUT /api/document/:id/metadata` — set import metadata + auto-generate thumbnail
+- `PUT /api/document/:id/metadata` — set metadata (name, author, source, dates) + auto-generate thumbnail
 - `POST /api/documents/:ulid/tags` — add a tag to a document
 - `GET /api/tags` — list all tags (to find tag IDs)
 

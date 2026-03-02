@@ -279,6 +279,9 @@ func (m *MemDB) UpdateDocumentMetadata(ulidStr string, meta DocumentMetadataUpda
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.updateDoc(ulidStr, func(d *Document) {
+		if meta.Name != nil {
+			d.Name = *meta.Name
+		}
 		if meta.CreatedDate != nil {
 			d.CreatedDate = meta.CreatedDate
 		}
