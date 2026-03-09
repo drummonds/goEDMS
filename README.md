@@ -48,6 +48,15 @@ Full documentation: **[drummonds.github.io/godocs](https://drummonds.github.io/g
 - [API Reference](https://drummonds.github.io/godocs/api.html) — OpenAPI / Swagger
 - [Internal Docs](https://drummonds.github.io/godocs/internal/file-naming.html) — file naming, tagging, lifecycle
 
+## Links
+
+| | |
+|---|---|
+| Documentation | https://h3-godocs.statichost.page/ |
+| Source (Codeberg) | https://codeberg.org/hum3/godocs |
+| Mirror (GitHub) | https://github.com/drummonds/godocs |
+| Docs repo | https://codeberg.org/hum3/godocs-docs |
+
 ## License
 
 See [LICENSE](LICENSE) file.
