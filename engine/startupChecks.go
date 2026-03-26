@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/drummonds/godocs/config"
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/config"
+	"codeberg.org/hum3/godocs/database"
 )
 
 // StartupChecks performs all the checks to make sure everything works

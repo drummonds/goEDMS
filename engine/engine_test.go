@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drummonds/godocs/config"
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/config"
+	"codeberg.org/hum3/godocs/database"
 	"github.com/labstack/echo/v4"
 )
 

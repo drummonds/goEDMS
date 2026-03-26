@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/database"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
 )

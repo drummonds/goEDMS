@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drummonds/godocs/database"
-	"github.com/drummonds/godocs/engine"
+	"codeberg.org/hum3/godocs/database"
+	"codeberg.org/hum3/godocs/engine"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
 )

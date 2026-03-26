@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/drummonds/godocs/config"
+	"codeberg.org/hum3/godocs/config"
 )
 
 // NewRepository initializes the database based on configuration

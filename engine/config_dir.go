@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/database"
 )
 
 // tagAliasesFile is the on-disk JSON structure for tag_aliases.json

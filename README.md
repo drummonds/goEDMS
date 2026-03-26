@@ -55,7 +55,6 @@ Full documentation: **[drummonds.github.io/godocs](https://drummonds.github.io/g
 | Documentation | https://h3-godocs.statichost.page/ |
 | Source (Codeberg) | https://codeberg.org/hum3/godocs |
 | Mirror (GitHub) | https://github.com/drummonds/godocs |
-| Docs repo | https://codeberg.org/hum3/godocs-docs |
 
 ## License
 

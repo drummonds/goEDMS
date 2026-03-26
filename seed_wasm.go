@@ -6,7 +6,7 @@ import (
 	"time"
 
 	godocshash "github.com/drummonds/godocs-hash"
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/database"
 	"github.com/oklog/ulid/v2"
 )
 

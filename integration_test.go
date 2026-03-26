@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/drummonds/godocs/config"
-	"github.com/drummonds/godocs/database"
-	"github.com/drummonds/godocs/engine"
-	"github.com/drummonds/godocs/internal/testdocs"
+	"codeberg.org/hum3/godocs/config"
+	"codeberg.org/hum3/godocs/database"
+	"codeberg.org/hum3/godocs/engine"
+	"codeberg.org/hum3/godocs/internal/testdocs"
 	"github.com/oklog/ulid/v2"
 )
 

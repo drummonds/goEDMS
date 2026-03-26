@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	database "github.com/drummonds/godocs/database"
+	database "codeberg.org/hum3/godocs/database"
 )
 
 // TestSearchEndpoint provides comprehensive tests for the search API endpoint

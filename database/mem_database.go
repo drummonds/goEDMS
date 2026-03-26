@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drummonds/godocs/config"
+	"codeberg.org/hum3/godocs/config"
 	"github.com/oklog/ulid/v2"
 )
 

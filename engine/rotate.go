@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/database"
 	pdfcpuapi "github.com/pdfcpu/pdfcpu/pkg/api"
 )
 

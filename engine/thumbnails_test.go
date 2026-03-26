@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/drummonds/godocs/internal/testdocs"
+	"codeberg.org/hum3/godocs/internal/testdocs"
 )
 
 func TestThumbnailGeneration(t *testing.T) {

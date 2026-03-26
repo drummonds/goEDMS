@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	database "github.com/drummonds/godocs/database"
+	database "codeberg.org/hum3/godocs/database"
 	"github.com/robfig/cron/v3"
 )
 

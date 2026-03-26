@@ -1,4 +1,4 @@
-module github.com/drummonds/godocs
+module codeberg.org/hum3/godocs
 
 go 1.25.3
 

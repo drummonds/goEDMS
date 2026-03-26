@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"github.com/disintegration/imaging"
-	"github.com/drummonds/godocs/config"
-	"github.com/drummonds/godocs/database"
-	"github.com/drummonds/godocs/engine/pdfrenderer"
+	"codeberg.org/hum3/godocs/config"
+	"codeberg.org/hum3/godocs/database"
+	"codeberg.org/hum3/godocs/engine/pdfrenderer"
 	"github.com/ledongthuc/pdf"
 	"github.com/oklog/ulid/v2"
 )

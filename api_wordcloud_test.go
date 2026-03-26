@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	database "github.com/drummonds/godocs/database"
+	database "codeberg.org/hum3/godocs/database"
 )
 
 // TestWordCloudAPI tests the word cloud API endpoints

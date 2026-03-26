@@ -11,9 +11,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	config "github.com/drummonds/godocs/config"
-	database "github.com/drummonds/godocs/database"
-	engine "github.com/drummonds/godocs/engine"
+	config "codeberg.org/hum3/godocs/config"
+	database "codeberg.org/hum3/godocs/database"
+	engine "codeberg.org/hum3/godocs/engine"
 )
 
 // Logger is global since we will need it everywhere

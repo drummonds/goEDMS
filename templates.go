@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/drummonds/godocs/config"
-	"github.com/drummonds/godocs/database"
-	"github.com/drummonds/godocs/internal/build"
+	"codeberg.org/hum3/godocs/config"
+	"codeberg.org/hum3/godocs/database"
+	"codeberg.org/hum3/godocs/internal/build"
 	"github.com/flosch/pongo2/v6"
 	"github.com/labstack/echo/v4"
 	"github.com/oklog/ulid/v2"

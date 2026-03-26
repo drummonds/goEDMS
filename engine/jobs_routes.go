@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/database"
 	"github.com/labstack/echo/v4"
 	"github.com/oklog/ulid/v2"
 )

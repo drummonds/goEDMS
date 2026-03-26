@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/drummonds/godocs/database"
+	"codeberg.org/hum3/godocs/database"
 )
 
 // readTagsSidecar reads tags and dimensions from a sidecar JSON file

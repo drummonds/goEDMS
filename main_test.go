@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	config "github.com/drummonds/godocs/config"
-	database "github.com/drummonds/godocs/database"
-	engine "github.com/drummonds/godocs/engine"
-	"github.com/drummonds/godocs/internal/docs"
+	config "codeberg.org/hum3/godocs/config"
+	database "codeberg.org/hum3/godocs/database"
+	engine "codeberg.org/hum3/godocs/engine"
+	"codeberg.org/hum3/godocs/internal/docs"
 	"github.com/drummonds/lofigui"
 	"github.com/labstack/echo/v4"
 )
